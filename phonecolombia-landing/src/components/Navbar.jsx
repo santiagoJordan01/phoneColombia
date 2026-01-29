@@ -46,12 +46,41 @@ export default function Navbar() {
 
       <header className={`header ${isScrolled ? "scrolled" : ""}`}>
         <nav className="navbar container">
-          <div className="logo">
-            <img
-              src="/imagenes/logo-blanco-rojo.jfif"
-              alt="Phone Colombia Logo"
-              className="imagenLogo"
-            />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <div className="logo">
+              <img
+                src="/imagenes/logo-blanco-rojo.jfif"
+                alt="Phone Colombia Logo"
+                className="imagenLogo"
+              />
+            </div>
+            <ul className={`nav-links ${isMenuOpen ? "active" : ""}`}>
+              <li>
+                <a href="#inicio" onClick={closeMenu}>
+                  Inicio
+                </a>
+              </li>
+              <li>
+                <a href="#productos" onClick={closeMenu}>
+                  Productos
+                </a>
+              </li>
+              <li>
+                <a href="#beneficios" onClick={closeMenu}>
+                  Beneficios
+                </a>
+              </li>
+              <li>
+                <a href="#testimonios" onClick={closeMenu}>
+                  Testimonios
+                </a>
+              </li>
+              <li>
+                <a href="#contacto" className="btn-nav" onClick={closeMenu}>
+                  Contáctanos
+                </a>
+              </li>
+            </ul>
           </div>
           {/* Botón hamburguesa en parte superior derecha */}
           <button
@@ -60,38 +89,8 @@ export default function Navbar() {
             aria-label={isMenuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={isMenuOpen}
           >
-            <span className="bar"></span>
-            <span className="bar"></span>
-            <span className="bar"></span>
+            <span className="material-symbols-outlined" style={{ fontSize: 32, color: '#333' }}>menu</span>
           </button>
-
-          <ul className={`nav-links ${isMenuOpen ? "active" : ""}`}>
-            <li>
-              <a href="#inicio" onClick={closeMenu}>
-                Inicio
-              </a>
-            </li>
-            <li>
-              <a href="#productos" onClick={closeMenu}>
-                Productos
-              </a>
-            </li>
-            <li>
-              <a href="#beneficios" onClick={closeMenu}>
-                Beneficios
-              </a>
-            </li>
-            <li>
-              <a href="#testimonios" onClick={closeMenu}>
-                Testimonios
-              </a>
-            </li>
-            <li>
-              <a href="#contacto" className="btn-nav" onClick={closeMenu}>
-                Contáctanos
-              </a>
-            </li>
-          </ul>
         </nav>
       </header>
     </>

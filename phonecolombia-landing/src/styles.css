@@ -85,7 +85,6 @@ body {
   height: 60px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid #ff6b35;
 }
 
 /* ===================== NAVBAR BLANCO ===================== */
@@ -95,8 +94,9 @@ nav {
   left: 0;
   width: 100%;
   z-index: 1000;
-  padding: 1.2rem 0;
-  background: white; /* ← FONDO BLANCO */
+  padding: auto;
+    background: #ffffff;
+    color: #fff;
   transition: all 0.3s ease;
   box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
 }
@@ -126,7 +126,6 @@ nav.scrolled {
   font-size: 1.5rem;
   font-weight: 700;
   white-space: nowrap;
-  color: #333333; /* ← TEXTO OSCURO PARA CONTRASTE CON FONDO BLANCO */
   text-decoration: none;
   text-shadow: none;
 }
@@ -173,19 +172,22 @@ nav.scrolled {
 
 /* ===================== BOTÓN DE CONTACTO ===================== */
 .btn-nav {
-  background: linear-gradient(90deg, #ff6b35, #ff5500);
-  color: white;
+  background: transparent;
+  color: inherit;
   padding: 0.6rem 1.8rem;
   border-radius: 30px;
   font-weight: 600;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+  transition: background 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+              color 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+              box-shadow 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+              transform 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+  box-shadow: none;
 }
 
 .btn-nav:hover {
-  background: linear-gradient(90deg, #ff5500, #ff3d00);
-  transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+  background: transparent;
+  transform: none;
+  box-shadow: none;
 }
 
 /* ===================== BOTÓN HAMBURGUESA (COLORES OSCUROS) ===================== */
@@ -193,16 +195,18 @@ nav.scrolled {
   display: none;
   flex-direction: column;
   justify-content: space-between;
-  width: 40px;
-  height: 40px;
-  background: rgba(0, 0, 0, 0.05); /* ← FONDO OSCURO SUAVE */
-  border: 2px solid rgba(0, 0, 0, 0.1); /* ← BORDE OSCURO */
-  border-radius: 8px;
+  align-items: center;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 0;
   cursor: pointer;
   padding: 10px 8px;
   z-index: 1001;
   position: relative;
-  transition: all 0.3s ease;
+  transition: opacity 0.32s cubic-bezier(.4, 0, .6, 1), color 0.32s cubic-bezier(.4, 0, .6, 1), background 0.3s;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  background-color: transparent;
 }
 
 .menu-toggle:hover {
@@ -214,20 +218,19 @@ nav.scrolled {
   display: block;
   width: 100%;
   height: 3px;
-  background-color: #333333; /* ← BARRAS OSCURAS */
+  background-color: #000000;
+  min-width: 32px;
+  max-width: 36px;
+  margin-left: 4px;
+  margin-right: 4px;
+  box-shadow: 0 1px 4px 0 rgba(0,0,0,0.12);
   border-radius: 2px;
-  transition: all 0.3s ease;
-  transform-origin: center;
-}
-
-/* Animación para transformar en "X" cuando está activo */
-.menu-toggle.active {
-  background: rgba(255, 107, 53, 0.1);
-  border-color: #ff6b35;
+  margin: 3px 0;
+  transition: all 0.3s cubic-bezier(.4, 0, .6, 1);
 }
 
 .menu-toggle.active span {
-  background-color: #ff6b35; /* ← NARANJA CUANDO ACTIVO */
+  background-color: #fff !important;
 }
 
 .menu-toggle.active span:nth-child(1) {
@@ -367,6 +370,13 @@ nav.scrolled {
 
 /* ===================== RESPONSIVE (MÓVILES) ===================== */
 @media (max-width: 768px) {
+    .menu-toggle {
+      display: flex;
+      position: absolute;
+      right: 1.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+    }
   body {
     padding-top: 90px;
     overflow-x: hidden;
@@ -423,29 +433,42 @@ nav.scrolled {
   .nav-links {
     position: fixed;
     top: 0;
-    left: -100%;
-    width: 85%;
-    max-width: 280px;
+    left: 0;
+    width: 100vw;
     height: 100vh;
-    background: white; /* ← FONDO BLANCO PARA MENÚ MÓVIL */
+    background: linear-gradient(180deg, #fcd901 0%, #ea580c 60%, #E12F01 100%);
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     justify-content: flex-start;
     gap: 0;
-    padding-top: 80px;
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-    transition: left 0.35s cubic-bezier(0.77, 0.2, 0.05, 1.0);
-    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.15);
+    padding-top: 100px;
+    box-shadow: 0 8px 40px 0 rgba(234, 88, 12, 0.18), 0 2px 16px 0 rgba(0,0,0,0.10);
+    border-radius: 0 0 32px 32px;
     z-index: 1000;
     margin: 0;
     overflow-y: auto;
+    opacity: 0;
+    transform: translateY(-100vh);
+    pointer-events: none;
+    transition:
+      opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  
+
   .nav-links.active {
-    left: 0;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+    transition:
+      opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
   }
   
+    .nav-overlay {
+      backdrop-filter: blur(20px);
+      background: rgba(255, 255, 255, 0.85);
+      transition: backdrop-filter 0.35s ease;
+    }
   /* ESTILOS PARA ITEMS EN MÓVIL */
   .nav-links li {
     width: 100%;
@@ -470,21 +493,25 @@ nav.scrolled {
   
   .nav-links a {
     font-size: 1.1rem;
-    padding: 0.9rem 0;
+    padding: 1.1rem 0 1.1rem 0.7rem;
     width: 100%;
     display: block;
-    color: #333333; /* ← TEXTO OSCURO EN MÓVIL */
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1); /* ← BORDE SUAVE OSCURO */
-    font-weight: 600;
-    transition: all 0.25s ease;
+    color: #fff;
+    border-bottom: 1px solid rgba(255,255,255,0.13);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    transition: background 0.3s, color 0.2s, padding 0.2s;
+    border-radius: 8px;
   }
   
   .nav-links a:hover {
-    transform: translateX(8px);
-    color: #ff6b35; /* ← NARANJA AL HOVER */
-    background: rgba(255, 107, 53, 0.05); /* ← FONDO NARANJA MUY SUAVE */
-    padding-left: 8px;
-    border-radius: 4px;
+    transform: translateX(8px) scale(1.04);
+    color: #fcd901;
+    background: rgba(0,0,0,0.08);
+    padding-left: 18px;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px 0 rgba(234, 88, 12, 0.10);
   }
   
   .nav-links a::after {
@@ -496,16 +523,17 @@ nav.scrolled {
     display: block;
     text-align: center;
     width: 100%;
-    background: linear-gradient(90deg, #ff6b35, #ff5500); /* ← MANTENER NARANJA */
-    border: 2px solid #ff6b35;
+    background: transparent;
+    border: none;
     padding: 0.9rem 1.5rem;
     font-size: 1rem;
-    color: white;
+    color: inherit;
+    box-shadow: none;
   }
   
   .btn-nav:hover {
-    background: linear-gradient(90deg, #ff5500, #ff3d00);
-    transform: translateX(8px);
+    background: transparent;
+    transform: none;
   }
   
   /* HERO RESPONSIVE */

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -56,40 +57,53 @@ export default function Navbar() {
             </div>
             <ul className={`nav-links ${isMenuOpen ? "active" : ""}`}>
               <li>
-                <a href="#inicio" onClick={closeMenu}>
+                <a href="/#inicio" onClick={closeMenu}>
                   Inicio
                 </a>
               </li>
               <li>
-                <a href="#productos" onClick={closeMenu}>
+                <a href="/#productos" onClick={closeMenu}>
                   Productos
                 </a>
               </li>
               <li>
-                <a href="#beneficios" onClick={closeMenu}>
+                <a href="/#beneficios" onClick={closeMenu}>
                   Beneficios
                 </a>
               </li>
               <li>
-                <a href="#testimonios" onClick={closeMenu}>
+                <Link to="/garantias" onClick={closeMenu}>
+                  Garantías
+                </Link>
+              </li>
+              <li>
+                <a href="/#testimonios" onClick={closeMenu}>
                   Testimonios
                 </a>
               </li>
               <li>
-                <a href="#contacto" className="btn-nav" onClick={closeMenu}>
+                <a href="/#contacto" className="btn-nav" onClick={closeMenu}>
                   Contáctanos
                 </a>
               </li>
             </ul>
           </div>
-          {/* Botón hamburguesa en parte superior derecha */}
+          {/* Botón hamburguesa animado y accesible */}
           <button
             className={`menu-toggle ${isMenuOpen ? "active" : ""}`}
             onClick={toggleMenu}
             aria-label={isMenuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={isMenuOpen}
+            tabIndex={0}
+            onKeyDown={e => {
+              if (e.key === "Enter" || e.key === " ") toggleMenu();
+            }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 32, color: '#333' }}>menu</span>
+            <span className="menu-icon">
+              <span className="menu-bar" />
+              <span className="menu-bar" />
+              <span className="menu-bar" />
+            </span>
           </button>
         </nav>
       </header>

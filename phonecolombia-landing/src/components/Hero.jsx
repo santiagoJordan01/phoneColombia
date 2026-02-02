@@ -2,7 +2,7 @@ export default function Hero() {
   return (
     <section id="inicio" className="hero">
       <div className="hero-container">
-        <div className="hero-text">
+        <div className="hero-text" data-animate="fade-left">
           <h1>
             Los mejores <span>smartphones</span> en Colombia
           </h1>
@@ -20,7 +20,7 @@ export default function Hero() {
           </div>
         </div>
 
-        <div className="hero-image">
+        <div className="hero-image" data-animate="fade-right">
           <img src="/public/imagenes/images-2.webp" alt="Smartphone" />
         </div>
       </div>

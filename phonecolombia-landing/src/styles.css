@@ -1,9 +1,503 @@
+/* ===================== SECCIÓN BENEFICIOS ===================== */
+.beneficios-section {
+  padding: 5rem 0 3rem;
+  background: rgba(255,255,255,0.02);
+  position: relative;
+  z-index: 1;
+}
+.beneficios-grid {
+  display: flex;
+  gap: 2.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 2.5rem;
+}
+.beneficio-card {
+  background: rgba(255,255,255,0.07);
+  border-radius: 18px;
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10);
+  padding: 2.5rem 2rem 2rem;
+  text-align: center;
+  max-width: 320px;
+  flex: 1 1 260px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.beneficio-card:hover {
+  transform: translateY(-8px) scale(1.03);
+  box-shadow: 0 8px 32px 0 rgba(255,107,53,0.18);
+}
+.beneficio-icono {
+  width: 70px;
+  height: 70px;
+  object-fit: cover;
+  margin-bottom: 1.2rem;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 10px 0 rgba(0,0,0,0.08);
+}
+.beneficio-card h3 {
+  font-size: 1.3rem;
+  margin-bottom: 0.7rem;
+  color: #ffffff;
+}
+.beneficio-card p {
+  color: #fff;
+  opacity: 0.92;
+  font-size: 1.05rem;
+}
+
+/* ===================== SECCIÓN GARANTÍAS ===================== */
+.garantias-section {
+  padding: 5rem 0 3rem;
+  background: rgba(255,255,255,0.02);
+  position: relative;
+  z-index: 1;
+}
+.garantias-grid {
+  display: flex;
+  gap: 2.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 2.5rem;
+}
+.garantia-card {
+  background: rgba(255,255,255,0.07);
+  border-radius: 18px;
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10);
+  padding: 2.5rem 2rem 2rem;
+  text-align: center;
+  max-width: 320px;
+  flex: 1 1 260px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  color: #fff;
+}
+.garantia-card:hover {
+  transform: translateY(-8px) scale(1.03);
+  box-shadow: 0 8px 32px 0 rgba(255,107,53,0.18);
+}
+.garantia-card h3 {
+  font-size: 1.3rem;
+  margin-bottom: 0.7rem;
+  color: #ffffff;
+}
+.garantia-card p {
+  color: #fff;
+  opacity: 0.92;
+  font-size: 1.05rem;
+}
+
+/* ===================== SECCIÓN PRODUCTOS ===================== */
+.productos-section {
+  padding: 5rem 0 3rem;
+  background: rgba(0,0,0,0.03);
+  position: relative;
+  z-index: 1;
+}
+.productos-grid {
+  display: flex;
+  gap: 2.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 2.5rem;
+}
+.producto-card {
+  background: rgba(255,255,255,0.07);
+  border-radius: 18px;
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10);
+  padding: 2rem 1.5rem 1.5rem;
+  text-align: center;
+  max-width: 320px;
+  flex: 1 1 260px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  color: #fff;
+}
+.producto-card:hover {
+  transform: translateY(-8px) scale(1.03);
+  box-shadow: 0 8px 32px 0 rgba(255,107,53,0.18);
+}
+.producto-imagen {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  margin-bottom: 1.2rem;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 2px 10px 0 rgba(0,0,0,0.08);
+}
+.producto-nombre {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+  color: #ffffff;
+}
+.producto-descripcion {
+  color: #fff;
+  opacity: 0.92;
+  font-size: 1.05rem;
+  margin-bottom: 1rem;
+}
+.producto-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+.producto-precio {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+/* ===================== SECCIÓN TESTIMONIOS ===================== */
+.testimonios-section {
+  padding: 5rem 0 3rem;
+  background: rgba(255,255,255,0.01);
+  position: relative;
+  z-index: 1;
+}
+
+/* ===================== SECCIÓN UBICACIÓN ===================== */
+.ubicacion-section {
+  padding: 5rem 0 3rem;
+  background: rgba(255,255,255,0.01);
+  position: relative;
+  z-index: 1;
+}
+.ubicacion-subtitle {
+  text-align: center;
+  color: #fff;
+  opacity: 0.9;
+  margin-top: -0.5rem;
+}
+.mapa-wrapper {
+  margin-top: 2rem;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  background: rgba(255,255,255,0.07);
+}
+.mapa-wrapper iframe {
+  width: 100%;
+  height: 380px;
+  border: 0;
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .mapa-wrapper iframe {
+    height: 280px;
+  }
+}
+
+/* ===================== SECCIÓN CLIENTES ===================== */
+.clientes-section {
+  padding: 5rem 0 3rem;
+  background: rgba(255,255,255,0.01);
+  position: relative;
+  z-index: 1;
+}
+.clientes-subtitle {
+  text-align: center;
+  color: #fff;
+  opacity: 0.9;
+  margin-top: -0.5rem;
+}
+.clientes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2.5rem;
+}
+.cliente-card {
+  background: rgba(255,255,255,0.07);
+  border-radius: 16px;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.cliente-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 8px 28px 0 rgba(255,107,53,0.18);
+}
+
+/* ===================== CARRUSEL ENTREGAS ===================== */
+.entregas-carousel {
+  margin-top: 2.5rem;
+  width: 100%;
+  max-width: 100%;
+}
+.entregas-title {
+  color: #ffffff;
+  font-size: 1.4rem;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+.entregas-track {
+  display: flex;
+  gap: 1.2rem;
+  align-items: stretch;
+  overflow-x: auto;
+  padding: 0.5rem 0 0.8rem;
+    scroll-behavior: smooth;
+    transition: scroll-left 2s cubic-bezier(0.4, 0, 0.2, 1);
+  scroll-snap-type: x mandatory;
+  width: 100%;
+  max-width: 100%;
+}
+.entrega-card {
+  scroll-snap-align: start;
+  background: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  color: inherit;
+  flex: 0 0 auto;
+  min-width: 0;
+  display: block;
+  flex-direction: unset;
+  gap: 0;
+}
+.entrega-card img {
+  width: 100%;
+  height: 274px;
+  max-height: 495px;
+    object-fit: contain;
+    border-radius: 0;
+    box-shadow: none;
+    width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+.entrega-card figcaption {
+  display: none;
+}
+.entrega-card strong {
+  color: #ffffff;
+}
+.entrega-card span {
+  opacity: 0.9;
+}
+
+@media (max-width: 1024px) {
+  .entrega-card {
+    flex: 0 0 calc((100% - 1.2rem) / 2);
+  }
+}
+
+@media (max-width: 640px) {
+  .entregas-track {
+    padding: 0.5rem 1rem 1rem;
+  }
+  .entrega-card {
+    flex: 0 0 85%;
+    margin-right: 0.4rem;
+  }
+}
+.testimonios-grid {
+  display: flex;
+  gap: 2.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 2.5rem;
+}
+.testimonio-card {
+  background: rgba(255,255,255,0.07);
+  border-radius: 18px;
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10);
+  padding: 2rem 1.5rem 1.5rem;
+  text-align: center;
+  max-width: 320px;
+  flex: 1 1 260px;
+  color: #fff;
+  font-style: italic;
+  position: relative;
+}
+.testimonio-card:before {
+  content: '“';
+  font-size: 2.5rem;
+  color: #ffffff;
+  position: absolute;
+  left: 1rem;
+  top: 0.5rem;
+}
+.testimonio-nombre {
+  display: block;
+  margin-top: 1.2rem;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* ===================== SECCIÓN CONTACTO ===================== */
+.contacto-section {
+  padding: 5rem 0 3rem;
+  background: transparent;
+  position: relative;
+  z-index: 1;
+}
+.contacto-container {
+  display: flex;
+  gap: 3rem;
+  justify-content: center;
+  align-items: stretch;
+  flex-wrap: wrap;
+  max-width: 980px;
+  margin: 0 auto;
+}
+.contacto-container .section-title {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+.contacto-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  background: rgba(255,255,255,0.07);
+  padding: 2rem 2.5rem;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10);
+  min-width: 300px;
+  max-width: 460px;
+  flex: 1 1 420px;
+}
+.contacto-form input,
+.contacto-form textarea {
+  padding: 0.9rem 1.2rem;
+  border-radius: 8px;
+  border: 1px solid rgba(252,217,1,0.6);
+  font-size: 1rem;
+  outline: none;
+  resize: none;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+.contacto-form input::placeholder,
+.contacto-form textarea::placeholder {
+  color: rgba(255,255,255,0.8);
+}
+.contacto-form textarea {
+  min-height: 90px;
+  max-height: 200px;
+}
+.contacto-form button {
+  margin-top: 0.5rem;
+}
+.contacto-info {
+  color: #fff;
+  font-size: 1.1rem;
+  background: rgba(255,255,255,0.07);
+  border-radius: 14px;
+  padding: 2rem 2.5rem;
+  min-width: 260px;
+  max-width: 360px;
+  flex: 1 1 300px;
+  box-shadow: 0 2px 10px 0 rgba(0,0,0,0.08);
+  margin-top: 0;
+}
+.contacto-info strong {
+  color: #ffffff
+}
+
+/* ===================== FOOTER ===================== */
+.footer {
+  background: #181818;
+  color: #fff;
+  padding: 2.2rem 0 1.2rem;
+  text-align: center;
+  font-size: 1.1rem;
+  margin-top: 0;
+}
+.footer-container {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+.section-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
 /* ===================== RESET + FUENTE ===================== */
 * {
   font-family: "Play", sans-serif;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* ===================== ANIMACIONES ON SCROLL ===================== */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+  will-change: opacity, transform;
+}
+.animate-on-scroll[data-animate="fade-left"] {
+  transform: translateX(-40px);
+}
+.animate-on-scroll[data-animate="fade-right"] {
+  transform: translateX(40px);
+}
+.animate-on-scroll[data-animate="fade-up"] {
+  transform: translateY(40px);
+}
+
+/* Animación más sutil en Contacto */
+.contacto-form.animate-on-scroll,
+.contacto-info.animate-on-scroll {
+  transform: translateY(14px);
+}
+.animate-in {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+.animate-on-scroll[data-animate="stagger"] .beneficio-card,
+.animate-on-scroll[data-animate="stagger"] .garantia-card,
+.animate-on-scroll[data-animate="stagger"] .cliente-card,
+.animate-on-scroll[data-animate="stagger"] .producto-card,
+.animate-on-scroll[data-animate="stagger"] .testimonio-card {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+.animate-on-scroll[data-animate="stagger"].animate-in .beneficio-card,
+.animate-on-scroll[data-animate="stagger"].animate-in .garantia-card,
+.animate-on-scroll[data-animate="stagger"].animate-in .cliente-card,
+.animate-on-scroll[data-animate="stagger"].animate-in .producto-card,
+.animate-on-scroll[data-animate="stagger"].animate-in .testimonio-card {
+  opacity: 1;
+  transform: translateY(0);
+}
+.animate-on-scroll[data-animate="stagger"].animate-in .beneficio-card:nth-child(1),
+.animate-on-scroll[data-animate="stagger"].animate-in .garantia-card:nth-child(1),
+.animate-on-scroll[data-animate="stagger"].animate-in .cliente-card:nth-child(1),
+.animate-on-scroll[data-animate="stagger"].animate-in .producto-card:nth-child(1),
+.animate-on-scroll[data-animate="stagger"].animate-in .testimonio-card:nth-child(1) {
+  transition-delay: 0.1s;
+}
+.animate-on-scroll[data-animate="stagger"].animate-in .beneficio-card:nth-child(2),
+.animate-on-scroll[data-animate="stagger"].animate-in .garantia-card:nth-child(2),
+.animate-on-scroll[data-animate="stagger"].animate-in .cliente-card:nth-child(2),
+.animate-on-scroll[data-animate="stagger"].animate-in .producto-card:nth-child(2),
+.animate-on-scroll[data-animate="stagger"].animate-in .testimonio-card:nth-child(2) {
+  transition-delay: 0.2s;
+}
+.animate-on-scroll[data-animate="stagger"].animate-in .beneficio-card:nth-child(3),
+.animate-on-scroll[data-animate="stagger"].animate-in .garantia-card:nth-child(3),
+.animate-on-scroll[data-animate="stagger"].animate-in .cliente-card:nth-child(3),
+.animate-on-scroll[data-animate="stagger"].animate-in .producto-card:nth-child(3),
+.animate-on-scroll[data-animate="stagger"].animate-in .testimonio-card:nth-child(3) {
+  transition-delay: 0.3s;
 }
 
 /* ===================== BODY (CORREGIDO) ===================== */
@@ -196,54 +690,78 @@ nav.scrolled {
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-    width: 44px;
-    height: 44px;
+    width: 46px;
+    height: 46px;
     border: none;
-    border-radius: 0;
+    border-radius: 12px;
   cursor: pointer;
   padding: 10px 8px;
   z-index: 1001;
   position: relative;
-  transition: opacity 0.32s cubic-bezier(.4, 0, .6, 1), color 0.32s cubic-bezier(.4, 0, .6, 1), background 0.3s;
+  transition: transform 0.2s ease, box-shadow 0.3s ease, background 0.3s ease;
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-  background-color: transparent;
+  background-color: rgba(0, 0, 0, 0.04);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+  outline: none;
 }
 
 .menu-toggle:hover {
-  background: rgba(0, 0, 0, 0.1);
-  border-color: rgba(0, 0, 0, 0.2);
+  background: rgba(234, 88, 12, 0.12);
+  box-shadow: 0 8px 20px rgba(234,88,12,0.18);
 }
 
-.menu-toggle span {
+.menu-toggle:active {
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+.menu-toggle:focus,
+.menu-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+.menu-icon {
+  position: relative;
+  width: 28px;
+  height: 22px;
   display: block;
+}
+
+.menu-bar {
+  position: absolute;
+  left: 0;
   width: 100%;
   height: 3px;
-  background-color: #000000;
-  min-width: 32px;
-  max-width: 36px;
-  margin-left: 4px;
-  margin-right: 4px;
-  box-shadow: 0 1px 4px 0 rgba(0,0,0,0.12);
-  border-radius: 2px;
-  margin: 3px 0;
-  transition: all 0.3s cubic-bezier(.4, 0, .6, 1);
+  background: #1f1f1f;
+  border-radius: 6px;
+  transition: transform 0.35s ease, opacity 0.2s ease, background 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
 }
 
-.menu-toggle.active span {
-  background-color: #fff !important;
+.menu-bar:nth-child(1) { top: 0; }
+.menu-bar:nth-child(2) { top: 9px; }
+.menu-bar:nth-child(3) { top: 18px; }
+
+.menu-toggle.active {
+  background: rgba(234, 88, 12, 0.18);
+  box-shadow: 0 8px 24px rgba(234,88,12,0.25);
 }
 
-.menu-toggle.active span:nth-child(1) {
-  transform: translateY(10.5px) rotate(45deg);
+.menu-toggle.active .menu-bar {
+  background: #ea580c;
 }
 
-.menu-toggle.active span:nth-child(2) {
+.menu-toggle.active .menu-bar:nth-child(1) {
+  transform: translateY(9px) rotate(45deg);
+}
+
+.menu-toggle.active .menu-bar:nth-child(2) {
   opacity: 0;
-  transform: scale(0);
+  transform: scale(0.6);
 }
 
-.menu-toggle.active span:nth-child(3) {
-  transform: translateY(-10.5px) rotate(-45deg);
+.menu-toggle.active .menu-bar:nth-child(3) {
+  transform: translateY(-9px) rotate(-45deg);
 }
 
 /* ===================== OVERLAY PARA CERRAR MENÚ ===================== */
@@ -282,14 +800,15 @@ nav.scrolled {
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 4rem;
+  margin: 0 auto;
 }
 
 /* ===================== HERO TEXT ===================== */
 .hero-text {
   flex: 1;
-  text-align: left;
+  text-align: center;
   max-width: 600px;
 }
 
@@ -314,6 +833,7 @@ nav.scrolled {
   gap: 1.5rem;
   margin-bottom: 3rem;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .btn-primary, .btn-secondary {
@@ -433,23 +953,24 @@ nav.scrolled {
   .nav-links {
     position: fixed;
     top: 0;
-    left: 0;
-    width: 100vw;
+    left: 50%;
+    transform: translate(-50%, -100vh);
+    width: min(88vw, 320px);
     height: 100vh;
     background: linear-gradient(180deg, #fcd901 0%, #ea580c 60%, #E12F01 100%);
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
     gap: 0;
-    padding-top: 100px;
-    box-shadow: 0 8px 40px 0 rgba(234, 88, 12, 0.18), 0 2px 16px 0 rgba(0,0,0,0.10);
-    border-radius: 0 0 32px 32px;
+    padding-top: 90px;
+    box-shadow: 0 18px 60px 0 rgba(234, 88, 12, 0.25), 0 6px 24px 0 rgba(0,0,0,0.12);
+    border-radius: 0 0 28px 28px;
     z-index: 1000;
     margin: 0;
     overflow-y: auto;
     opacity: 0;
-    transform: translateY(-100vh);
     pointer-events: none;
+    text-align: left;
     transition:
       opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1),
       transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
@@ -457,11 +978,9 @@ nav.scrolled {
 
   .nav-links.active {
     opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
-    transition:
-      opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-      transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-transition: 100ms background-color linear, 100ms color linear, 100ms opacity linear;
+    transition: 100ms background-color linear, 100ms color linear, 100ms opacity linear;
+      transform 1s cubic-bezier(0.4, 0, 0.2, 1);
   }
   
     .nav-overlay {
@@ -473,6 +992,7 @@ nav.scrolled {
   .nav-links li {
     width: 100%;
     margin-bottom: 0.5rem;
+    padding: 0 0.6rem;
     opacity: 0;
     transform: translateX(-15px);
     animation: slideIn 0.3s ease forwards;
@@ -493,11 +1013,11 @@ nav.scrolled {
   
   .nav-links a {
     font-size: 1.1rem;
-    padding: 1.1rem 0 1.1rem 0.7rem;
+    padding: 1rem 0.8rem;
     width: 100%;
     display: block;
     color: #fff;
-    border-bottom: 1px solid rgba(255,255,255,0.13);
+    border-bottom: 1px solid rgba(255,255,255,0.18);
     font-weight: 700;
     letter-spacing: 0.5px;
     text-shadow: 0 2px 8px rgba(0,0,0,0.10);
@@ -509,7 +1029,7 @@ nav.scrolled {
     transform: translateX(8px) scale(1.04);
     color: #fcd901;
     background: rgba(0,0,0,0.08);
-    padding-left: 18px;
+    padding-left: 14px;
     border-radius: 12px;
     box-shadow: 0 2px 12px 0 rgba(234, 88, 12, 0.10);
   }
@@ -573,8 +1093,49 @@ nav.scrolled {
   }
   
   .hero-image img {
-    max-height: 280px;
-    max-width: 90%;
+    max-height: 240px;
+    max-width: 75%;
+    margin: 0 auto;
+  }
+
+  .beneficios-section,
+  .garantias-section,
+  .productos-section,
+  .clientes-section,
+  .testimonios-section,
+  .contacto-section {
+    padding: 3.5rem 0 2rem;
+  }
+
+  /* Evitar desplazamientos laterales por animaciones en mobile */
+  .animate-on-scroll[data-animate="fade-left"],
+  .animate-on-scroll[data-animate="fade-right"] {
+    transform: translateY(30px);
+  }
+
+  .beneficios-grid,
+  .garantias-grid,
+  .clientes-grid,
+  .productos-grid,
+  .testimonios-grid {
+    gap: 1.5rem;
+  }
+
+  .beneficio-card,
+  .garantia-card,
+  .producto-card,
+  .testimonio-card {
+    max-width: 100%;
+  }
+
+  .contacto-container {
+    gap: 2rem;
+  }
+
+  .contacto-form,
+  .contacto-info {
+    width: 100%;
+    max-width: 420px;
   }
   
   /* Ajustes para círculos del background en móviles */

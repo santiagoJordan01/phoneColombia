@@ -13,6 +13,10 @@ export default function Ubicacion() {
           <iframe
             title="Ubicación Phone Colombia"
             src="https://www.google.com/maps?q=3.387200,-76.539700&z=16&output=embed"
+            width="600"
+            height="450"
+            style={{ border: 0 }}
+            allowFullScreen=""
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
           />

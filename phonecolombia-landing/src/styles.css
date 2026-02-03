@@ -1,3 +1,27 @@
+/* Invertir la flecha izquierda del carrusel para que apunte a la izquierda */
+.entregas-arrow--left .entregas-arrow-icon {
+  transform: scaleX(-1);
+}
+@media (prefers-color-scheme: light) {
+  button {
+    background-color: inherit;
+  }
+}
+
+.main [data-module-template="tv-plus-gallery"] .gallery .paddlenav button {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: none !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  margin-top: 0;
+  pointer-events: all;
+}
 /* ===================== SECCIÓN BENEFICIOS ===================== */
 .beneficios-section {
   padding: 5rem 0 3rem;
@@ -228,6 +252,10 @@
   margin-top: 2.5rem;
   width: 100%;
   max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
 }
 .entregas-title {
   color: #ffffff;
@@ -235,42 +263,62 @@
   text-align: center;
   margin-bottom: 1rem;
 }
+.entregas-viewport {
+  width: 100%;
+  max-width: 900px;
+  height: 382.78;
+  overflow: hidden;
+  position: relative;
+}
 .entregas-track {
   display: flex;
-  gap: 1.2rem;
   align-items: stretch;
-  overflow-x: auto;
-  padding: 0.5rem 0 0.8rem;
-    scroll-behavior: smooth;
-    transition: scroll-left 2s cubic-bezier(0.4, 0, 0.2, 1);
-  scroll-snap-type: x mandatory;
   width: 100%;
   max-width: 100%;
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+  position: relative;
+  z-index: 1;
 }
+
+@media (min-width: 1025px) {
+    .entregas-arrow {
+      display: none !important;
+    }
+  .entregas-track {
+    /* Mostrar 3 cards a la vez */
+    /* El ancho total será 3 * 689px = 2067px, pero usamos flex para responsividad */
+    gap: 24px;
+  }
+  .entrega-card {
+    flex: 0 0 calc((100% - 48px) / 3); /* 3 cards, 2 gaps de 24px */
+    max-width: calc((100% - 48px) / 3);
+    width: 100%;
+    height: 500px;
+    box-sizing: border-box;
+  }
+}
+
 .entrega-card {
-  scroll-snap-align: start;
   background: none;
   border-radius: 0;
   padding: 0;
   box-shadow: none;
   color: inherit;
-  flex: 0 0 auto;
+  flex: 0 0 100%;
   min-width: 0;
-  display: block;
-  flex-direction: unset;
-  gap: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .entrega-card img {
-  width: 100%;
-  height: 274px;
-  max-height: 495px;
-    object-fit: contain;
-    border-radius: 0;
-    box-shadow: none;
-    width: 100%;
-    height: auto;
-    display: block;
-    margin: 0 auto;
+  width: min(65vw, 250px);
+  height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  display: block;
+  margin: 0 auto;
 }
 .entrega-card figcaption {
   display: none;
@@ -282,21 +330,167 @@
   opacity: 0.9;
 }
 
+.entregas-controls {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+
+  .entregas-toggle-icon {
+    width: 1.6em;
+    height: 1.6em;
+    display: inline-block;
+    vertical-align: middle;
+    color: #fff;
+    margin-left: 0.2em;
+    margin-right: 0.2em;
+  
+  
+}
+
+.entregas-toggle:hover {
+  background: linear-gradient(90deg, #ea580c 0%, #ff6b35 100%);
+  color: #fff;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 4px 18px 0 rgba(234, 88, 12, 0.18);
+}
+
+.entregas-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.entregas-dot {
+    aspect-ratio: 1/1;
+    display: inline-block;
+    padding: 0;
+    border: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #bdbdbd;
+  cursor: pointer;
+  transition: transform 0.3s, background 0.3s;
+  display: inline-block;
+  margin: 0 3px;
+  box-shadow: 0 0 0 1px #8882 inset;
+  opacity: 1;
+}
+
+.entregas-dot.active {
+  background: #333;
+  transform: scale(1.15);
+  box-shadow: 0 0 0 1.5px #333 inset;
+}
+
+.entregas-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.55);
+  background: rgba(0,0,0,0.25);
+  color: #000;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.entregas-arrow--left {
+  left: 12px;
+}
+
+.entregas-arrow--right {
+  right: 12px;
+}
+
+
+.entregas-arrow-size {
+  width: 44px;
+  height: 44px;
+  display: block;
+}
+
+.entregas-arrow-icon {
+  color: #000;
+}
+
+
+
 @media (max-width: 1024px) {
-  .entrega-card {
-    flex: 0 0 calc((100% - 1.2rem) / 2);
+  .entregas-viewport {
+    max-width: 720px;
+  }
+  .entrega-card img {
+    width: min(90vw, 900px);
+    height: 100%;
+    object-fit: contain;
   }
 }
 
 @media (max-width: 640px) {
-  .entregas-track {
-    padding: 0.5rem 1rem 1rem;
+  .entregas-title {
+    margin-bottom: 0.6rem;
   }
+  .entregas-viewport {
+    max-width: min(92vw, 420px);
+    width: min(92vw, 420px);
+    height: 495px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .entregas-track,
   .entrega-card {
-    flex: 0 0 85%;
-    margin-right: 0.4rem;
+    height: 100%;
+  }
+  .entrega-card .inner {
+    height: 100%;
+    width: 100%;
+    max-width: 100%;
+  }
+  /* ESTILOS CORREGIDOS PARA LAS FLECHAS */
+  .entregas-viewport .entregas-arrow {
+    width: 54px;
+    height: 100%;
+    border-radius: 0;
+    border: 0;
+    background: none !important;
+    position: absolute;
+    top: 0;
+    text-align: center;
+    margin-top: 0;
+    pointer-events: all;
+    transform: none;
+    display: flex;
+    align-items: center;
+    z-index: 2;
+  }
+  .entregas-viewport .entregas-arrow--left {
+    left: 0;
+    justify-content: flex-start;
+    padding-left: 4px;
+  }
+  .entregas-viewport .entregas-arrow--right {
+    right: 0;
+    left: auto;
+    justify-content: flex-end;
+    padding-right: 4px;
+  }
+
+  .entrega-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 }
+
 .testimonios-grid {
   display: flex;
   gap: 2.5rem;

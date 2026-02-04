@@ -1147,18 +1147,27 @@ nav.scrolled {
   .nav-links {
     position: fixed;
     top: 0;
-    left: 50%;
-    transform: translate(-50%, -100vh);
-    width: min(88vw, 320px);
-    height: 100vh;
-    background: linear-gradient(180deg, #fcd901 0%, #ea580c 60%, #E12F01 100%);
+    left: 0;
+      transform: translateY(-100vh);
+      width: 100vw;
+      height: 100vh;
+      height: calc(1vh * 100);
+      height: calc(var(--ferrari-vh-fix, 1vh) * 100);
+      z-index: 740;
+      background: linear-gradient(120deg, #fcd901 0%, #ea580c 20%, #E12F01 40%, #000000 100%);
+      overflow: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding: 137px 24px 64px;
+    transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1), transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform, opacity;
+      background: linear-gradient(120deg, #fcd901 0%, #ea580c 20%, #E12F01 40%, #000000 100%);
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
     gap: 0;
     padding-top: 90px;
     box-shadow: 0 18px 60px 0 rgba(234, 88, 12, 0.25), 0 6px 24px 0 rgba(0,0,0,0.12);
-    border-radius: 0 0 28px 28px;
+    border-radius: 0;
     z-index: 1000;
     margin: 0;
     overflow-y: auto;
@@ -1172,16 +1181,18 @@ nav.scrolled {
 
   .nav-links.active {
     opacity: 1;
-    -webkit-transition: 100ms background-color linear, 100ms color linear, 100ms opacity linear;
-    transition: 100ms background-color linear, 100ms color linear, 100ms opacity linear;
-      transform 1s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: auto;
+    transform: translateY(0);
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    min-height: 100vh;
+    min-width: 100vw;
+    transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1), transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
   }
   
-    .nav-overlay {
-      backdrop-filter: blur(20px);
-      background: rgba(255, 255, 255, 0.85);
-      transition: backdrop-filter 0.35s ease;
-    }
+
   /* ESTILOS PARA ITEMS EN MÓVIL */
   .nav-links li {
     width: 100%;

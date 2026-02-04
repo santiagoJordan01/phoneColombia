@@ -21,7 +21,9 @@ export default function Hero() {
         </div>
 
         <div className="hero-image" data-animate="fade-right">
-          <img src="/public/imagenes/images-2.webp" alt="Smartphone" />
+          <video src="/imagenes/Hero/phonecolombiavideohero.mp4" autoPlay loop muted playsInline style={{ width: '100%', height: 'auto', borderRadius: '1rem' }}>
+            Tu navegador no soporta la reproducción de video.
+          </video>
         </div>
       </div>
     </section>

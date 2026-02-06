@@ -1,4 +1,18 @@
+import { useRef } from "react";
+
 export default function Hero() {
+  const videoRef = useRef(null);
+
+  const handleVideoClick = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play();
+    } else {
+      video.pause();
+    }
+  };
+
   return (
     <section id="inicio" className="hero">
       <div className="hero-container">
@@ -21,7 +35,15 @@ export default function Hero() {
         </div>
 
         <div className="hero-image" data-animate="fade-right">
-          <video src="/imagenes/Hero/phonecolombiavideohero.mp4" autoPlay loop muted playsInline style={{ width: '100%', height: 'auto', borderRadius: '1rem' }}>
+          <video
+            ref={videoRef}
+            src="/imagenes/Hero/phonecolombiavideohero.mp4"
+            autoPlay
+            loop
+            playsInline
+            onClick={handleVideoClick}
+            style={{ cursor: "pointer" }}
+          >
             Tu navegador no soporta la reproducción de video.
           </video>
         </div>

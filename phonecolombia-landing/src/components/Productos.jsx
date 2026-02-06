@@ -1,5 +1,7 @@
+
 import React from "react";
 import "../styles.css";
+import { IconWhatsapp, IconInstagram, IconTelegram } from "./SocialIcons";
 
 export default function Producto({ imagen, nombre, descripcion, precio, onClick }) {
   return (
@@ -14,6 +16,11 @@ export default function Producto({ imagen, nombre, descripcion, precio, onClick 
             Comprar
           </button>
         )}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1.2rem' }}>
+        <IconWhatsapp />
+        <IconInstagram />
+        <IconTelegram />
       </div>
     </div>
   );

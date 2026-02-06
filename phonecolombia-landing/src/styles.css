@@ -1,3 +1,12 @@
+/* Centrado para el contenido de la sección hero de garantías */
+.page-hero-content {
+    gap: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
 /* Invertir la flecha izquierda del carrusel para que apunte a la izquierda */
 .entregas-arrow--left .entregas-arrow-icon {
   transform: scaleX(-1);
@@ -72,10 +81,10 @@
 
 /* ===================== SECCIÓN GARANTÍAS ===================== */
 .garantias-section {
-  padding: 5rem 0 3rem;
-  background: rgba(255,255,255,0.02);
+  padding: 1rem 0 3rem;
   position: relative;
   z-index: 1;
+  margin:40px;
 }
 .garantias-grid {
   display: flex;
@@ -83,6 +92,7 @@
   justify-content: center;
   flex-wrap: wrap;
   margin-top: 2.5rem;
+  margin-bottom: 3rem;
 }
 .garantia-card {
   background: rgba(255,255,255,0.07);
@@ -181,7 +191,7 @@
 
 /* ===================== SECCIÓN UBICACIÓN ===================== */
 .ubicacion-section {
-  padding: 5rem 0 3rem;
+  padding: 1rem 0 1rem;
   background: rgba(255,255,255,0.01);
   position: relative;
   z-index: 1;
@@ -528,10 +538,10 @@
 
 /* ===================== SECCIÓN CONTACTO ===================== */
 .contacto-section {
-  padding: 5rem 0 3rem;
+  padding: 3rem 0 5rem;
   background: transparent;
   position: relative;
-  z-index: 1;
+  z-index: 3;
 }
 .contacto-container {
   display: flex;
@@ -579,6 +589,9 @@
 }
 .contacto-form button {
   margin-top: 0.5rem;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
 }
 .contacto-info {
   color: #fff;
@@ -617,7 +630,7 @@
   font-size: 2.2rem;
   font-weight: 800;
   color: #ffffff;
-  margin-bottom: 1.5rem;
+  margin-bottom: 4.5rem;
   text-align: center;
   letter-spacing: 0.5px;
 }
@@ -983,7 +996,7 @@ nav.scrolled {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 4rem 2rem 3rem;
+  padding: 1rem 2rem 3rem;
   position: relative;
   z-index: 1;
 }
@@ -997,6 +1010,7 @@ nav.scrolled {
   justify-content: center;
   gap: 4rem;
   margin: 0 auto;
+  margin-top: -20px;
 }
 
 /* ===================== HERO TEXT ===================== */
@@ -1069,17 +1083,28 @@ nav.scrolled {
 .hero-image {
   flex: 1;
   display: flex;
+  height:100px;
   justify-content: center;
   align-items: center;
+
+
+}
+.hero-image video{
+    width: 50%;
+     height: auto;
+    border-radius: 1rem;
 }
 
 .hero-image img {
   max-width: 100%;
-  max-height: 400px;
+  max-height:400px;
   object-fit: contain;
   filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3));
   width: auto;
   height: auto;
+}
+.garantias-grid {
+  margin-bottom: 3rem;
 }
 
 /* ===================== RESPONSIVE (MÓVILES) ===================== */
@@ -1184,7 +1209,7 @@ nav.scrolled {
     pointer-events: auto;
     transform: translateY(0);
     margin: 0;
-    padding: 0;
+    padding: 60px;
     width: 100vw;
     height: 100vh;
     min-height: 100vh;
@@ -1297,19 +1322,20 @@ nav.scrolled {
     min-width: 160px;
   }
   
-  .hero-image img {
-    max-height: 240px;
-    max-width: 75%;
-    margin: 0 auto;
+  .hero-image video {
+   
+ 
+    width: 90%;
+     height: auto;
+    border-radius: 1rem;
+
   }
 
   .beneficios-section,
-  .garantias-section,
   .productos-section,
   .clientes-section,
-  .testimonios-section,
-  .contacto-section {
-    padding: 3.5rem 0 2rem;
+  .testimonios-section{
+    padding: 3rem 0 2rem;
   }
 
   /* Evitar desplazamientos laterales por animaciones en mobile */
@@ -1335,6 +1361,9 @@ nav.scrolled {
 
   .contacto-container {
     gap: 2rem;
+  }
+  .contacto-section{
+    padding: 3rem 0 5rem;
   }
 
   .contacto-form,

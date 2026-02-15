@@ -23,11 +23,15 @@ export default function Navbar() {
       }
     };
 
+    handleScroll();
+
     // Bloquear scroll cuando el menú está abierto
     if (isMenuOpen) {
       document.body.style.overflow = "hidden";
+      document.body.classList.add("mobile-menu-open");
     } else {
       document.body.style.overflow = "";
+      document.body.classList.remove("mobile-menu-open");
     }
 
     window.addEventListener("scroll", handleScroll);
@@ -35,6 +39,7 @@ export default function Navbar() {
     return () => {
       window.removeEventListener("scroll", handleScroll);
       document.body.style.overflow = "";
+      document.body.classList.remove("mobile-menu-open");
     };
   }, [isMenuOpen]);
 
@@ -45,44 +50,44 @@ export default function Navbar() {
         <div className="nav-overlay" onClick={closeMenu} aria-hidden="true" />
       )}
 
-      <header className={`header ${isScrolled ? "scrolled" : ""}`}>
-        <nav className="navbar container">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <div className="logo">
+      <header className="header">
+        <nav className={`navbar ${isScrolled ? "scrolled" : ""}`}>
+          <div className="nav-container" style={{ width: '100%' }}>
+            <a className="logo" href={`${import.meta.env.BASE_URL}#inicio`} onClick={closeMenu}>
               <img
-                src="/imagenes/logo-blanco-rojo.jfif"
+                src={`${import.meta.env.BASE_URL}imagenes/logo-blanco-rojo.jfif`}
                 alt="Phone Colombia Logo"
                 className="imagenLogo"
               />
-            </div>
+            </a>
             <ul className={`nav-links ${isMenuOpen ? "active" : ""}`}>
               <li>
-                <a href="/#inicio" onClick={closeMenu}>
+                <a href={`${import.meta.env.BASE_URL}#inicio`}className="btn-nav"  onClick={closeMenu}>
                   Inicio
                 </a>
               </li>
               <li>
-                <a href="/#productos" onClick={closeMenu}>
+                <a href={`${import.meta.env.BASE_URL}#productos`}className="btn-nav"  onClick={closeMenu}>
                   Productos
                 </a>
               </li>
               <li>
-                <a href="/#beneficios" onClick={closeMenu}>
+                <a href={`${import.meta.env.BASE_URL}#beneficios`} className="btn-nav" onClick={closeMenu}>
                   Beneficios
                 </a>
               </li>
               <li>
-                <Link to="/garantias" onClick={closeMenu}>
+                <Link to="/garantias" className="btn-nav" onClick={closeMenu}>
                   Garantías
                 </Link>
               </li>
               <li>
-                <a href="/#testimonios" onClick={closeMenu}>
+                <a href={`${import.meta.env.BASE_URL}#testimonios`}className="btn-nav"  onClick={closeMenu}>
                   Testimonios
                 </a>
               </li>
               <li>
-                <a href="/#contacto" className="btn-nav" onClick={closeMenu}>
+                <a href={`${import.meta.env.BASE_URL}#contacto`} className="btn-nav" onClick={closeMenu}>
                   Contáctanos
                 </a>
               </li>

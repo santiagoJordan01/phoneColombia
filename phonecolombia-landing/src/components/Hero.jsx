@@ -16,6 +16,21 @@ export default function Hero() {
   return (
     <section id="inicio" className="hero">
       <div className="hero-container">
+
+
+          <div className="hero-image" data-animate="fade-right">
+          <video
+            ref={videoRef}
+            src={`${import.meta.env.BASE_URL}imagenes/Hero/phonecolombiavideohero.mp4`}
+            autoPlay
+            loop
+            playsInline
+            onClick={handleVideoClick}
+            style={{ cursor: "pointer" }}
+          >
+            Tu navegador no soporta la reproducción de video.
+          </video>
+        </div>
         <div className="hero-text" data-animate="fade-left">
           <h1>
             Los mejores <span>smartphones</span> en Colombia
@@ -28,25 +43,13 @@ export default function Hero() {
             <a href="#productos" className="btn-primary">
               Ver productos
             </a>
-            <a href="#contacto" className="btn-secondary">
-              Contáctanos
+            <a href="/phonecolombia-landing/garantias" className="btn-secondary">
+              Garantías
             </a>
           </div>
         </div>
 
-        <div className="hero-image" data-animate="fade-right">
-          <video
-            ref={videoRef}
-            src="/imagenes/Hero/phonecolombiavideohero.mp4"
-            autoPlay
-            loop
-            playsInline
-            onClick={handleVideoClick}
-            style={{ cursor: "pointer" }}
-          >
-            Tu navegador no soporta la reproducción de video.
-          </video>
-        </div>
+      
       </div>
     </section>
   );

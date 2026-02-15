@@ -10,16 +10,22 @@ export default function Ubicacion() {
           Encuéntranos en nuestra tienda principal.
         </p>
         <div className="mapa-wrapper" data-animate="fade-up">
-          <iframe
-            title="Ubicación Phone Colombia"
-            src="https://www.google.com/maps?q=3.387200,-76.539700&z=16&output=embed"
-            width="600"
-            height="450"
-            style={{ border: 0 }}
-            allowFullScreen=""
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-          />
+          <div className="mapa-header">
+            <span className="mapa-chip">📍 Ubicación</span>
+            <p className="mapa-caption">Cali, Colombia</p>
+          </div>
+          <div className="mapa-frame">
+            <iframe
+              title="Ubicación Phone Colombia"
+              src="https://www.google.com/maps?q=3.387200,-76.539700&z=16&output=embed"
+              width="600"
+              height="450"
+              style={{ border: 0 }}
+              allowFullScreen=""
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
         </div>
       </div>
     </section>

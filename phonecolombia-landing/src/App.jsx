@@ -40,6 +40,8 @@ function Home() {
     <>
       <Navbar />
       <Hero />
+      <Testimonios />
+
       <Beneficios />
       <section id="productos" className="productos-section">
         <div className="container">
@@ -68,7 +70,6 @@ function Home() {
         </div>
       </section>
       <Clientes />
-      <Testimonios />
       <Ubicacion />
       <Contactanos />
       <footer className="footer">

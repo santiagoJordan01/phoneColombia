@@ -37,7 +37,7 @@ export default function GarantiasPage() {
             Conoce nuestras políticas de garantía, devoluciones y seguridad para compras
             en línea.
           </p>
-          <Link to="/#inicio" className="btn-secondary page-back">
+          <Link to={`${import.meta.env.BASE_URL}#inicio`} className="btn-secondary page-back">
             Volver al inicio
           </Link>
         </div>

@@ -1,16 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "../styles.css";
 
 export default function Clientes() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
   const entregas = [
-    { imagen: "/imagenes/Entregas/1.jpg" },
-    { imagen: "/imagenes/Entregas/2.jpg"},
-    { imagen: "/imagenes/Entregas/3.jpg"},
-    { imagen: "/imagenes/Entregas/4.jpg"},
-    { imagen: "/imagenes/Entregas/5.jpg" },
-    { imagen: "/imagenes/Entregas/6.jpg" },
+    { imagen: `${import.meta.env.BASE_URL}imagenes/Entregas/1.jpg` },
+    { imagen: `${import.meta.env.BASE_URL}imagenes/Entregas/2.jpg` },
+    { imagen: `${import.meta.env.BASE_URL}imagenes/Entregas/3.jpg` },
+    { imagen: `${import.meta.env.BASE_URL}imagenes/Entregas/4.jpg` },
+    { imagen: `${import.meta.env.BASE_URL}imagenes/Entregas/5.jpg` },
+    { imagen: `${import.meta.env.BASE_URL}imagenes/Entregas/6.jpg` },
   ];
 
   useEffect(() => {
@@ -20,6 +22,38 @@ export default function Clientes() {
     }, 4500);
     return () => clearInterval(interval);
   }, [isPaused, entregas.length]);
+
+  const goNext = () => {
+    setCurrentIndex(prev => (prev + 1) % entregas.length);
+  };
+
+  const goPrev = () => {
+    setCurrentIndex(prev => (prev === 0 ? entregas.length - 1 : prev - 1));
+  };
+
+  const handleTouchStart = event => {
+    touchStartX.current = event.changedTouches[0].clientX;
+    setIsPaused(true);
+  };
+
+  const handleTouchMove = event => {
+    touchEndX.current = event.changedTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    const swipeDistance = touchStartX.current - touchEndX.current;
+    const minSwipeDistance = 40;
+
+    if (swipeDistance > minSwipeDistance) {
+      goNext();
+    } else if (swipeDistance < -minSwipeDistance) {
+      goPrev();
+    }
+
+    setIsPaused(false);
+    touchStartX.current = 0;
+    touchEndX.current = 0;
+  };
 
   return (
     <section id="clientes" className="clientes-section" data-animate="fade-up">
@@ -39,11 +73,7 @@ export default function Clientes() {
               type="button"
               className="entregas-arrow entregas-arrow--left"
               aria-label="Anterior"
-              onClick={() =>
-                setCurrentIndex((prev) =>
-                  prev === 0 ? entregas.length - 1 : prev - 1
-                )
-              }
+              onClick={goPrev}
             >
               <svg
                 className="entregas-arrow-icon entregas-arrow-size"
@@ -63,6 +93,9 @@ export default function Clientes() {
             <div
               className="entregas-track"
               style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
             >
               {entregas.map((item, index) => (
                 <figure className="entrega-card" key={index}>
@@ -80,9 +113,7 @@ export default function Clientes() {
               type="button"
               className="entregas-arrow entregas-arrow--right"
               aria-label="Siguiente"
-              onClick={() =>
-                setCurrentIndex((prev) => (prev + 1) % entregas.length)
-              }
+              onClick={goNext}
             >
               <svg
                 className="entregas-arrow-icon entregas-arrow-size"

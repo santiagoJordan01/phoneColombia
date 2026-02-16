@@ -33,10 +33,10 @@ export default function Hero() {
         </div>
         <div className="hero-text" data-animate="fade-left">
           <h1>
-            Los mejores <span>smartphones</span> en Colombia
+            Bienvenidos a la mejor tienda de <span>telefonía móvil</span> en Colombia
           </h1>
           <p>
-            Tecnología original, garantía y los mejores precios del mercado.
+            Especialistas en productos del ecosistema Apple: iPhone, AirPods, Apple Watch y más, con garantía y los mejores precios del mercado.
           </p>
 
           <div className="hero-buttons">

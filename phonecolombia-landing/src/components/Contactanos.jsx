@@ -11,7 +11,7 @@ export default function Contactanos() {
 		const mensaje = (formData.get("mensaje") || "").toString().trim();
 
 		const texto = `Hola Phone Colombia, mi nombre es ${nombre}.\nCorreo: ${correo}\nMensaje: ${mensaje}`;
-		const whatsappUrl = `https://wa.me/573001234567?text=${encodeURIComponent(texto)}`;
+		const whatsappUrl = `https://wa.me/573007190977?text=${encodeURIComponent(texto)}`;
 		window.open(whatsappUrl, "_blank", "noopener,noreferrer");
 	};
 
@@ -27,8 +27,8 @@ export default function Contactanos() {
 				</form>
 				<div className="contacto-info" data-animate="fade-up">
 					<p><strong>Email:</strong> info@phonecolombia.com</p>
-					<p><strong>WhatsApp:</strong> +57 300 123 4567</p>
-					<p><strong>Instagram:</strong> +57 300 123 4567</p>
+					<p><strong>WhatsApp:</strong> +57 300 719 0977</p>
+					<p><strong>Instagram:</strong> @phonecolombiaoficial</p>
 					<p><strong>TikTok:</strong> +57 300 123 4567</p>
 
 

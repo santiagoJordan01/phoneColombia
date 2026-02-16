@@ -1,4 +1,4 @@
-// Iconos SVG de WhatsApp, Instagram y Telegram
+// Iconos SVG de WhatsApp, Instagram y TikTok
 export function IconWhatsapp(props) {
   return (
     <svg width="24" height="24" fill="white" viewBox="0 0 24 24" {...props}>
@@ -10,14 +10,7 @@ export function IconWhatsapp(props) {
 export function IconInstagram(props) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" {...props}>
-      <defs>
-        <linearGradient id="igGradient" x1="3" y1="21" x2="21" y2="3" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#f9ce34" />
-          <stop offset="0.5" stopColor="#ee2a7b" />
-          <stop offset="1" stopColor="#6228d7" />
-        </linearGradient>
-      </defs>
-      <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#igGradient)" />
+      <rect x="2" y="2" width="20" height="20" rx="6" fill="none" stroke="#ffffff" strokeWidth="2" />
       <circle cx="12" cy="12" r="4.4" fill="none" stroke="#ffffff" strokeWidth="2" />
       <circle cx="17" cy="7" r="1.2" fill="#ffffff" />
     </svg>
@@ -27,7 +20,7 @@ export function IconInstagram(props) {
 export function IconTelegram(props) {
   return (
     <svg width="24" height="24" fill="white" viewBox="0 0 24 24" {...props}>
-      <path d="M12 0C5.372 0 0 5.373 0 12c0 6.627 5.372 12 12 12s12-5.373 12-12c0-6.627-5.372-12-12-12zm5.707 7.293l-2.828 10.607c-.211.789-.678.978-1.372.609l-3.797-2.803-1.833 1.764c-.202.202-.372.372-.765.372l.273-3.872 7.045-6.372c.307-.273-.067-.426-.477-.153l-8.723 5.484-3.762-1.176c-.817-.253-.831-.817.171-1.079l14.764-4.263c.682-.196 1.277.153 1.06 1.079z"/>
+      <path d="M19.321 5.562a5.12 5.12 0 0 1-2.954-.938v6.896a6.16 6.16 0 1 1-6.161-6.161c.216 0 .429.012.639.034v3.037a3.124 3.124 0 1 0 2.486 3.06V0h3.036c.089.75.339 1.462.729 2.09a5.13 5.13 0 0 0 2.225 1.918V5.56z"/>
     </svg>
   );
 }

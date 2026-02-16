@@ -1,6 +1,6 @@
-
 import { useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
+
 import Navbar from "./components/Navbar.jsx";
 import Hero from "./components/Hero.jsx";
 import Beneficios from "./components/Beneficios.jsx";
@@ -10,6 +10,7 @@ import Testimonios from "./components/Testimonios.jsx";
 import Contactanos from "./components/Contactanos.jsx";
 import Ubicacion from "./components/Ubicacion.jsx";
 import GarantiasPage from "./pages/GarantiasPage.jsx";
+import FloatingSocialButton from "./components/FloatingSocialButton.jsx";
 import "./App.css";
 import "./styles.css";
 
@@ -17,18 +18,18 @@ function Home() {
   useEffect(() => {
     const elements = document.querySelectorAll("[data-animate]");
     const observer = new IntersectionObserver(
-      entries => {
-        entries.forEach(entry => {
+      (entries) => {
+        entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add("animate-in");
             observer.unobserve(entry.target);
           }
         });
       },
-      { threshold: 0.15, rootMargin: "0px 0px -10% 0px" }
+      { threshold: 0.15, rootMargin: "0px 0px -10% 0px" },
     );
 
-    elements.forEach(el => {
+    elements.forEach((el) => {
       el.classList.add("animate-on-scroll");
       observer.observe(el);
     });
@@ -41,43 +42,63 @@ function Home() {
       <Navbar />
       <Hero />
       <Testimonios />
-
-      <Beneficios />
       <section id="productos" className="productos-section">
         <div className="container">
-          <h2 className="section-title" data-animate="fade-up">Nuestros Productos Destacados</h2>
+          <h2 className="section-title" data-animate="fade-up">
+            Nuestros Productos Destacados
+          </h2>
           <div className="productos-grid" data-animate="stagger">
             {/* Ejemplo de productos destacados */}
             <Producto
-              imagen="/imagenes/images.jfif"
-              nombre="iPhone 14 Pro Max"
-              descripcion="Pantalla Super Retina XDR, chip A16 Bionic, cámara Pro."
-              precio="6.500.000"
+              imagen={`${import.meta.env.BASE_URL}imagenes/productos/iphone_15.webp`}
+              nombre="iPhone 15"
+              descripcion="128 gb\
+              Case\
+              Vidrio\
+              Cargador\
+              Audifonos\"
+              precio="0.000.000"
             />
             <Producto
-              imagen="/imagenes/logo-blanco-rojo.jfif"
-              nombre="Samsung Galaxy S23 Ultra"
-              descripcion="Cámara de 200MP, S Pen integrado, batería de larga duración."
-              precio="5.800.000"
+              imagen={`${import.meta.env.BASE_URL}imagenes/productos/airpods_pro.jfif`}
+              nombre="AirPods 4"
+              descripcion="Gran ajuste
+Llamadas más nitidas
+Audio espacial personalizado"
+              precio="0.000.000"
             />
             <Producto
-              imagen="/imagenes/images.jfif"
-              nombre="Xiaomi 13T Pro"
-              descripcion="Carga ultra rápida, pantalla AMOLED, gran rendimiento."
-              precio="2.900.000"
+              imagen={`${import.meta.env.BASE_URL}imagenes/productos/ipad_pro.webp`}
+              nombre="Ipad pro"
+              descripcion="15’’\
+256gb\
+Wifi\
+Vidrio estandar\."
+              precio="0.000.000"
             />
           </div>
         </div>
       </section>
+      <Beneficios />
+
       <Clientes />
       <Ubicacion />
       <Contactanos />
       <footer className="footer">
         <div className="container footer-container">
-          <p>© {new Date().getFullYear()} Phone Colombia. Todos los derechos reservados.</p>
+          <p>
+            © {new Date().getFullYear()} Phone Colombia. Todos los derechos
+            reservados.
+          </p>
           <p>Hecho con ❤️ en Colombia</p>
+          <p className="footer-legal">
+            Apple, iPhone, AirPods y Apple Watch son marcas registradas de Apple
+            Inc. Phone Colombia no está afiliada, autorizada ni respaldada por
+            Apple Inc.
+          </p>
         </div>
       </footer>
+      <FloatingSocialButton />
     </>
   );
 }

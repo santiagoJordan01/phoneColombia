@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import "../styles.css";
 
 export default function Ubicacion() {
+  const [mapaCargado, setMapaCargado] = useState(false);
+
   return (
     <section id="ubicacion" className="ubicacion-section" data-animate="fade-up">
       <div className="container">
@@ -9,20 +11,23 @@ export default function Ubicacion() {
         <p className="ubicacion-subtitle" data-animate="fade-up">
           Encuéntranos en nuestra tienda principal.
         </p>
-        <div className="mapa-wrapper" data-animate="fade-up">
-          <div className="mapa-header">
-            <span className="mapa-chip">📍 Ubicación</span>
-            <p className="mapa-caption">Cali, Colombia</p>
-          </div>
-          <div className="mapa-frame">
+        <div className="mapa-mano-container" data-animate="fade-up">
+          <img
+            src={import.meta.env.BASE_URL + "imagenes/UBICACION/mano_sosteniendo_smartphone.jfif"}
+            alt="Mano sosteniendo smartphone"
+            className="mano-img"
+            draggable="false"
+          />
+          <div className={`mapa-en-mano ${mapaCargado ? "is-loaded" : ""}`}>
             <iframe
               title="Ubicación Phone Colombia"
               src="https://www.google.com/maps?q=3.387200,-76.539700&z=16&output=embed"
-              width="600"
-              height="450"
+              width="320"
+              height="180"
               style={{ border: 0 }}
               allowFullScreen=""
               loading="lazy"
+              onLoad={() => setMapaCargado(true)}
               referrerPolicy="no-referrer-when-downgrade"
             />
           </div>

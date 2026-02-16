@@ -4,6 +4,7 @@ import "../styles.css";
 export default function Clientes() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [isDesktopView, setIsDesktopView] = useState(false);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const entregas = [
@@ -15,21 +16,67 @@ export default function Clientes() {
     { imagen: `${import.meta.env.BASE_URL}imagenes/Entregas/6.jpg` },
   ];
 
-  useEffect(() => {
-    if (isPaused) return;
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % entregas.length);
-    }, 4500);
-    return () => clearInterval(interval);
-  }, [isPaused, entregas.length]);
+  const DOT_SERIES_COUNT = 2;
+  const totalEntregas = entregas.length;
+  const totalSeries = Math.min(DOT_SERIES_COUNT, totalEntregas);
+  const seriesSize = Math.max(1, Math.ceil(totalEntregas / DOT_SERIES_COUNT));
+  const activeSeriesIndex = Math.min(Math.floor(currentIndex / seriesSize), totalSeries - 1);
 
   const goNext = () => {
-    setCurrentIndex(prev => (prev + 1) % entregas.length);
+    if (isDesktopView) {
+      setCurrentIndex(prev => {
+        const currentSeries = Math.min(Math.floor(prev / seriesSize), totalSeries - 1);
+        const nextSeries = (currentSeries + 1) % totalSeries;
+        return Math.min(nextSeries * seriesSize, totalEntregas - 1);
+      });
+      return;
+    }
+
+    setCurrentIndex(prev => (prev + 1) % totalEntregas);
   };
 
   const goPrev = () => {
-    setCurrentIndex(prev => (prev === 0 ? entregas.length - 1 : prev - 1));
+    if (isDesktopView) {
+      setCurrentIndex(prev => {
+        const currentSeries = Math.min(Math.floor(prev / seriesSize), totalSeries - 1);
+        const prevSeries = (currentSeries - 1 + totalSeries) % totalSeries;
+        return Math.min(prevSeries * seriesSize, totalEntregas - 1);
+      });
+      return;
+    }
+
+    setCurrentIndex(prev => (prev === 0 ? totalEntregas - 1 : prev - 1));
   };
+
+  useEffect(() => {
+    if (isPaused) return;
+    const interval = setInterval(() => {
+      goNext();
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [isPaused, isDesktopView, totalEntregas, totalSeries, seriesSize]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(min-width: 1025px)");
+    const updateView = () => setIsDesktopView(mediaQuery.matches);
+
+    updateView();
+    mediaQuery.addEventListener("change", updateView);
+
+    return () => mediaQuery.removeEventListener("change", updateView);
+  }, []);
+
+  const dotSeries = Array.from({ length: totalSeries }, (_, seriesIndex) => {
+    const startIndex = seriesIndex * seriesSize;
+    return {
+      key: `series-${seriesIndex}`,
+      index: Math.min(startIndex, totalEntregas - 1),
+      seriesIndex,
+      onClick: () => setCurrentIndex(Math.min(startIndex, totalEntregas - 1)),
+    };
+  });
 
   const handleTouchStart = event => {
     touchStartX.current = event.changedTouches[0].clientX;
@@ -69,30 +116,9 @@ export default function Clientes() {
         >
           <h3 className="entregas-title">Entregas realizadas</h3>
           <div className="entregas-viewport">
-            <button
-              type="button"
-              className="entregas-arrow entregas-arrow--left"
-              aria-label="Anterior"
-              onClick={goPrev}
-            >
-              <svg
-                className="entregas-arrow-icon entregas-arrow-size"
-                viewBox="0 0 44 44"
-                aria-hidden="true"
-              >
-                <path
-                  d="M8 10 L36 22 L8 34"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="4.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
             <div
               className="entregas-track"
-              style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+              style={{ transform: `translateX(-${(isDesktopView ? activeSeriesIndex : currentIndex) * 100}%)` }}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
@@ -109,29 +135,20 @@ export default function Clientes() {
                 </figure>
               ))}
             </div>
-            <button
-              type="button"
-              className="entregas-arrow entregas-arrow--right"
-              aria-label="Siguiente"
-              onClick={goNext}
-            >
-              <svg
-                className="entregas-arrow-icon entregas-arrow-size"
-                viewBox="0 0 44 44"
-                aria-hidden="true"
-              >
-                <path
-                  d="M8 10 L36 22 L8 34"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="4.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
           </div>
           <div className="entregas-controls">
+            <div className="entregas-dots" role="tablist" aria-label="Indicadores de entregas">
+              {dotSeries.map((dot) => (
+                <button
+                  key={dot.key}
+                  type="button"
+                  className={`entregas-dot ${activeSeriesIndex === dot.seriesIndex ? "active" : ""}`}
+                  onClick={dot.onClick}
+                  aria-label={`Ir a la serie ${dot.seriesIndex + 1} de entregas`}
+                  aria-current={activeSeriesIndex === dot.seriesIndex}
+                />
+              ))}
+            </div>
             <button
               type="button"
               className="entregas-toggle"
@@ -157,18 +174,6 @@ export default function Clientes() {
                 </svg>
               )}
             </button>
-          </div>
-          <div className="entregas-dots" role="tablist" aria-label="Indicadores de entregas">
-            {entregas.map((_, index) => (
-              <button
-                key={index}
-                type="button"
-                className={`entregas-dot ${currentIndex === index ? "active" : ""}`}
-                onClick={() => setCurrentIndex(index)}
-                aria-label={`Ir a la entrega ${index + 1}`}
-                aria-current={currentIndex === index}
-              />
-            ))}
           </div>
         </div>
       </div>

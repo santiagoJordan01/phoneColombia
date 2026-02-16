@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar.jsx";
 import Garantias from "../components/Garantias.jsx";
 import "../styles.css";
@@ -37,9 +36,9 @@ export default function GarantiasPage() {
             Conoce nuestras políticas de garantía, devoluciones y seguridad para compras
             en línea.
           </p>
-          <Link to={`${import.meta.env.BASE_URL}#inicio`} className="btn-secondary page-back">
+          <a href={`${import.meta.env.BASE_URL}#inicio`} className="btn-secondary page-back">
             Volver al inicio
-          </Link>
+          </a>
         </div>
       </section>
       <Garantias />

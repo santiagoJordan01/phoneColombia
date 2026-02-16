@@ -1,9 +1,14 @@
 
 import React from "react";
 import "../styles.css";
-import { IconWhatsapp, IconInstagram, IconTelegram } from "./SocialIcons";
 
-export default function Producto({ imagen, nombre, descripcion, precio, onClick }) {
+export default function Producto({ imagen, nombre, descripcion, precio }) {
+  const handleCotizar = () => {
+    const mensaje = `Hola Phone Colombia, vengo de la página web y me interesa cotizar el producto ${nombre} (precio publicado: $${precio}).`;
+    const whatsappUrl = `https://wa.me/573007190977?text=${encodeURIComponent(mensaje)}`;
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div className="producto-card">
       <img src={imagen} alt={nombre} className="producto-imagen" />
@@ -11,16 +16,9 @@ export default function Producto({ imagen, nombre, descripcion, precio, onClick 
       <p className="producto-descripcion">{descripcion}</p>
       <div className="producto-footer">
         <span className="producto-precio">${precio}</span>
-        {onClick && (
-          <button className="btn-primary" onClick={onClick}>
-            Comprar
-          </button>
-        )}
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1.2rem' }}>
-        <IconWhatsapp />
-        <IconInstagram />
-        <IconTelegram />
+        <button type="button" className="btn-primary" onClick={handleCotizar}>
+          Cotizar
+        </button>
       </div>
     </div>
   );

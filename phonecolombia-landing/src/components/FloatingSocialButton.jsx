@@ -32,7 +32,7 @@ export default function FloatingSocialButton() {
       <div className="floating-social-panel" aria-hidden={!isOpen}>
         <a
           className="floating-social-link"
-          href="https://wa.me/573001234567"
+          href="https://wa.me/573007190977"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="WhatsApp"
@@ -41,7 +41,7 @@ export default function FloatingSocialButton() {
         </a>
         <a
           className="floating-social-link"
-          href="https://instagram.com/phonecolombia"
+          href="https://instagram.com/phonecolombiaoficial"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Instagram"

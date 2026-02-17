@@ -357,19 +357,37 @@
 
 /* ===================== SECCIÓN TESTIMONIOS ===================== */
 .testimonios-section {
-  padding: 2.5rem 0 1.5rem;
-  background: linear-gradient(
-    120deg,
-    #fcd901 0%,
-    #ea580c 20%,
-    #E12F01 40%,
-    #000000 100%
-  );
-  background-attachment: fixed;
-  background-repeat: no-repeat;
-  background-size: cover;
+  padding: 0rem 0 4rem;
+  background: transparent;
   position: relative;
+  overflow: visible;
   z-index: 3;
+  margin-bottom: -2rem;
+}
+
+.testimonios-section::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4rem;
+  height: 120%;
+  
+  background-image: url('/imagenes/testimonios/fondo_testimonios_oficial.png');
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: bottom center;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.testimonios-section > .container {
+  position: relative;
+  z-index: 1;
+}
+
+.testimonios-section .entregas-carousel {
+  margin-top: 0.75rem;
 }
 
 .testimonios-title-tag {
@@ -856,15 +874,15 @@
   height: auto;
   object-fit: cover;
   display: block;
-  border-radius: 12px;
   background: #000;
+  border: 6px solid rgba(255,255,255,0.2);
   cursor: pointer;
   box-shadow: 0 12px 40px rgba(0,0,0,0.25);
   margin: 0 auto;
 }
 
 .testimonios-track .entrega-card {
-  flex: 0 0 100%;
+  flex: 1 1 auto;
   max-width: 100%;
   width: 100%;
 }
@@ -874,6 +892,19 @@
   max-width: 100%;
   display: flex;
   justify-content: center;
+}
+
+.testimonios-page {
+  flex: 0 0 100%;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.testimonios-page .testimonio-video {
+  width: 100%;
+  max-width: 250px;
 }
 
 @media (min-width: 1025px) {
@@ -935,6 +966,11 @@
 }
 
 @media (max-width: 768px) {
+	.testimonios-page {
+		grid-template-columns: 1fr;
+		gap: 1rem;
+	}
+
   .testimonios-carousel {
     grid-template-columns: 40px 1fr 40px;
     gap: 0.6rem;
@@ -1840,7 +1876,7 @@ nav.scrolled {
   .productos-section,
   .clientes-section,
   .testimonios-section{
-    padding: 3rem 0 2rem;
+    padding: 3rem 0 4rem;
   }
 
   /* Evitar desplazamientos laterales por animaciones en mobile */

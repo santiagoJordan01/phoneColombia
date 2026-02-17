@@ -13,14 +13,25 @@ export default function Testimonios() {
 	const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 	const videoRefs = useRef([]);
 	const totalVideos = videos.length;
+	const videosPorPagina = 3;
+	const totalPaginas = Math.ceil(totalVideos / videosPorPagina);
+	const paginas = Array.from({ length: totalPaginas }, (_, paginaIndex) => {
+		const inicio = paginaIndex * videosPorPagina;
+		const fin = inicio + videosPorPagina;
+
+		return videos.slice(inicio, fin).map((video, localIndex) => ({
+			...video,
+			originalIndex: inicio + localIndex
+		}));
+	});
 
 	useEffect(() => {
-		if (isCarouselPaused || isVideoPlaying || totalVideos <= 1) return;
+		if (isCarouselPaused || isVideoPlaying || totalPaginas <= 1) return;
 		const interval = setInterval(() => {
-			setIndiceActual(prev => (prev + 1) % totalVideos);
+			setIndiceActual(prev => (prev + 1) % totalPaginas);
 		}, 4500);
 		return () => clearInterval(interval);
-	}, [isCarouselPaused, isVideoPlaying, totalVideos]);
+	}, [isCarouselPaused, isVideoPlaying, totalPaginas]);
 
 	useEffect(() => {
 		videoRefs.current.forEach((video, index) => {
@@ -60,7 +71,7 @@ export default function Testimonios() {
 		setIsVideoPlaying(false);
 	};
 
-	const dots = Array.from({ length: totalVideos }, (_, index) => ({
+	const dots = Array.from({ length: totalPaginas }, (_, index) => ({
 		key: `card-${index}`,
 		index
 	}));
@@ -78,30 +89,34 @@ export default function Testimonios() {
 							className="entregas-track testimonios-track"
 							style={{ transform: `translateX(-${indiceActual * 100}%)` }}
 						>
-							{videos.map((video, index) => (
-								<figure className="entrega-card" key={index}>
-									<div className="inner">
-										<video
-											ref={element => {
-												videoRefs.current[index] = element;
-											}}
-											src={video.src}
-											playsInline
-											preload="metadata"
-											className="testimonio-video"
-											onPlay={() => setIsVideoPlaying(true)}
-											onPause={() => {
-												const hayReproduciendo = videoRefs.current.some(item => item && !item.paused && !item.ended);
-												setIsVideoPlaying(hayReproduciendo);
-											}}
-											onEnded={() => {
-												const hayReproduciendo = videoRefs.current.some(item => item && !item.paused && !item.ended);
-												setIsVideoPlaying(hayReproduciendo);
-											}}
-											onClick={() => toggleVideo(index)}
-										/>
-									</div>
-								</figure>
+							{paginas.map((pagina, paginaIndex) => (
+								<div className="testimonios-page" key={`pagina-${paginaIndex}`}>
+									{pagina.map(video => (
+										<figure className="entrega-card" key={video.originalIndex}>
+											<div className="inner">
+												<video
+													ref={element => {
+														videoRefs.current[video.originalIndex] = element;
+													}}
+													src={video.src}
+													playsInline
+													preload="metadata"
+													className="testimonio-video"
+													onPlay={() => setIsVideoPlaying(true)}
+													onPause={() => {
+														const hayReproduciendo = videoRefs.current.some(item => item && !item.paused && !item.ended);
+														setIsVideoPlaying(hayReproduciendo);
+													}}
+													onEnded={() => {
+														const hayReproduciendo = videoRefs.current.some(item => item && !item.paused && !item.ended);
+														setIsVideoPlaying(hayReproduciendo);
+													}}
+													onClick={() => toggleVideo(video.originalIndex)}
+												/>
+											</div>
+										</figure>
+									))}
+								</div>
 							))}
 						</div>
 					</div>

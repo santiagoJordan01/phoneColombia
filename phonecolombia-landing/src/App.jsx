@@ -3,10 +3,10 @@ import { Routes, Route } from "react-router-dom";
 
 import Navbar from "./components/Navbar.jsx";
 import Hero from "./components/Hero.jsx";
-import Beneficios from "./components/Beneficios.jsx";
 import Producto from "./components/Productos.jsx";
 import Clientes from "./components/Clientes.jsx";
 import Testimonios from "./components/Testimonios.jsx";
+import Promociones from "./components/Promociones.jsx";
 import Contactanos from "./components/Contactanos.jsx";
 import Ubicacion from "./components/Ubicacion.jsx";
 import GarantiasPage from "./pages/GarantiasPage.jsx";
@@ -42,10 +42,11 @@ function Home() {
       <Navbar />
       <Hero />
       <Testimonios />
+      <Promociones />
       <section id="productos" className="productos-section">
         <div className="container">
           <h2 className="section-title" data-animate="fade-up">
-            Nuestros Productos Destacados
+            Productos
           </h2>
           <div className="productos-grid" data-animate="stagger">
             {/* Ejemplo de productos destacados */}
@@ -79,9 +80,7 @@ Vidrio estandar\."
           </div>
         </div>
       </section>
-      <Beneficios />
-
-      <Clientes />
+      {/* <Clientes /> */}
       <Ubicacion />
       <Contactanos />
       <footer className="footer">

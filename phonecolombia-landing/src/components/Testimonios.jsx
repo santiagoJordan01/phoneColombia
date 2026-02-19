@@ -11,9 +11,10 @@ export default function Testimonios() {
 	const [indiceActual, setIndiceActual] = useState(0);
 	const [isCarouselPaused, setIsCarouselPaused] = useState(false);
 	const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+	const [isMobileView, setIsMobileView] = useState(false);
 	const videoRefs = useRef([]);
 	const totalVideos = videos.length;
-	const videosPorPagina = 3;
+	const videosPorPagina = isMobileView ? 1 : 3;
 	const totalPaginas = Math.ceil(totalVideos / videosPorPagina);
 	const paginas = Array.from({ length: totalPaginas }, (_, paginaIndex) => {
 		const inicio = paginaIndex * videosPorPagina;
@@ -24,6 +25,24 @@ export default function Testimonios() {
 			originalIndex: inicio + localIndex
 		}));
 	});
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+
+		const mediaQuery = window.matchMedia("(max-width: 768px)");
+		const updateViewport = () => setIsMobileView(mediaQuery.matches);
+
+		updateViewport();
+		mediaQuery.addEventListener("change", updateViewport);
+
+		return () => mediaQuery.removeEventListener("change", updateViewport);
+	}, []);
+
+	useEffect(() => {
+		if (indiceActual >= totalPaginas) {
+			setIndiceActual(0);
+		}
+	}, [indiceActual, totalPaginas]);
 
 	useEffect(() => {
 		if (isCarouselPaused || isVideoPlaying || totalPaginas <= 1) return;

@@ -18,20 +18,49 @@ export default function Contactanos() {
 	return (
 		<section id="contacto" className="contacto-section" data-animate="fade-up">
 			<div className="container contacto-container">
-				<h2 className="section-title" data-animate="fade-up">Contáctanos</h2>
-				<form className="contacto-form" data-animate="fade-up" onSubmit={handleSubmit}>
-					<input type="text" name="nombre" placeholder="Nombre" required />
-					<input type="email" name="correo" placeholder="Correo electrónico" required />
-					<textarea name="mensaje" placeholder="Mensaje" required />
-					<button type="submit" className="btn-primary">Enviar</button>
-				</form>
-				<div className="contacto-info" data-animate="fade-up">
-					<p><strong>Email:</strong> info@phonecolombia.com</p>
-					<p><strong>WhatsApp:</strong> +57 300 719 0977</p>
-					<p><strong>Instagram:</strong> @phonecolombiaoficial</p>
-					<p><strong>TikTok:</strong> +57 300 123 4567</p>
+				<header className="contacto-header" data-animate="fade-up">
+					<h2 className="section-title">Contáctanos</h2>
+					<p className="contacto-subtitle">Te asesoramos por WhatsApp y resolvemos todas tus dudas.</p>
+				</header>
 
+				<div className="contacto-grid">
+					<form className="contacto-form" data-animate="fade-up" onSubmit={handleSubmit}>
+						<div className="contacto-field">
+							<label htmlFor="contacto-nombre">Nombre</label>
+							<input id="contacto-nombre" type="text" name="nombre" placeholder="Tu nombre" required />
+						</div>
+						<div className="contacto-field">
+							<label htmlFor="contacto-correo">Correo electrónico</label>
+							<input id="contacto-correo" type="email" name="correo" placeholder="tu@correo.com" required />
+						</div>
+						<div className="contacto-field">
+							<label htmlFor="contacto-mensaje">Mensaje</label>
+							<textarea id="contacto-mensaje" name="mensaje" placeholder="Cuéntanos qué producto te interesa" required />
+						</div>
+						<button type="submit" className="btn-primary">Enviar por WhatsApp</button>
+					</form>
 
+					<aside className="contacto-info" data-animate="fade-up" aria-label="Canales de contacto">
+						<h3>Canales directos</h3>
+						<ul className="contacto-info-list">
+							<li>
+								<span>Email</span>
+								<a href="mailto:info@phonecolombia.com">info@phonecolombia.com</a>
+							</li>
+							<li>
+								<span>WhatsApp</span>
+								<a href="https://wa.me/573007190977" target="_blank" rel="noopener noreferrer">+57 300 719 0977</a>
+							</li>
+							<li>
+								<span>Instagram</span>
+								<a href="https://instagram.com/phonecolombiaoficial" target="_blank" rel="noopener noreferrer">@phonecolombiaoficial</a>
+							</li>
+							<li>
+								<span>TikTok</span>
+								<a href="https://www.tiktok.com/@phonecolombiaoficial" target="_blank" rel="noopener noreferrer">@phonecolombiaoficial</a>
+							</li>
+						</ul>
+					</aside>
 				</div>
 			</div>
 		</section>

@@ -14,14 +14,14 @@ export default function Promociones() {
 			nombre: "PROMO AIRPODS",
 			precio: "0.000.000",
 			bundle: "CASE · CARGADOR · AUDÍFONOS",
-			imagen: `${import.meta.env.BASE_URL}imagenes/productos/airpods_pro.jfif`,
+			imagen: `${import.meta.env.BASE_URL}imagenes/Promociones/airpods_pro.png`,
 			alt: "AirPods Pro"
 		},
 		{
 			nombre: "PROMO IPAD",
 			precio: "0.000.000",
 			bundle: "CASE · VIDRIO · CARGADOR",
-			imagen: `${import.meta.env.BASE_URL}imagenes/productos/ipad_pro.webp`,
+			imagen: `${import.meta.env.BASE_URL}imagenes/Promociones/ipad_pro.jpg`,
 			alt: "iPad Pro"
 		}
 	];
@@ -119,8 +119,8 @@ export default function Promociones() {
 							alt={promocionActual.alt}
 							className="promocion-image"
 						/>
-						<span className="promocion-brand">PHONE COLOMBIA</span>
 					</div>
+					<span className="promocion-brand">PHONE COLOMBIA</span>
 
 					<div className="promocion-content" aria-live="polite">
 						<p className="promocion-title">{promocionActual.nombre}</p>

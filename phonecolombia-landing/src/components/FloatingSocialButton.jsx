@@ -59,6 +59,16 @@ export default function FloatingSocialButton() {
         </a>
       </div>
 
+      <a
+        className="floating-garantias-trigger"
+        href={`${import.meta.env.BASE_URL}garantias`}
+        aria-label="Ver garantías"
+        title="Garantías"
+      >
+        <span className="floating-social-label">Garantias</span>
+        <span className="floating-social-garantias-text">G</span>
+      </a>
+
       <button
         type="button"
         className="floating-social-trigger"

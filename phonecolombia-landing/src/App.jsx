@@ -43,11 +43,10 @@ function Home() {
       <Hero />
       <Testimonios />
       <Promociones />
-      <section id="productos" className="productos-section">
+      <section id="productos" className="productos-section" style={{position: 'relative'}}>
+        <div className="productos-title-vertical">PRODUCTOS</div>
         <div className="container">
-          <h2 className="section-title" data-animate="fade-up">
-            Productos
-          </h2>
+        
           <div className="productos-grid" data-animate="stagger">
             {/* Ejemplo de productos destacados */}
             <Producto

@@ -98,7 +98,7 @@ export default function Testimonios() {
 	return (
 		<section id="testimonios" className="testimonios-section" data-animate="fade-up">
 			<div className="container">
-				<h2 className="testimonios-title-tag" data-animate="fade-up">TESTIMONIOS</h2>
+				<h2 className="productos-title-vertical" data-animate="fade-up">TESTIMONIOS</h2>
 				<div
 					className="entregas-carousel"
 					data-animate="fade-up"

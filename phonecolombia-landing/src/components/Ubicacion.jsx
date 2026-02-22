@@ -7,7 +7,7 @@ export default function Ubicacion() {
   return (
     <section id="ubicacion" className="ubicacion-section" data-animate="fade-up">
       <div className="container">
-        <h2 className="productos-title-vertical" data-animate="fade-up">Encuentranos</h2>
+        <h2 className="productos-title-vertical">Encuentranos</h2>
         <p className="ubicacion-subtitle" data-animate="fade-up">
           Encuéntranos en nuestra tienda principal.
         </p>

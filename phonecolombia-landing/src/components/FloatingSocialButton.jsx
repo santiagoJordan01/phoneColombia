@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { IconWhatsapp, IconInstagram, IconTelegram } from "./SocialIcons";
+import { IconWhatsapp, IconInstagram, IconTelegram, IconGarantia } from "./SocialIcons";
 
 export default function FloatingSocialButton() {
   const [isOpen, setIsOpen] = useState(false);
@@ -50,7 +50,7 @@ export default function FloatingSocialButton() {
         </a>
         <a
           className="floating-social-link"
-          href="https://t.me/phonecolombia"
+          href="https://www.tiktok.com/@phone_colombia_oficial?_r=1&_t=ZS-947MqCx9vwz"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Telegram"
@@ -66,7 +66,9 @@ export default function FloatingSocialButton() {
         title="Garantías"
       >
         <span className="floating-social-label">Garantias</span>
-        <span className="floating-social-garantias-text">G</span>
+        <span className="floating-social-garantias-text">
+          <IconGarantia />
+        </span>
       </a>
 
       <button

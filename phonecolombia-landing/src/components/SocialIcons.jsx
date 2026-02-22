@@ -24,3 +24,21 @@ export function IconTelegram(props) {
     </svg>
   );
 }
+
+export function IconGarantia(props) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <path
+        d="M12 2l7 3v6c0 5.25-3.35 9.86-7 11-3.65-1.14-7-5.75-7-11V5l7-3z"
+        fill="currentColor"
+      />
+      <path
+        d="M9 12.4l2.1 2.1L15.5 10"
+        stroke="#ffffff"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

@@ -57,10 +57,13 @@ export default function Contactanos() {
 							</li>
 							<li>
 								<span>TikTok</span>
-								<a href="https://www.tiktok.com/@phonecolombiaoficial" target="_blank" rel="noopener noreferrer">@phonecolombiaoficial</a>
+								<a href="https://www.tiktok.com/@phone_colombia_oficial?_r=1&_t=ZS-947MqCx9vwz" target="_blank" rel="noopener noreferrer">@phonecolombiaoficial</a>
 							</li>
 						</ul>
 					</aside>
+					<div  className="logo-contactanos" >
+						<img src="/phonecolombia-landing/imagenes/Contactanos/logo_letras.png" alt="Logo Phone Colombia" style={{maxWidth:'220px', width:'100%', height:'auto', padding:'1rem'}} />
+					</div>
 				</div>
 			</div>
 		</section>

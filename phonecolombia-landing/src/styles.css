@@ -1,3 +1,7 @@
+.productos-title-vertical.rotated {
+  writing-mode: vertical-rl;
+  transform: rotate(0deg);
+}
 /* Mantener layout de productos aunque no haya título horizontal */
 .productos-section .container {
   min-height: 320px;
@@ -5,8 +9,8 @@
 }
 /* Título vertical para sección productos */
 .productos-title-vertical {
-  writing-mode: vertical-rl;
-  transform: rotate(0deg);
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
   font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -17,7 +21,7 @@
   position: absolute;
   left: 0;
   top: 0;
-  width:100px;
+  width:200px;
   height: auto;
   min-height: 20px;
   display: flex;
@@ -25,11 +29,45 @@
   justify-content: center;
   padding: 1.2rem 0.7rem 1.2rem 0.7rem;
   background: #fff;
-  border-radius: 0 18px 18px 0;
+  border-radius: 18px 0px 0px 18px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   margin: 0;
   border: none;
   z-index: 2;
+}
+
+.testimonios-section .productos-title-vertical,
+.ubicacion-section .productos-title-vertical {
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  color: #101010;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width:200px;
+  height: auto;
+  min-height: 20px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.2rem 0.7rem 1.2rem 0.7rem;
+  background: #fff;
+  border-radius: 18px 0px 0px 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  margin: 0;
+  border: none;
+  z-index: 2;
+}
+
+
+.productos-title-vertical h2{
+  rotate: 0deg;
 }
 .promocion-fade {
   transition: opacity 0.25s cubic-bezier(.7,.2,.3,1), transform 0.25s cubic-bezier(.7,.2,.3,1);
@@ -470,27 +508,8 @@
   z-index: 2;
 }
 
-.testimonios-title-vertical {
-  writing-mode: vertical-rl;
-  transform: rotate(0deg);
-  font-size: 1.2rem;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  color: #101010;
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem 0.7rem;
-  background: #fff;
-  border-radius: 0 18px 0 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  margin: 0;
-  border: none;
-}
+
+
 
 .testimonios-title-tag::after {
   display: none;
@@ -498,7 +517,7 @@
 
 /* ===================== SECCIÓN UBICACIÓN ===================== */
 .ubicacion-section {
-  padding: 1rem 0 2.5rem;
+  padding: 0rem 0 0rem;
   background: rgba(255,255,255,0.01);
   position: relative;
   z-index: 1;
@@ -1049,20 +1068,39 @@
   position: relative;
 }
 
+.logo-contactanos {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+}
+
+
+
+
+
+
 @media (max-width: 768px) {
   .testimonios-section {
     margin-bottom: 0;
   }
 
-  .testimonios-section::before {
+ 
+
+
+
+    .testimonios-section::before {
+      display: none;
     top: 0;
     bottom: 0;
-    right:5px;
     height: auto;
     background-size: cover;
-    background-position: center 72%;
+    background-position: center 40%;
   }
 
+  .testimonios-section{
+    background: linear-gradient(120deg, #fcd901 0%, #ea580c 20%, #E12F01 40%, #000000 100%);
+  }
   .testimonios-section .entregas-viewport {
     width: min(92vw, 420px);
     max-width: min(92vw, 420px);
@@ -1110,7 +1148,7 @@
 
 /* ===================== SECCIÓN PROMOCIONES ===================== */
 .promociones-section {
-  padding: 6rem 0 2.5rem;
+  padding: 6rem;
   position: relative;
   overflow: hidden;
   z-index: 3;
@@ -1346,7 +1384,7 @@
 
 @media (max-width: 768px) {
   .promociones-section {
-    padding: 6rem 0 2rem;
+    padding: 6rem 0 4rem;
   }
 
   .promocion-cinta {
@@ -1443,8 +1481,22 @@
 .contacto-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
-  gap: 1.2rem;
+  grid-template-rows: auto auto;
+  gap: 2rem;
   align-items: stretch;
+}
+
+.contacto-grid > form,
+.contacto-grid > .contacto-info {
+  grid-row: 1;
+}
+.contacto-grid > div {
+  grid-column: 1 / 3;
+  grid-row: 2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: rem;
 }
 .contacto-form {
   display: flex;
@@ -2381,15 +2433,26 @@ nav.scrolled {
   }
   .contacto-grid {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 1.5rem;
+    padding: 0 0.5rem;
+    justify-items: center;
   }
-  .contacto-section{
-    padding: 3rem 0 5rem;
-  }
-
   .contacto-form,
   .contacto-info {
     width: 100%;
     max-width: 420px;
+    margin: 0 auto;
+  }
+  .contacto-grid > form,
+  .contacto-grid > .contacto-info {
+    grid-row: auto;
+    grid-column: 1;
+  }
+  .contacto-grid > div {
+    grid-column: 1;
+    grid-row: auto;
+    margin-top: 1.2rem;
   }
   
   /* Ajustes para círculos del background en móviles */
@@ -2777,11 +2840,19 @@ nav.scrolled {
 }
 
 .floating-social-garantias-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: #ffffff;
   font-size: 1rem;
   font-weight: 800;
   letter-spacing: 0.4px;
   line-height: 1;
+}
+
+.floating-social-garantias-text svg {
+  width: 40px;
+  height: 40px;
 }
 
 .floating-social-trigger {

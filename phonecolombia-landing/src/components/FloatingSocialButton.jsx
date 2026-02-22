@@ -65,7 +65,9 @@ export default function FloatingSocialButton() {
         aria-label="Ver garantías"
         title="Garantías"
       >
-        <span className="floating-social-label">Garantias</span>
+        {!isOpen && (
+          <span className="floating-social-label">Garantias</span>
+        )}
         <span className="floating-social-garantias-text">
           <IconGarantia />
         </span>

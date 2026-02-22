@@ -120,7 +120,9 @@ export default function Promociones() {
 							className="promocion-image"
 						/>
 					</div>
-					<span className="promocion-brand">PHONE COLOMBIA</span>
+					<span className="promocion-brand">
+						<img src={`${import.meta.env.BASE_URL}imagenes/Promociones/logo_letras_promociones.png`} alt="Phone Colombia" />
+					</span>
 
 					<div className="promocion-content" aria-live="polite">
 						<p className="promocion-title">{promocionActual.nombre}</p>
@@ -131,10 +133,14 @@ export default function Promociones() {
 							Comprar
 						</button>
 					</div>
+					<span className="promocion-brand-2">
+						<img src={`${import.meta.env.BASE_URL}imagenes/Promociones/logo_pequeño_promociones.png`} alt="Phone Colombia" />
+					</span>
 
 					<button className="promocion-arrow promocion-arrow--right" aria-label="Siguiente" onClick={nextPromo}>
 						<svg width="32" height="32" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
 					</button>
+					
 
 				</article>
 				<div className="promocion-controls">

@@ -62,7 +62,7 @@ export default function Contactanos() {
 						</ul>
 					</aside>
 					<div  className="logo-contactanos" >
-						<img src="/phonecolombia-landing/imagenes/Contactanos/logo_letras.png" alt="Logo Phone Colombia" style={{maxWidth:'220px', width:'100%', height:'auto', padding:'1rem'}} />
+						<img src="/imagenes/Contactanos/logo_letras.png" alt="Logo Phone Colombia" style={{maxWidth:'220px', width:'100%', height:'auto', padding:'1rem'}} />
 					</div>
 				</div>
 			</div>

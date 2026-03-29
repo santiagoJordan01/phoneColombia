@@ -2,6 +2,11 @@
   writing-mode: vertical-rl;
   transform: rotate(0deg);
 }
+/* Reset margins to avoid gaps above fullscreen hero */
+html, body {
+  margin: 0;
+  padding: 0;
+}
 /* Mantener layout de productos aunque no haya título horizontal */
 .productos-section .container {
   min-height: 320px;
@@ -138,14 +143,78 @@
 }
 
 @media (max-width: 768px) {
+    .promocion-arrow {
+      display: none;
+    }
   .mapa-mano-container {
     max-width: 100%;
     min-height: 280px;
-    --phone-top:40%;
+    --phone-top:38%;
     --phone-width: 68.7%;
-    --phone-height: 47.2%;
+    --phone-height: 48%;
     --phone-radius: 18px;
   }
+
+/* === Desktop fix: mostrar video al lado del texto y evitar recortes === */
+@media (min-width: 1024px) {
+  .hero--fullscreen {
+    overflow: visible !important;
+  }
+
+  /* ocultar fondo blur si existe, no queremos que compita con el video lateral */
+  .hero-bg { display: none !important; }
+
+  /* asegurar overlay encima del video */
+  .hero--fullscreen .hero-overlay { z-index: 5 !important; }
+
+  /* Layout en fila: texto a la izquierda, video a la derecha */
+  .hero--fullscreen .hero-container {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 2.5rem !important;
+    padding-left: 6rem !important;
+    padding-right: 6rem !important;
+    height: 100vh !important;
+    box-sizing: border-box !important;
+  }
+
+  .hero--fullscreen .hero-text {
+    width: 48% !important;
+    text-align: left !important;
+  }
+
+  .hero--fullscreen .page-hero-content { align-items: flex-start !important; }
+
+  /* Video lateral: relativo dentro del flujo, que mantenga proporción sin recortes */
+  .hero--fullscreen .hero-video,
+  .hero-video {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    width: 48% !important;
+    height: auto !important;
+    max-height: 88vh !important;
+    object-fit: contain !important;
+    z-index: 2 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 18px 48px rgba(0,0,0,0.55) !important;
+    border: 1px solid rgba(255,255,255,0.035) !important;
+  }
+
+  /* Ajustes de tipografía y spacing en desktop para evitar cortes */
+  .hero--fullscreen .page-hero-content h1,
+  .hero--fullscreen .hero-text h1 {
+    font-size: clamp(2.6rem, 4.5vw, 4rem) !important;
+    margin-bottom: 1rem !important;
+    line-height: 1.02 !important;
+  }
+
+  /* Reducir la posibilidad de que el header cubra contenido */
+  header.header { padding-top: 0.6rem !important; padding-bottom: 0.6rem !important; }
+}
 
   .mapa-en-mano {
     box-shadow: 0 2px 10px 0 rgba(0,0,0,0.16);
@@ -397,6 +466,7 @@
     margin-top: -2.25rem;
     padding-top: 7.25rem;
   }
+
 }
 .productos-grid {
   display: flex;
@@ -1121,7 +1191,7 @@
   }
 
   .testimonios-page .testimonio-video {
-    max-width: 85%;
+    max-width: 70%;
   }
 
   .testimonios-carousel {
@@ -1142,6 +1212,9 @@
   .ubicacion-subtitle {
     display: block;
   }
+
+
+  
 }
 
 .testimonio-nombre {
@@ -1291,7 +1364,7 @@
   z-index: 4;
 }
 .promocion-brand-2 img{
-  width: 35px;
+  width: 30px;
   height: auto;
 }
 
@@ -1415,13 +1488,20 @@
   .promocion-brand-2 {
   position: absolute;
   left: 85%;
-  bottom: 3rem;
+  bottom: 3.5rem;
   font-size: 0.58rem;
   color: rgba(255, 255, 255, 0.95);
   font-weight: 700;
   letter-spacing: 0.5px;
   z-index: 4;
 }
+
+
+  .promocion-brand {
+
+  bottom: 18rem;
+}
+
 
   .promocion-cinta {
     left: -28%;
@@ -1447,6 +1527,7 @@
     grid-template-columns: 1fr;
     border-radius: 14px;
     max-width: 560px;
+    height: 350px;
   }
 
   .promocion-media {
@@ -1455,7 +1536,8 @@
   }
 
   .promocion-image {
-    width: min(100%, 165px);
+    width: min(100%, 180px);
+    margin-top: 3rem;
   }
 
 
@@ -1471,7 +1553,8 @@
   .promocion-arrow {
     width: 54px;
     height: 54px;
-    top: 30%;
+    top:40%;
+    display: none;
   }
 
   .promocion-arrow--left {
@@ -2197,6 +2280,175 @@ nav.scrolled {
   margin-bottom: 3rem;
 }
 
+/* ===================== HERO FULLSCREEN VIDEO ===================== */
+.hero--fullscreen {
+  min-height: 100vh !important;
+  height: 100vh !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  position: relative;
+}
+
+.hero--fullscreen::before {
+  display: none !important;
+  content: none !important;
+}
+
+.hero--fullscreen .hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Degradado inferior para mejorar legibilidad del texto */
+.hero--fullscreen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.6) 100%);
+}
+
+/* Cuando haya un hero fullscreen, hacer que el nav flote encima (no empuje contenido) */
+body.has-hero nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: transparent;
+}
+
+/* Al hacer scroll, mantener la navbar fija y con fondo */
+body.has-hero nav.scrolled {
+  position: fixed;
+}
+
+/* Header wrapper también en modo overlay */
+header.header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1100;
+  background: transparent !important;
+  transition: all 0.3s ease;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Force transparency on nav and navbar to avoid inherited backgrounds */
+header.header, header.header .navbar, nav, .navbar {
+  background: transparent !important;
+}
+
+/* When hero is present ensure body has no top spacing that would create a gap */
+body.has-hero {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+/* Cuando se hace scroll, el header se fija y recupera fondo */
+header.header.scrolled {
+  position: fixed;
+  background: linear-gradient(120deg, rgb(252,217,1) 0%, rgb(234,88,12) 24%, rgb(225,47,1) 48%, rgb(0,0,0) 100%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.26);
+  backdrop-filter: blur(0px);
+  animation: fadeInDown 0.3s ease;
+}
+
+@keyframes fadeInDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.hero--fullscreen .hero-overlay {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.hero--fullscreen .hero-container {
+  pointer-events: auto;
+  max-width: 1200px;
+  width: 100%;
+  padding: 2rem;
+  box-sizing: border-box;
+  height: 100vh; /* ocupar el alto completo */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end; /* posicionar al fondo del viewport */
+  align-items: center; /* centrar horizontalmente */
+  padding-bottom: 1.5rem; /* reducido para bajar los botones más cerca del borde */
+}
+
+/* ===================== HERO MINIMALISTA (TEXTO) ===================== */
+.page-hero-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.hero--fullscreen .page-hero-content h1,
+.hero--fullscreen .hero-text h1 {
+  font-size: clamp(2rem, 5vw, 4rem);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 2rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.05;
+}
+
+.hero--fullscreen .hero-text p {
+  display: none !important;
+}
+
+.hero--fullscreen .hero-buttons {
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .hero--fullscreen .page-hero-content h1 {
+    font-size: 2rem;
+    letter-spacing: 1.5px;
+  }
+}
+
+/* Ensure hero video sits at the very top of the viewport (covers any gap) */
+.hero--fullscreen .hero-video {
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .hero--fullscreen .hero-container {
+    padding: 1.25rem;
+    padding-bottom: 1rem;
+  }
+}
+
 /* ===================== RESPONSIVE (MÓVILES) ===================== */
 @media (max-width: 768px) {
     .menu-toggle {
@@ -2580,7 +2832,7 @@ nav.scrolled {
   
   .btn-primary, .btn-secondary {
     width: 100%;
-    max-width: 250px;
+    max-width: 220px;
   }
   
   .hero-image img {
@@ -2815,6 +3067,22 @@ nav.scrolled {
   gap: 0.75rem;
 }
 
+/* Mobile: hide floating buttons by default and show when scrolled */
+@media (max-width: 768px) {
+  .floating-social {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px);
+    transition: opacity 0.4s ease, transform 0.3s ease;
+  }
+
+  .floating-social.show-floating-btns {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+}
+
 .floating-social-panel {
   display: flex;
   flex-direction: column;
@@ -2940,6 +3208,9 @@ nav.scrolled {
   transform: rotate(45deg);
 }
 
+
+
+
 @media (max-width: 768px) {
   .floating-social {
     right: 1rem;
@@ -2998,5 +3269,57 @@ nav.scrolled {
     pointer-events: none;
     transform: translateY(14px);
     transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+}
+
+@media (max-width: 1115px) and (min-width: 915px) {
+    .mapa-mano-container {
+    max-width: 100%;
+    min-height: 280px;
+    --phone-top:32%;
+    --phone-width: 68.7%;
+    --phone-height: 53%;
+    --phone-radius: 40px;
+  }
+}
+
+@media (max-width: 914px) and (min-width: 767px) {
+    .mapa-mano-container {
+    max-width: 100%;
+    min-height: 280px;
+    --phone-top:32%;
+    --phone-width: 68.7%;
+    --phone-height: 53%;
+    --phone-radius: 40px;
+  }
+}
+@media (max-width: 766px) and (min-width: 600px) {
+    .mapa-mano-container {
+    max-width: 100%;
+    min-height: 280px;
+    --phone-top:32%;
+    --phone-width: 68.7%;
+    --phone-height: 53%;
+    --phone-radius: 30px;
+  }
+}
+
+@media (max-width: 599px) and (min-width: 500px) {
+    .mapa-mano-container {
+    max-width: 100%;
+    min-height: 280px;
+    --phone-top:32%;
+    --phone-width: 68.7%;
+    --phone-height: 53.5%;
+    --phone-radius: 28px;
+  }}
+  @media (max-width: 499px) and (min-width: 250px) {
+    .mapa-mano-container {
+    max-width: 100%;
+    min-height: 200px;
+    --phone-top:32%;
+    --phone-width: 68.7%;
+    --phone-height: 53.5%;
+    --phone-radius: 25px;
   }
 }

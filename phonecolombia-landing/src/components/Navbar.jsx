@@ -50,10 +50,14 @@ export default function Navbar() {
         <div className="nav-overlay" onClick={closeMenu} aria-hidden="true" />
       )}
 
-      <header className="header">
+      <header className={`header ${isScrolled ? "scrolled" : ""}`}>
         <nav className={`navbar ${isScrolled ? "scrolled" : ""}`}>
-          <div className="nav-container" style={{ width: '100%' }}>
-            <a className="logo" href={`${import.meta.env.BASE_URL}#inicio`} onClick={closeMenu}>
+          <div className="nav-container" style={{ width: "100%" }}>
+            <a
+              className="logo"
+              href="#inicio"
+              onClick={closeMenu}
+            >
               <img
                 src={`${import.meta.env.BASE_URL}imagenes/logo-blanco-rojo.jfif`}
                 alt="Phone Colombia Logo"
@@ -62,34 +66,71 @@ export default function Navbar() {
             </a>
             <ul className={`nav-links ${isMenuOpen ? "active" : ""}`}>
               <li>
-                <a href={`${import.meta.env.BASE_URL}#inicio`}className="btn-nav"  onClick={closeMenu}>
+                <a
+                  href="#inicio"
+                  className="btn-nav"
+                  onClick={closeMenu}
+                >
                   Inicio
                 </a>
               </li>
               <li>
-                <a href={`${import.meta.env.BASE_URL}#productos`}className="btn-nav"  onClick={closeMenu}>
+                <a
+                  href="#testimonios"
+                  className="btn-nav"
+                  onClick={closeMenu}
+                >
+                  Testimonios
+                </a>
+              </li>
+
+              <li>
+                <a
+                  href="#promociones"
+                  className="btn-nav"
+                  onClick={closeMenu}
+                >
+                  Promociones
+                </a>
+              </li>
+
+              <li>
+                <a
+                  href="#productos"
+                  className="btn-nav"
+                  onClick={closeMenu}
+                >
                   Productos
                 </a>
               </li>
               <li>
+                <a
+                  href="#ubicacion"
+                  className="btn-nav"
+                  onClick={closeMenu}
+                >
+                  Ubicación
+                </a>
+              </li>
+              {/* <li>
                 <a href={`${import.meta.env.BASE_URL}#beneficios`} className="btn-nav" onClick={closeMenu}>
                   Beneficios
+                </a>
+              </li> */}
+
+              <li>
+                <a
+                  href="#contacto"
+                  className="btn-nav"
+                  onClick={closeMenu}
+                >
+                  Contáctanos
                 </a>
               </li>
               <li>
                 <Link to="/garantias" className="btn-nav" onClick={closeMenu}>
                   Garantías
                 </Link>
-              </li>
-              <li>
-                <a href={`${import.meta.env.BASE_URL}#testimonios`}className="btn-nav"  onClick={closeMenu}>
-                  Testimonios
-                </a>
-              </li>
-              <li>
-                <a href={`${import.meta.env.BASE_URL}#contacto`} className="btn-nav" onClick={closeMenu}>
-                  Contáctanos
-                </a>
               </li>
             </ul>
           </div>
@@ -100,7 +141,7 @@ export default function Navbar() {
             aria-label={isMenuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={isMenuOpen}
             tabIndex={0}
-            onKeyDown={e => {
+            onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") toggleMenu();
             }}
           >

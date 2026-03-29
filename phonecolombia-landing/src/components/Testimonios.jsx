@@ -9,6 +9,23 @@ export default function Testimonios() {
 	];
 
 	const [indiceActual, setIndiceActual] = useState(0);
+	const touchStartX = useRef(0);
+	const touchEndX = useRef(0);
+		// Handlers para swipe
+		const handleTouchStart = (e) => {
+			touchStartX.current = e.changedTouches[0].clientX;
+			touchEndX.current = e.changedTouches[0].clientX;
+		};
+		const handleTouchMove = (e) => {
+			touchEndX.current = e.changedTouches[0].clientX;
+		};
+		const handleTouchEnd = () => {
+			const dist = touchStartX.current - touchEndX.current;
+			if (dist > 40) setIndiceActual((prev) => (prev + 1) % totalPaginas);
+			else if (dist < -40) setIndiceActual((prev) => (prev === 0 ? totalPaginas - 1 : prev - 1));
+			touchStartX.current = 0;
+			touchEndX.current = 0;
+		};
 	const [isCarouselPaused, setIsCarouselPaused] = useState(false);
 	const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 	const [isMobileView, setIsMobileView] = useState(false);
@@ -102,6 +119,9 @@ export default function Testimonios() {
 				<div
 					className="entregas-carousel"
 					data-animate="fade-up"
+					onTouchStart={handleTouchStart}
+					onTouchMove={handleTouchMove}
+					onTouchEnd={handleTouchEnd}
 				>
 					<div className="entregas-viewport">
 						<div

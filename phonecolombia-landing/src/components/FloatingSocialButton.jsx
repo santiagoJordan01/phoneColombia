@@ -3,6 +3,7 @@ import { IconWhatsapp, IconInstagram, IconTelegram, IconGarantia } from "./Socia
 
 export default function FloatingSocialButton() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showFloating, setShowFloating] = useState(false);
   const wrapperRef = useRef(null);
 
   useEffect(() => {
@@ -27,8 +28,26 @@ export default function FloatingSocialButton() {
     };
   }, []);
 
+  useEffect(() => {
+    const updateVisibility = () => {
+      if (window.innerWidth <= 768) {
+        setShowFloating(window.scrollY > 100);
+      } else {
+        setShowFloating(true);
+      }
+    };
+
+    updateVisibility();
+    window.addEventListener("scroll", updateVisibility, { passive: true });
+    window.addEventListener("resize", updateVisibility);
+    return () => {
+      window.removeEventListener("scroll", updateVisibility);
+      window.removeEventListener("resize", updateVisibility);
+    };
+  }, []);
+
   return (
-    <div ref={wrapperRef} className={`floating-social ${isOpen ? "open" : ""}`}>
+    <div ref={wrapperRef} className={`floating-social ${isOpen ? "open" : ""} ${showFloating ? "show-floating-btns" : ""}`}>
       <div className="floating-social-panel" aria-hidden={!isOpen}>
         <a
           className="floating-social-link"

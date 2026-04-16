@@ -48,16 +48,7 @@ export default function Hero() {
 
   return (
     <section id="inicio" className="hero hero--fullscreen">
-      {/* Background blurred video (covers) */}
-      <video
-        className="hero-bg"
-        src={`${import.meta.env.BASE_URL}imagenes/Hero/phonecolombiavideohero.mp4`}
-        autoPlay
-        muted
-        loop
-        playsInline
-        aria-hidden="true"
-      />
+      {/* Background video removed (hero-bg) */}
 
       {/* Foreground video (visible, clickable) */}
       <video

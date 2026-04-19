@@ -10,10 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.30.0",
+    "dotenv": "^17.4.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.0",
-    "@supabase/supabase-js": "^2.30.0",
     "react-slick": "^0.31.0",
     "slick-carousel": "^1.8.1"
   },

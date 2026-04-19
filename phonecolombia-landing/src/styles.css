@@ -3364,6 +3364,165 @@ header.header.scrolled {
   box-shadow: 0 18px 38px rgba(225, 47, 1, 0.5);
 }
 
+/* ===================== ADMIN - PREMIUM LOGIN ===================== */
+.admin-login-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 120px);
+  padding: 2rem 1rem;
+}
+.admin-login-card {
+  width: 100%;
+  max-width: 720px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.45));
+  border: 1px solid var(--pc-border-soft);
+  border-radius: 18px;
+  padding: 2rem;
+  box-shadow: var(--pc-shadow-strong);
+  color: var(--pc-text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.admin-login-brand {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+.admin-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background: linear-gradient(120deg, #fcd901 0%, #ea580c 48%, #e12f01 100%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  color: #111;
+  font-size: 1.05rem;
+  box-shadow: 0 12px 36px rgba(225,47,1,0.28);
+}
+.admin-login-form {
+  margin-top: 0.25rem;
+}
+.admin-input {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  color: var(--pc-text-primary);
+  width: 100%;
+  font-size: 1rem;
+}
+.admin-input::placeholder { color: rgba(255,255,255,0.55); }
+.admin-input:focus {
+  outline: none;
+  border-color: var(--pc-orange-500);
+  box-shadow: 0 8px 28px rgba(234,88,12,0.12);
+}
+.admin-actions { margin-top: 0.6rem; display: flex; justify-content: flex-end; }
+.admin-login-message {
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+  color: var(--pc-orange-100);
+}
+.admin-login-footer { font-size: 0.9rem; color: rgba(255,255,255,0.62); }
+
+@media (max-width: 640px) {
+  .admin-login-card { padding: 1.2rem; border-radius: 12px; }
+  .admin-logo { width: 52px; height: 52px; }
+}
+
+/* ===================== ADMIN PANEL STYLES ===================== */
+.admin-page {
+  color: var(--pc-text-primary);
+}
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.admin-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+.btn-logout {
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  font-weight: 700;
+  box-shadow: 0 12px 36px rgba(225,47,1,0.28);
+}
+.admin-tabs {
+  display: flex;
+  gap: 1rem;
+  margin: 1rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding-bottom: 0.5rem;
+}
+.admin-tab {
+  background: transparent;
+  color: rgba(255,255,255,0.85);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 0.45rem 0.9rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.admin-tab.active {
+  background: linear-gradient(120deg, var(--pc-orange-500), var(--pc-red-600));
+  color: #fff;
+  box-shadow: 0 8px 28px rgba(225,47,1,0.22);
+  border: none;
+}
+.admin-section {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+  padding: 1.2rem;
+  border-radius: 12px;
+  margin-bottom: 1.6rem;
+}
+.admin-form { display: grid; gap: 0.6rem; max-width: 680px; }
+.admin-input, .admin-form textarea {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 0.86rem 1rem;
+  border-radius: 10px;
+  color: var(--pc-text-primary);
+  width: 100%;
+}
+.admin-input::placeholder { color: rgba(255,255,255,0.5); }
+.admin-form .btn-primary { padding: 0.9rem 1.6rem; border-radius: 999px; font-weight: 800; }
+.admin-grid { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 1rem; }
+.producto-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.2));
+  border-radius: 12px;
+  padding: 1rem;
+  max-width: 320px;
+  width: 100%;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.4);
+}
+.producto-imagen { width: 100%; border-radius: 8px; margin-bottom: 0.6rem; }
+.promo-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.15));
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.35);
+}
+
+@media (max-width: 720px) {
+  .admin-header { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+  .admin-actions { width: 100%; display: flex; justify-content: flex-end; }
+}
+
 .floating-social-logo {
   width: 50px;
   height: 50px;

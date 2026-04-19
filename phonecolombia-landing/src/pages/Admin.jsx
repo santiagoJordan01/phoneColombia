@@ -209,78 +209,77 @@ export default function Admin() {
 
   if (!user) {
     return (
-      <div className="container" style={{ padding: "2rem" }}>
-        <h2>Panel Admin — Iniciar sesión</h2>
-        <p>Ingresa tus credenciales para acceder al panel.</p>
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="email@ejemplo.com"
-            style={{ padding: "0.6rem", minWidth: "260px" }}
-          />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Contraseña"
-            style={{ padding: "0.6rem", minWidth: "200px" }}
-            onKeyDown={(e) => { if (e.key === 'Enter') signIn(); }}
-          />
-          <button onClick={signIn} className="btn-primary" disabled={loading}>{loading ? "Iniciando..." : "Iniciar sesión"}</button>
+      <div className="container admin-login-wrapper" style={{ padding: "2rem" }}>
+        <div className="admin-login-card" role="region" aria-label="Login administrador">
+          <div className="admin-login-brand">
+            <div className="admin-logo">
+              <img src={`${import.meta.env.BASE_URL}imagenes/logo-blanco-rojo.jfif`} alt="Phone Colombia Logo" className="imagenLogo" />
+            </div>
+            <div>
+              <h2 style={{ margin: 0 }}>Panel Admin</h2>
+              <p style={{ margin: 0, color: "rgba(255,255,255,0.75)", fontSize: "0.95rem" }}>Ingresa tus credenciales</p>
+            </div>
+          </div>
+
+          <form
+            onSubmit={(e) => { e.preventDefault(); signIn(); }}
+            className="admin-login-form"
+            style={{ display: "grid", gap: "0.65rem", marginTop: "0.6rem" }}
+          >
+            <input
+              className="admin-input"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="email@ejemplo.com"
+              required
+            />
+            <input
+              className="admin-input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Contraseña"
+              required
+              onKeyDown={(e) => { if (e.key === 'Enter') signIn(); }}
+            />
+
+            <div className="admin-actions">
+              <button type="submit" className="btn-primary" disabled={loading}>{loading ? "Iniciando..." : "Iniciar sesión"}</button>
+            </div>
+          </form>
+
+          {message && <p className="admin-login-message">{message}</p>}
+
         </div>
-        {message && <p style={{ marginTop: "1rem" }}>{message}</p>}
       </div>
     );
   }
 
   return (
-    <div className="container" style={{ padding: "2rem" }}>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
-        <h2>Panel Admin — Gestión de contenido</h2>
-        <button className="btn-secondary" onClick={signOut}>Cerrar sesión</button>
+    <div className="container admin-page" style={{ padding: "2rem" }}>
+      <header className="admin-header">
+        <h2 className="admin-title">Panel Admin — Gestión de contenido</h2>
+        <div className="admin-actions">
+          <button className="btn-secondary btn-logout" onClick={signOut}>Cerrar sesión</button>
+        </div>
       </header>
 
       {/* Pestañas */}
-      <div style={{ display: "flex", gap: "1rem", margin: "1rem 0", borderBottom: "1px solid #ccc", paddingBottom: "0.5rem" }}>
-        <button
-          onClick={() => setActiveTab("productos")}
-          style={{
-            background: activeTab === "productos" ? "var(--pc-orange-500)" : "transparent",
-            color: activeTab === "productos" ? "#fff" : "#ccc",
-            border: "none",
-            padding: "0.5rem 1rem",
-            cursor: "pointer",
-            borderRadius: "8px",
-          }}
-        >
-          Productos
-        </button>
-        <button
-          onClick={() => setActiveTab("promociones")}
-          style={{
-            background: activeTab === "promociones" ? "var(--pc-orange-500)" : "transparent",
-            color: activeTab === "promociones" ? "#fff" : "#ccc",
-            border: "none",
-            padding: "0.5rem 1rem",
-            cursor: "pointer",
-            borderRadius: "8px",
-          }}
-        >
-          Promociones
-        </button>
+      <div className="admin-tabs">
+        <button onClick={() => setActiveTab("productos")} className={`admin-tab ${activeTab === "productos" ? "active" : ""}`}>Productos</button>
+        <button onClick={() => setActiveTab("promociones")} className={`admin-tab ${activeTab === "promociones" ? "active" : ""}`}>Promociones</button>
       </div>
 
       {activeTab === "productos" && (
         <>
-          <section style={{ marginTop: "1rem" }}>
+          <section className="admin-section" style={{ marginTop: "1rem" }}>
             <h3>Crear nuevo producto</h3>
-            <form onSubmit={createProduct} style={{ display: "grid", gap: "0.6rem", maxWidth: 680 }}>
-              <input placeholder="Nombre" value={productForm.name} onChange={(e) => setProductForm(s => ({ ...s, name: e.target.value }))} required />
-              <input placeholder="Precio" value={productForm.price} onChange={(e) => setProductForm(s => ({ ...s, price: e.target.value }))} required />
-              <textarea placeholder="Descripción" value={productForm.description} onChange={(e) => setProductForm(s => ({ ...s, description: e.target.value }))} />
-              <input type="file" multiple accept="image/*" onChange={(e) => setProductFiles(e.target.files)} />
+            <form onSubmit={createProduct} className="admin-form">
+              <input className="admin-input" placeholder="Nombre" value={productForm.name} onChange={(e) => setProductForm(s => ({ ...s, name: e.target.value }))} required />
+              <input className="admin-input" placeholder="Precio" value={productForm.price} onChange={(e) => setProductForm(s => ({ ...s, price: e.target.value }))} required />
+              <textarea className="admin-input" placeholder="Descripción" value={productForm.description} onChange={(e) => setProductForm(s => ({ ...s, description: e.target.value }))} />
+              <input className="admin-input" type="file" multiple accept="image/*" onChange={(e) => setProductFiles(e.target.files)} />
               <button type="submit" className="btn-primary" disabled={loading}>{loading ? "Guardando..." : "Crear producto"}</button>
             </form>
           </section>
@@ -288,7 +287,7 @@ export default function Admin() {
           <section style={{ marginTop: "2rem" }}>
             <h3>Productos ({products.length})</h3>
             {loading && <p>Cargando...</p>}
-            <div className="productos-grid" style={{ marginTop: "1rem" }}>
+            <div className="productos-grid admin-grid" style={{ marginTop: "1rem" }}>
               {products.map(p => (
                 <div key={p.id} className="producto-card" style={{ maxWidth: 320 }}>
                   {p.images && p.images[0] && <img src={p.images[0]} alt={p.name || "imagen"} className="producto-imagen" />}
@@ -309,14 +308,14 @@ export default function Admin() {
 
       {activeTab === "promociones" && (
         <>
-          <section style={{ marginTop: "1rem" }}>
+          <section className="admin-section" style={{ marginTop: "1rem" }}>
             <h3>Crear nueva promoción</h3>
-            <form onSubmit={createPromocion} style={{ display: "grid", gap: "0.6rem", maxWidth: 680 }}>
-              <input placeholder="Nombre (ej: SUPER PROMO)" value={promoForm.nombre} onChange={(e) => setPromoForm(s => ({ ...s, nombre: e.target.value }))} required />
-              <input placeholder="Precio (ej: 0.000.000)" value={promoForm.precio} onChange={(e) => setPromoForm(s => ({ ...s, precio: e.target.value }))} required />
-              <input placeholder="Bundle (ej: CASE · CARGADOR · VIDRIO)" value={promoForm.bundle} onChange={(e) => setPromoForm(s => ({ ...s, bundle: e.target.value }))} required />
-              <input placeholder="Texto alternativo (alt)" value={promoForm.alt} onChange={(e) => setPromoForm(s => ({ ...s, alt: e.target.value }))} />
-              <input type="file" accept="image/*" onChange={(e) => setPromoFile(e.target.files[0])} required />
+            <form onSubmit={createPromocion} className="admin-form">
+              <input className="admin-input" placeholder="Nombre (ej: SUPER PROMO)" value={promoForm.nombre} onChange={(e) => setPromoForm(s => ({ ...s, nombre: e.target.value }))} required />
+              <input className="admin-input" placeholder="Precio (ej: 0.000.000)" value={promoForm.precio} onChange={(e) => setPromoForm(s => ({ ...s, precio: e.target.value }))} required />
+              <input className="admin-input" placeholder="Bundle (ej: CASE · CARGADOR · VIDRIO)" value={promoForm.bundle} onChange={(e) => setPromoForm(s => ({ ...s, bundle: e.target.value }))} required />
+              <input className="admin-input" placeholder="Texto alternativo (alt)" value={promoForm.alt} onChange={(e) => setPromoForm(s => ({ ...s, alt: e.target.value }))} />
+              <input className="admin-input" type="file" accept="image/*" onChange={(e) => setPromoFile(e.target.files[0])} required />
               <button type="submit" className="btn-primary" disabled={loading}>{loading ? "Guardando..." : "Crear promoción"}</button>
             </form>
           </section>
@@ -324,9 +323,9 @@ export default function Admin() {
           <section style={{ marginTop: "2rem" }}>
             <h3>Promociones ({promociones.length})</h3>
             {loading && <p>Cargando...</p>}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "1.5rem", marginTop: "1rem" }}>
+            <div className="admin-grid" style={{ display: "flex", flexWrap: "wrap", gap: "1.5rem", marginTop: "1rem" }}>
               {promociones.map(promo => (
-                <div key={promo.id} style={{ background: "#111", padding: "1rem", borderRadius: "16px", maxWidth: "280px", textAlign: "center" }}>
+                <div key={promo.id} className="promo-card" style={{ maxWidth: "280px", textAlign: "center" }}>
                   <img src={promo.imagen_url} alt={promo.alt || promo.nombre} style={{ width: "100%", borderRadius: "12px", marginBottom: "0.5rem" }} />
                   <h4 style={{ color: "#fff", margin: "0.5rem 0" }}>{promo.nombre}</h4>
                   <p style={{ color: "#ccc", fontSize: "0.9rem" }}>{promo.bundle}</p>

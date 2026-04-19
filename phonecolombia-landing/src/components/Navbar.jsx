@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -13,19 +14,65 @@ export default function Navbar() {
     setIsMenuOpen(false);
   };
 
-  // Efecto para navbar con scroll
+  // refs para scroll y estado del menú (evitan re-render innecesario)
+  const lastScrollY = useRef(typeof window !== "undefined" ? window.scrollY : 0);
+  const ticking = useRef(false);
+  const menuOpenRef = useRef(isMenuOpen);
+
   useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 50) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
+    menuOpenRef.current = isMenuOpen;
+  }, [isMenuOpen]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const currentY = window.scrollY;
+
+      // estado de fondo (sombra / tamaño)
+      setIsScrolled(currentY > 50);
+
+      // si el menú móvil está abierto mantenemos visible el header
+      if (menuOpenRef.current) {
+        setIsHeaderVisible(true);
+        lastScrollY.current = currentY;
+        return;
+      }
+
+      if (!ticking.current) {
+        window.requestAnimationFrame(() => {
+          const delta = currentY - lastScrollY.current;
+          const deltaThreshold = 10; // evita flicker
+          const hideAfter = 50; // umbral para empezar a ocultar
+
+          if (Math.abs(delta) > deltaThreshold) {
+            // No ocultar si el foco está dentro del header (accesibilidad)
+            const headerEl = document.querySelector("header.header");
+            const active = document.activeElement;
+            const activeInsideHeader = headerEl && active && headerEl.contains(active);
+
+            if (delta > 0 && currentY > hideAfter && !activeInsideHeader) {
+              setIsHeaderVisible(false);
+            } else if (delta < 0) {
+              setIsHeaderVisible(true);
+            }
+            lastScrollY.current = currentY;
+          }
+          ticking.current = false;
+        });
+        ticking.current = true;
       }
     };
 
-    handleScroll();
+    lastScrollY.current = typeof window !== "undefined" ? window.scrollY : 0;
+    setIsScrolled(lastScrollY.current > 50);
+    window.addEventListener("scroll", onScroll, { passive: true });
 
-    // Bloquear scroll cuando el menú está abierto
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+
+  // bloquear/desbloquear scroll del body cuando el menú está abierto
+  useEffect(() => {
     if (isMenuOpen) {
       document.body.style.overflow = "hidden";
       document.body.classList.add("mobile-menu-open");
@@ -34,10 +81,7 @@ export default function Navbar() {
       document.body.classList.remove("mobile-menu-open");
     }
 
-    window.addEventListener("scroll", handleScroll);
-
     return () => {
-      window.removeEventListener("scroll", handleScroll);
       document.body.style.overflow = "";
       document.body.classList.remove("mobile-menu-open");
     };
@@ -50,7 +94,7 @@ export default function Navbar() {
         <div className="nav-overlay" onClick={closeMenu} aria-hidden="true" />
       )}
 
-      <header className={`header ${isScrolled ? "scrolled" : ""}`}>
+      <header className={`header ${isScrolled ? "scrolled" : ""}${isHeaderVisible ? "" : " header-hidden"}`}>
         <nav className={`navbar ${isScrolled ? "scrolled" : ""}`}>
           <div className="nav-container" style={{ width: "100%" }}>
             <a
@@ -112,26 +156,13 @@ export default function Navbar() {
                   Ubicación
                 </a>
               </li>
-              {/* <li>
+              {/*
+              <li>
                 <a href={`${import.meta.env.BASE_URL}#beneficios`} className="btn-nav" onClick={closeMenu}>
                   Beneficios
                 </a>
-              </li> */}
-
-              <li>
-                <a
-                  href="#contacto"
-                  className="btn-nav"
-                  onClick={closeMenu}
-                >
-                  Contáctanos
-                </a>
               </li>
-              <li>
-                <Link to="/garantias" className="btn-nav" onClick={closeMenu}>
-                  Garantías
-                </Link>
-              </li>
+              */}
             </ul>
           </div>
           {/* Botón hamburguesa animado y accesible */}

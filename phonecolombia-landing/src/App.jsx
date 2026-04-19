@@ -3,7 +3,7 @@ import { Routes, Route } from "react-router-dom";
 
 import Navbar from "./components/Navbar.jsx";
 import Hero from "./components/Hero.jsx";
-import Producto from "./components/Productos.jsx";
+import Productos from "./components/Productos.jsx";
 import Clientes from "./components/Clientes.jsx";
 import Testimonios from "./components/Testimonios.jsx";
 import Promociones from "./components/Promociones.jsx";
@@ -11,6 +11,7 @@ import Contactanos from "./components/Contactanos.jsx";
 import Ubicacion from "./components/Ubicacion.jsx";
 import GarantiasPage from "./pages/GarantiasPage.jsx";
 import FloatingSocialButton from "./components/FloatingSocialButton.jsx";
+import Admin from "./pages/Admin.jsx";
 import "./App.css";
 import "./styles.css";
 
@@ -43,42 +44,7 @@ function Home() {
       <Hero />
       <Testimonios />
       <Promociones />
-      <section id="productos" className="productos-section" style={{position: 'relative'}}>
-        <div className="productos-title-vertical">PRODUCTOS</div>
-        <div className="container">
-        
-          <div className="productos-grid" data-animate="stagger">
-            {/* Ejemplo de productos destacados */}
-            <Producto
-              imagen={`${import.meta.env.BASE_URL}imagenes/productos/iphone_15.webp`}
-              nombre="iPhone 15"
-              descripcion="128 gb\
-              Case\
-              Vidrio\
-              Cargador\
-              Audifonos\"
-              precio="0.000.000"
-            />
-            <Producto
-              imagen={`${import.meta.env.BASE_URL}imagenes/productos/airpods_pro.jfif`}
-              nombre="AirPods 4"
-              descripcion="Gran ajuste
-Llamadas más nitidas
-Audio espacial personalizado"
-              precio="0.000.000"
-            />
-            <Producto
-              imagen={`${import.meta.env.BASE_URL}imagenes/productos/ipad_pro.webp`}
-              nombre="Ipad pro"
-              descripcion="15’’\
-256gb\
-Wifi\
-Vidrio estandar\."
-              precio="0.000.000"
-            />
-          </div>
-        </div>
-      </section>
+      <Productos />
       {/* <Clientes /> */}
       <Ubicacion />
       <Contactanos />
@@ -105,6 +71,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/admin" element={<Admin />} />
       <Route path="/garantias" element={<GarantiasPage />} />
     </Routes>
   );

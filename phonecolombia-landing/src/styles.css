@@ -382,6 +382,8 @@ html, body {
 
 .productos-section {
   position: relative;
+  z-index: 10; /* Dale un valor alto para que flote sobre el fondo */
+  overflow: visible;
 }
 
 .productos-section > .container {
@@ -410,6 +412,11 @@ html, body {
     padding-top: 7.25rem;
   }
 
+  /* Evita que el título vertical solape las tarjetas en escritorio */
+  .productos-section > .container {
+    padding-left: 240px; /* 200px del título + espacio */
+  }
+
 }
 .productos-grid {
   display: flex;
@@ -420,15 +427,18 @@ html, body {
 }
 .producto-card {
   background: var(--pc-surface);
+  backdrop-filter: blur(12px); /* Refuerza el efecto cristal */
   border-radius: var(--pc-radius-card);
   border: 1px solid var(--pc-border-soft);
   box-shadow: var(--pc-shadow-soft);
-  padding: 2rem 1.5rem 1.5rem;
+  padding: 1.5rem;
   text-align: center;
+  width: 100%; /* Obliga a llenar el contenedor .entrega-card */
   max-width: 320px;
-  flex: 1 1 260px;
   display: flex;
+  min-height: 360px;
   flex-direction: column;
+  height: auto; /* permitir que la tarjeta adapte su alto */
   transition: transform 0.28s ease, box-shadow 0.28s ease, background 0.28s ease;
   color: #fff;
 }
@@ -438,8 +448,9 @@ html, body {
   box-shadow: var(--pc-shadow-strong);
 }
 .producto-imagen {
-  width: 116px;
-  height: 116px;
+  width: 100%;
+  max-width: 220px;
+  height: auto;
   object-fit: cover;
   display: block;
   margin: 0 auto 1.2rem;
@@ -733,116 +744,202 @@ html, body {
 }
 
 @media (min-width: 1024px) {
-  /* Contenedor principal del hero */
+  /* ========== HERO FULLSCREEN COHERENTE CON EL PROYECTO ========== */
   .hero--fullscreen {
     position: relative;
     overflow: hidden !important;
     min-height: 100vh !important;
     display: flex;
     align-items: center;
+    /* Gradiente corporativo del proyecto */
+    background: linear-gradient(120deg, #fcd901 0%, #ea580c 20%, #E12F01 70%, #000000 100%);
+    background-size: 200% 200%;
+    animation: heroGradientShift 12s ease infinite;
   }
 
+
+  @keyframes heroGradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Overlay sutil (patrón de puntos, similar a otros fondos) */
   .hero--fullscreen .hero-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
     z-index: 1 !important;
   }
 
-  /* Layout en fila: texto a la izquierda, video a la derecha */
+  /* Layout en fila: texto izquierda, video derecha */
   .hero--fullscreen .hero-container {
     display: flex !important;
     flex-direction: row !important;
-    align-items: center !important; 
+    align-items: center !important;
     justify-content: space-between !important;
-    gap: 5rem !important; 
-    /* AÑADIDO: Padding superior para que no tape el header/logo */
-    padding: 120px 7% 60px !important; 
+    gap: 5rem !important;
+    padding: 120px 7% 60px !important;
     width: 100%;
-    max-width: 1400px !important; /* Ligeramente más angosto para mejor lectura */
+    max-width: 1400px !important;
     margin: 0 auto;
     z-index: 5 !important;
     box-sizing: border-box !important;
+    position: relative;
   }
 
-  /* Bloque de texto: forzado a la izquierda con 'order: 1' */
+  /* Bloque de texto: forzado a la izquierda */
   .hero--fullscreen .hero-text {
     width: 50% !important;
     text-align: left !important;
-    order: 1 !important; /* Esto fuerza que el texto vaya primero sin importar el HTML */
+    order: 1 !important;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+    margin-left: 50px !important;
   }
 
-  /* Contenido del hero alineado a la izquierda */
+  /* Contenido interno del texto */
   .hero--fullscreen .page-hero-content {
-    align-items: flex-start !important;
-    text-align: left !important;
+    align-items: flex-end !important;
+    text-align: center !important;
     width: 100%;
   }
 
-  /* Título principal: tipografía refinada (Estilo Apple) */
+  /* Título principal (coherente con .section-title pero adaptado) */
   .hero--fullscreen .page-hero-content h1,
   .hero--fullscreen .hero-text h1 {
-    font-size: clamp(3.5rem, 6vw, 5.5rem) !important;
+    font-size: clamp(3rem, 5vw, 4.5rem) !important;
     font-weight: 800 !important;
     margin-bottom: 1.5rem !important;
-    line-height: 1.05 !important;
-    letter-spacing: -0.03em !important;
+    line-height: 1.1 !important;
+    letter-spacing: -0.02em !important;
     text-transform: uppercase;
-    color: #ffffff;
+    color: #ffffff !important;
+    text-shadow: 0 4px 18px rgba(0,0,0,0.32);
   }
 
-  /* Descripción (Subtítulo) */
+  /* Descripción (coherente con .contacto-subtitle, .clientes-subtitle) */
   .hero--fullscreen .hero-text p {
-    font-size: 1.25rem !important;
-    line-height: 1.6 !important;
+    font-size: 1.2rem !important;
+    line-height: 1.5 !important;
     max-width: 85% !important;
-    margin-bottom: 2.5rem !important;
-    color: rgba(255, 255, 255, 0.7) !important; /* Gris claro elegante */
+    margin-bottom: 2rem !important;
+    color: rgba(255, 255, 255, 0.88) !important;
     font-weight: 400;
   }
 
-  /* Botones alineados a la izquierda */
+  /* Botones con los estilos exactos del proyecto */
   .hero--fullscreen .hero-buttons {
     display: flex !important;
     flex-direction: row !important;
     justify-content: flex-start !important;
     gap: 1.5rem !important;
     width: 100%;
+    transform: translateX(110px);
   }
 
-  /* * VIDEO LATERAL: Forzado a la derecha, estilo "Reel/TikTok" pero Premium 
-   */
+  .hero--fullscreen .hero-buttons .btn-primary {
+    background: linear-gradient(120deg, #fcd901 0%, #ea580c 45%, #e12f01 100%) !important;
+    color: white !important;
+    border: 2px solid rgba(255,255,255,0.24) !important;
+    box-shadow: 0 10px 26px rgba(225,47,1,0.36) !important;
+    padding: 1rem 2.5rem !important;
+    border-radius: 999px !important;
+    font-weight: 600 !important;
+    font-size: 1.1rem !important;
+    transition: transform 0.26s ease, box-shadow 0.26s ease !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    white-space: nowrap !important;
+  }
+
+  .hero--fullscreen .hero-buttons .btn-primary:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 14px 30px rgba(225,47,1,0.46) !important;
+  }
+
+  .hero--fullscreen .hero-buttons .btn-secondary {
+    background: linear-gradient(120deg, var(--pc-orange-500) 0%, var(--pc-red-600) 100%) !important;
+    color: white !important;
+    border: 2px solid rgba(252,217,1,0.5) !important;
+    box-shadow: 0 10px 26px rgba(225,47,1,0.32) !important;
+    padding: 1rem 2.5rem !important;
+    border-radius: 999px !important;
+    font-weight: 600 !important;
+    font-size: 1.1rem !important;
+    transition: transform 0.26s ease, box-shadow 0.26s ease !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    white-space: nowrap !important;
+  }
+
+  .hero--fullscreen .hero-buttons .btn-secondary:hover {
+    box-shadow: 0 14px 30px rgba(225,47,1,0.42) !important;
+  }
+
+  /* ========== VIDEO LATERAL (estilo tarjeta producto) ========== */
   .hero--fullscreen .hero-video,
   .hero-video {
     position: relative !important;
-    order: 2 !important; /* Fuerza el video a la derecha */
-    width: 35% !important; 
-    max-width: 380px !important; /* Al ser vertical, no debe ser tan ancho */
-    aspect-ratio: 9 / 16 !important; /* Mantiene proporción perfecta de celular */
-    object-fit: cover !important; /* Elimina los bordes negros internos del video */
-    border-radius: 28px !important; /* Bordes redondeados estilo iPhone */
-    /* Sombra elegante y borde interior sutil (Glassmorphism) */
-    box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8),
-                0 0 0 1px rgba(255, 255, 255, 0.15) inset !important;
+    order: 2 !important;
+    width: 35% !important;
+    max-width: 380px !important;
+    aspect-ratio: 9 / 16 !important;
+    height: 85% !important;
+    object-fit: cover !important;
+    border-radius: 20px !important; /* mismo que --pc-radius-card */
+    border: 1px solid var(--pc-border-soft) !important;
+    box-shadow: var(--pc-shadow-soft) !important;
     z-index: 10 !important;
-    background-color: #000 !important;
-    /* Resplandor sutil detrás del celular */
-    filter: drop-shadow(0 0 40px rgba(255, 60, 0, 0.15));
+    background: #000 !important;
+    transition: transform 0.28s ease, box-shadow 0.28s ease !important;
+    transform: translate(-225px, 30px);
+    
   }
 
-  /* Ajuste del header para que sea flotante y limpio */
+  /* Efecto hover similar a las tarjetas del proyecto */
+  .hero--fullscreen .hero-video:hover,
+  .hero-video:hover {
+    box-shadow: var(--pc-shadow-strong) !important;
+    border-color: rgba(252,217,1,0.5) !important;
+  }
+
+  /* Header flotante coherente con el proyecto (igual al nav.scrolled) */
   header.header {
-    position: absolute !important; /* o fixed */
+    position: absolute !important;
     top: 0;
     left: 0;
     width: 100%;
     padding: 1.5rem 7% !important;
     z-index: 50 !important;
     background: transparent !important;
+    transition: all 0.3s ease;
   }
+
+  header.header.scrolled {
+    /* background:transparent !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.26) !important; */
+    padding: 0.8rem 7% !important;
+    position: fixed !important;
+  }
+
+
+  .hero--fullscreen {
+  position: relative;
 }
+.entrega-card {
+        flex: 0 0 33.33%; /* 3 tarjetas por fila */
+    }
 
-
+}
 
 @media (min-width: 1025px) {
     .entregas-arrow {
@@ -854,10 +951,11 @@ html, body {
     gap: 24px;
   }
   .entrega-card {
-    flex: 0 0 calc((100% - 48px) / 3); /* 3 cards, 2 gaps de 24px */
+   flex: 0 0 calc(33.333% - 16px); /* 3 cards, 2 gaps de 24px */
     max-width: calc((100% - 48px) / 3);
     width: 100%;
-    height: 500px;
+    min-height: 420px; /* mantener una altura base sin forzar recorte */
+    height: auto;
     box-sizing: border-box;
   }
 }
@@ -865,19 +963,19 @@ html, body {
 .entrega-card {
   background: none;
   border-radius: 0;
-  padding: 0;
+  padding: 0px;
   box-shadow: none;
   color: inherit;
   flex: 0 0 100%;
   min-width: 0;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
 }
 .entrega-card img {
   width: min(65vw, 250px);
-  height: 100%;
-  object-fit: contain;
+  height: 200px;
+  object-fit: cover;
   border-radius: 12px;
   box-shadow: 0 12px 40px rgba(0,0,0,0.25);
   display: block;
@@ -1070,8 +1168,12 @@ html, body {
 
   .entrega-card img {
     width: 100%;
-    height: 100%;
-    object-fit: contain;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    display: block;
+    margin: 0 auto 1rem auto; /* Añade margen inferior */
   }
 }
 
@@ -1246,7 +1348,7 @@ html, body {
   }
 
   .testimonios-page .testimonio-video {
-    max-width: 70%;
+    max-width: 85%;
   }
 
   .testimonios-carousel {
@@ -2015,6 +2117,28 @@ nav.scrolled {
   /* REMOVER: background-color: #E12F01; ← ESTO CAUSABA EL FONDO NARANJA */
 }
 
+/* ===================== HEADER HIDE/SHOW (scroll) ===================== */
+/* Transición suave para mover todo el header cuando se oculta */
+header.header {
+  transition: transform 280ms cubic-bezier(.2,.9,.2,1), padding 0.28s ease, background 0.28s ease, box-shadow 0.28s ease;
+  will-change: transform;
+}
+
+header.header.header-hidden {
+  transform: translateY(-100%);
+}
+
+/* Mantener visible cuando el menú móvil está abierto */
+body.mobile-menu-open header.header {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  header.header {
+    transition: none !important;
+  }
+}
+
 /* ===================== LOGO TEXTO (COLORES OSCUROS PARA CONTRASTE) ===================== */
 .logo {
   display: flex;
@@ -2413,7 +2537,6 @@ body.has-hero {
 header.header.scrolled {
   position: fixed;
   background: linear-gradient(120deg, rgb(252,217,1) 0%, rgb(234,88,12) 24%, rgb(225,47,1) 48%, rgb(0,0,0) 100%);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.26);
   backdrop-filter: blur(0px);
   animation: fadeInDown 0.3s ease;
 }
@@ -2486,7 +2609,14 @@ header.header.scrolled {
   .hero--fullscreen .page-hero-content h1 {
     font-size: 2rem;
     letter-spacing: 1.5px;
+    display:none;
   }
+  .hero--fullscreen .hero-buttons {
+  margin-top: 24.5rem;
+}
+
+
+
 }
 
 /* Ensure hero video sits at the very top of the viewport (covers any gap) */
@@ -3376,5 +3506,79 @@ header.header.scrolled {
     --phone-width: 68.7%;
     --phone-height: 53.5%;
     --phone-radius: 25px;
+  }
+}
+
+
+
+
+/* Asegurar que el contenedor del hero tenga posición relativa */
+.hero--fullscreen {
+  position: relative;
+}
+
+/* Botón flotante sobre el video, en la parte inferior derecha */
+.hero-sound-control {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 25; /* mayor que el video (z-index:0) y que el overlay (z-index:1) */
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.hero-sound-control:hover {
+  background: rgba(0, 0, 0, 0.8);
+  transform: scale(1.05);
+}
+
+.hero-sound-control {
+  position: absolute;
+  bottom: 25px;
+  right: 240px;
+  z-index: 20;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  padding: 0;
+}
+
+.hero-sound-control:hover {
+  background: rgba(0, 0, 0, 0.8);
+  transform: scale(1.05);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Ajuste para móviles (opcional, más pequeño) */
+@media (max-width: 768px) {
+  .hero-sound-control {
+    bottom: 130px;
+    right: 12px;
+    width: 38px;
+    height: 38px;
+  }
+  .hero-sound-control svg {
+    width: 18px;
+    height: 18px;
   }
 }

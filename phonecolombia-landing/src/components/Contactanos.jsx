@@ -37,7 +37,7 @@ export default function Contactanos() {
 							<label htmlFor="contacto-mensaje">Mensaje</label>
 							<textarea id="contacto-mensaje" name="mensaje" placeholder="Cuéntanos qué producto te interesa" required />
 						</div>
-						<button type="submit" className="btn-primary">Enviar por WhatsApp</button>
+						<button type="submit" className="btn-primary">Enviar</button>
 					</form>
 
 					<aside className="contacto-info" data-animate="fade-up" aria-label="Canales de contacto">

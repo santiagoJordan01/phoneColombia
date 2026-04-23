@@ -21,7 +21,7 @@ export default function Ubicacion() {
           <div className={`mapa-en-mano ${mapaCargado ? "is-loaded" : ""}`}>
             <iframe
               title="Ubicación Phone Colombia"
-              src="https://www.google.com/maps?q=3.387200,-76.539700&z=16&output=embed"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3982.848903240402!2d-76.5418110263641!3d3.387057251646903!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e30a15d01b0e85d%3A0x30522b2943d9b583!2sCentro%20Comercial%20San%20Andresito%20Del%20Sur!5e0!3m2!1ses!2sco!4v1776785761708!5m2!1ses!2sco"
               width="320"
               height="180"
               style={{ border: 0 }}

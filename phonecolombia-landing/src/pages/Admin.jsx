@@ -13,12 +13,25 @@ export default function Admin() {
   const [products, setProducts] = useState([]);
   const [productForm, setProductForm] = useState({ name: "", price: "", description: "" });
   const [productFiles, setProductFiles] = useState(null);
+  const [editingProductId, setEditingProductId] = useState(null); // NUEVO: ID del producto en edición
+  const [editModalOpen, setEditModalOpen] = useState(false); // NUEVO: mostrar modal de edición
+  const [editingProductImages, setEditingProductImages] = useState([]); // NUEVO: imágenes actuales del producto en edición
   const [password, setPassword] = useState("");
 
   // Estados para Promociones
   const [promociones, setPromociones] = useState([]);
   const [promoForm, setPromoForm] = useState({ nombre: "", precio: "", bundle: "", alt: "" });
   const [promoFile, setPromoFile] = useState(null);
+  // Estados para Testimonios (vídeos)
+  const [testimonios, setTestimonios] = useState([]);
+  const [testimonioForm, setTestimonioForm] = useState({ caption: "" });
+  const [testimonioFile, setTestimonioFile] = useState(null);
+  const [editingTestimonioId, setEditingTestimonioId] = useState(null);
+  const [testimonioModalOpen, setTestimonioModalOpen] = useState(false);
+  // Estado para el video del hero
+  const [heroFile, setHeroFile] = useState(null);
+  const [heroUrl, setHeroUrl] = useState(null);
+  const [heroLoading, setHeroLoading] = useState(false);
 
   if (!isSupabaseConfigured) {
     return (
@@ -57,8 +70,27 @@ export default function Admin() {
     if (user) {
       fetchProducts();
       fetchPromociones();
+      fetchTestimonios();
+      fetchHero();
     }
   }, [user]);
+
+  const fetchHero = async () => {
+    try {
+      const { data, error } = await supabase.from('site_settings').select('value').eq('key', 'hero_video_url').limit(1).maybeSingle();
+      if (!error && data && data.value) {
+        const v = data.value;
+        if (/^https?:\/\//i.test(v)) {
+          setHeroUrl(v);
+        } else {
+          const { data: publicData } = supabase.storage.from('hero').getPublicUrl(v);
+          setHeroUrl(publicData?.publicUrl || v);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
 
   // === Productos CRUD ===
   const fetchProducts = async () => {
@@ -86,19 +118,58 @@ export default function Admin() {
     return uploaded;
   };
 
-  const createProduct = async (e) => {
+  // Maneja creación y actualización de productos
+  const handleProductSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const images = await uploadProductImages(productFiles);
-    const { error } = await supabase.from("products").insert([{ ...productForm, images }]);
-    if (error) setMessage(error.message);
-    else {
-      setMessage("Producto creado");
-      setProductForm({ name: "", price: "", description: "" });
-      setProductFiles(null);
+    setMessage("");
+
+    try {
+      let images = [];
+      // Si se seleccionaron nuevas imágenes, las subimos
+      if (productFiles && productFiles.length > 0) {
+        images = await uploadProductImages(productFiles);
+      }
+
+      if (editingProductId) {
+        // ----- MODO EDICIÓN -----
+        const updateData = {
+          name: productForm.name,
+          price: productForm.price,
+          description: productForm.description,
+        };
+        // Solo actualizar imágenes si se subieron nuevas
+        if (images.length > 0) {
+          updateData.images = images;
+        }
+
+        const { error } = await supabase
+          .from("products")
+          .update(updateData)
+          .eq("id", editingProductId);
+
+        if (error) throw error;
+        setMessage("✅ Producto actualizado correctamente");
+      } else {
+        // ----- MODO CREACIÓN -----
+        if (images.length === 0) {
+          setMessage("⚠️ Debes seleccionar al menos una imagen");
+          setLoading(false);
+          return;
+        }
+        const { error } = await supabase.from("products").insert([{ ...productForm, images }]);
+        if (error) throw error;
+        setMessage("✅ Producto creado correctamente");
+      }
+
+      // Limpiar formulario y salir del modo edición
+      resetProductForm();
       fetchProducts();
+    } catch (error) {
+      setMessage(`❌ Error: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const deleteProduct = async (id) => {
@@ -108,6 +179,33 @@ export default function Admin() {
     if (error) setMessage(error.message);
     else fetchProducts();
     setLoading(false);
+  };
+
+  // Cargar producto en el formulario para editar
+  const startEditProduct = (product) => {
+    setEditingProductId(product.id);
+    setProductForm({
+      name: product.name || "",
+      price: product.price || "",
+      description: product.description || "",
+    });
+    // Guardar imágenes actuales para vista previa
+    setEditingProductImages(product.images || []);
+    // Las imágenes existentes no se cargan en el input file (por seguridad)
+    setProductFiles(null);
+    // Abrir modal de edición
+    setEditModalOpen(true);
+    // Opcional: hacer scroll (mejorar foco en modal)
+    // document.querySelector('.admin-section')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Resetear formulario a modo creación
+  const resetProductForm = () => {
+    setEditingProductId(null);
+    setProductForm({ name: "", price: "", description: "" });
+    setProductFiles(null);
+    setEditingProductImages([]);
+    setEditModalOpen(false);
   };
 
   // === Promociones CRUD ===
@@ -129,6 +227,216 @@ export default function Admin() {
     }
     const { data: publicData } = supabase.storage.from("promociones").getPublicUrl(filePath);
     return publicData.publicUrl;
+  };
+
+  // ========== TESTIMONIOS CRUD (vídeos) ==========
+  const fetchTestimonios = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from("testimonios").select("*").order("created_at", { ascending: false });
+    if (error) setMessage(error.message);
+    else setTestimonios(data || []);
+    setLoading(false);
+  };
+
+  const uploadTestimonioVideo = async (file) => {
+    if (!file) return null;
+    const sanitizeFileName = (name) => {
+      if (!name) return "file";
+      return name.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_\-.]/g, "");
+    };
+
+    const safeName = sanitizeFileName(file.name);
+    // Guardar dentro de una carpeta 'videos/' en el bucket para evitar repetir el nombre del bucket
+    const filePath = `videos/${Date.now()}_${safeName}`;
+
+    const { data, error } = await supabase.storage.from("testimonios").upload(filePath, file);
+    if (error) {
+      // Manejar error de bucket no existente con un mensaje claro
+      if (error?.message?.toLowerCase()?.includes('bucket not found') || error?.status === 404) {
+        setMessage('Error: el bucket "testimonios" no existe en Supabase Storage. Crea el bucket desde el dashboard y vuelve a intentarlo.');
+        return null;
+      }
+      setMessage(`Error subiendo ${file.name}: ${error.message || JSON.stringify(error)}`);
+      console.warn('uploadTestimonioVideo error', error);
+      return null;
+    }
+
+    const { data: publicData } = supabase.storage.from("testimonios").getPublicUrl(filePath);
+    try {
+      return encodeURI(publicData.publicUrl);
+    } catch {
+      return publicData.publicUrl;
+    }
+  };
+
+  // Helper: extrae la ruta dentro del bucket a partir de una URL pública
+  const getStoragePathFromUrl = (url) => {
+    if (!url) return null;
+    const safeDecode = (s) => {
+      try { return decodeURIComponent(s); } catch { return s; }
+    };
+
+    try {
+      const u = new URL(url);
+      // Ejemplo de pathname: /storage/v1/object/public/<bucket>/<path>
+      const m = u.pathname.match(/\/object\/public\/([^\/]+)\/(.+)/);
+      if (m && m[2]) return safeDecode(m[2]); // devuelve la ruta relativa dentro del bucket
+    } catch (e) {
+      // ignore
+    }
+    // Fallbacks
+    const i = url.indexOf('/testimonios/');
+    if (i > -1) return safeDecode(url.slice(i + '/testimonios/'.length));
+    const match = url.match(/testimonios\/(.+)$/);
+    if (match) return safeDecode(match[1]);
+    return null;
+  };
+
+  const handleTestimonioSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
+
+    try {
+      // Validación cliente: solo permitir .mp4 (recomendado para compatibilidad navegador)
+      if (testimonioFile) {
+        const isMp4Mime = testimonioFile.type === 'video/mp4';
+        const isMp4Ext = String(testimonioFile.name).toLowerCase().endsWith('.mp4');
+        if (!isMp4Mime && !isMp4Ext) {
+          setMessage('Formato no permitido: usa .mp4 (H.264) para asegurar compatibilidad en navegadores.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Comprobar existencia del bucket y permisos básicos antes de subir
+      try {
+        const { data: listData, error: listError } = await supabase.storage.from('testimonios').list('', { limit: 1 });
+        if (listError) {
+          if (listError?.status === 404 || String(listError).toLowerCase().includes('bucket')) {
+            setMessage('Error: el bucket "testimonios" no existe en Supabase Storage. Crea el bucket desde el dashboard y vuelve a intentarlo.');
+            setLoading(false);
+            return;
+          }
+          if (listError?.status === 403) {
+            setMessage('No tienes permisos para acceder al bucket "testimonios". Asegúrate de estar autenticado y de que la política de Storage permita uploads desde clientes.');
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (e) {
+        // ignore errores de comprobación (continuar para intentar la subida y mostrar error más detallado)
+      }
+
+      let videoUrl = null;
+      if (testimonioFile) {
+        videoUrl = await uploadTestimonioVideo(testimonioFile);
+        if (!videoUrl) {
+          // upload falló y ya se notificó en uploadTestimonioVideo
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (editingTestimonioId) {
+        // Si se subió un nuevo video, intentar borrar el antiguo
+        const existing = testimonios.find(t => t.id === editingTestimonioId);
+        if (videoUrl && existing?.video_url) {
+          const oldPath = getStoragePathFromUrl(existing.video_url);
+          if (oldPath) {
+            const { error: removeError } = await supabase.storage.from('testimonios').remove([oldPath]);
+            if (removeError) {
+              setMessage(prev => (prev ? prev + ' | ' : '') + `No se pudo borrar archivo antiguo: ${removeError.message}`);
+            }
+          }
+        }
+
+        const updateData = { caption: testimonioForm.caption };
+        if (videoUrl) updateData.video_url = videoUrl;
+        const { error: updateError } = await supabase.from("testimonios").update(updateData).eq("id", editingTestimonioId);
+        if (updateError) {
+          if (updateError?.status === 403 || String(updateError?.message || '').toLowerCase().includes('row-level')) {
+            setMessage('Acceso denegado por Row-Level Security al actualizar. Revisa las políticas de la tabla `testimonios` en Supabase.');
+            setLoading(false);
+            return;
+          }
+          throw updateError;
+        }
+        setMessage("✅ Testimonio actualizado");
+      } else {
+        if (!videoUrl) {
+          setMessage("⚠️ Selecciona un video");
+          setLoading(false);
+          return;
+        }
+        const { data: insertData, error: insertError } = await supabase.from("testimonios").insert([{ ...testimonioForm, video_url: videoUrl }]);
+        if (insertError) {
+          if (insertError?.status === 403 || String(insertError?.message || '').toLowerCase().includes('row-level')) {
+            setMessage(
+              'Insert falló por Row-Level Security. Ejecuta en SQL Editor:\n\n' +
+              "ALTER TABLE public.testimonios ENABLE ROW LEVEL SECURITY;\n" +
+              "CREATE POLICY \"Authenticated can manage testimonios\" ON public.testimonios FOR ALL TO authenticated USING (true) WITH CHECK (true);\n\n" +
+              "O crea una política restringida a administradores si lo prefieres."
+            );
+            setLoading(false);
+            return;
+          }
+          throw insertError;
+        }
+        setMessage("✅ Testimonio creado");
+      }
+
+      resetTestimonioForm();
+      fetchTestimonios();
+    } catch (err) {
+      setMessage(`❌ Error: ${err.message || String(err)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startEditTestimonio = (t) => {
+    setEditingTestimonioId(t.id);
+    setTestimonioForm({ caption: t.caption || "" });
+    setTestimonioFile(null);
+    setTestimonioModalOpen(true);
+  };
+
+  const resetTestimonioForm = () => {
+    setEditingTestimonioId(null);
+    setTestimonioForm({ caption: "" });
+    setTestimonioFile(null);
+    setTestimonioModalOpen(false);
+  };
+
+  const deleteTestimonio = async (id) => {
+    if (!confirm("¿Eliminar testimonio?")) return;
+    setLoading(true);
+    setMessage("");
+    try {
+      const t = testimonios.find(item => item.id === id);
+      if (t?.video_url) {
+        const path = getStoragePathFromUrl(t.video_url);
+        if (path) {
+          const { error: removeError } = await supabase.storage.from('testimonios').remove([path]);
+          if (removeError) {
+            console.warn('Error eliminando archivo en Storage:', removeError);
+            setMessage(`Advertencia: no se pudo eliminar archivo: ${removeError.message}`);
+          }
+        }
+      }
+
+      const { error } = await supabase.from("testimonios").delete().eq("id", id);
+      if (error) setMessage(error.message);
+      else {
+        setMessage("Testimonio eliminado");
+        fetchTestimonios();
+      }
+    } catch (err) {
+      setMessage(err.message || String(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const createPromocion = async (e) => {
@@ -205,6 +513,7 @@ export default function Admin() {
     setUser(null);
     setProducts([]);
     setPromociones([]);
+    setTestimonios([]);
   };
 
   if (!user) {
@@ -269,35 +578,105 @@ export default function Admin() {
       <div className="admin-tabs">
         <button onClick={() => setActiveTab("productos")} className={`admin-tab ${activeTab === "productos" ? "active" : ""}`}>Productos</button>
         <button onClick={() => setActiveTab("promociones")} className={`admin-tab ${activeTab === "promociones" ? "active" : ""}`}>Promociones</button>
+        <button onClick={() => setActiveTab("testimonios")} className={`admin-tab ${activeTab === "testimonios" ? "active" : ""}`}>Testimonios</button>
+        <button onClick={() => setActiveTab("hero")} className={`admin-tab ${activeTab === "hero" ? "active" : ""}`}>Hero</button>
       </div>
 
       {activeTab === "productos" && (
         <>
           <section className="admin-section" style={{ marginTop: "1rem" }}>
-            <h3>Crear nuevo producto</h3>
-            <form onSubmit={createProduct} className="admin-form">
+            <h3>{editingProductId ? "Editar producto" : "Crear nuevo producto"}</h3>
+            {editingProductId && (
+              <p style={{ marginBottom: "0.5rem", fontSize: "0.9rem" }}>
+                Editando ID: {editingProductId}
+                <button
+                  type="button"
+                  onClick={resetProductForm}
+                  style={{ marginLeft: "1rem", background: "none", border: "none", color: "#fcd901", cursor: "pointer" }}
+                >
+                  Cancelar edición
+                </button>
+              </p>
+            )}
+            <form onSubmit={handleProductSubmit} className="admin-form">
               <input className="admin-input" placeholder="Nombre" value={productForm.name} onChange={(e) => setProductForm(s => ({ ...s, name: e.target.value }))} required />
               <input className="admin-input" placeholder="Precio" value={productForm.price} onChange={(e) => setProductForm(s => ({ ...s, price: e.target.value }))} required />
               <textarea className="admin-input" placeholder="Descripción" value={productForm.description} onChange={(e) => setProductForm(s => ({ ...s, description: e.target.value }))} />
               <input className="admin-input" type="file" multiple accept="image/*" onChange={(e) => setProductFiles(e.target.files)} />
-              <button type="submit" className="btn-primary" disabled={loading}>{loading ? "Guardando..." : "Crear producto"}</button>
+              {editingProductId && (
+                <p style={{ fontSize: "0.8rem", color: "#aaa" }}>
+                  Si no seleccionas nuevas imágenes, se conservarán las actuales.
+                </p>
+              )}
+              <button type="submit" className="btn-primary" disabled={loading}>{loading ? "Guardando..." : editingProductId ? "Actualizar producto" : "Crear producto"}</button>
+              {editingProductId && (
+                <button type="button" className="btn-secondary" onClick={resetProductForm}>
+                  Cancelar
+                </button>
+              )}
             </form>
           </section>
+
+          {/* Modal de edición */}
+          {editModalOpen && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
+              <div style={{ background: "#0b0b0b", padding: 20, borderRadius: 12, width: "min(720px, 96%)", color: "#fff", boxShadow: "0 10px 30px rgba(0,0,0,0.6)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h3 style={{ margin: 0 }}>Editar producto</h3>
+                  <button onClick={resetProductForm} style={{ background: "none", border: "none", color: "#fff", fontSize: 20, cursor: "pointer" }} aria-label="Cerrar">✖</button>
+                </div>
+
+                <form onSubmit={handleProductSubmit} className="admin-form" style={{ marginTop: 12 }}>
+                  <input className="admin-input" placeholder="Nombre" value={productForm.name} onChange={(e) => setProductForm(s => ({ ...s, name: e.target.value }))} required />
+                  <input className="admin-input" placeholder="Precio" value={productForm.price} onChange={(e) => setProductForm(s => ({ ...s, price: e.target.value }))} required />
+                  <textarea className="admin-input" placeholder="Descripción" value={productForm.description} onChange={(e) => setProductForm(s => ({ ...s, description: e.target.value }))} />
+
+                  <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    {editingProductImages && editingProductImages.length > 0 ? (
+                      editingProductImages.map((src, idx) => (
+                        <img key={idx} src={src} alt={`preview-${idx}`} style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8 }} />
+                      ))
+                    ) : (
+                      <div style={{ color: "#aaa", fontSize: 13 }}>Sin imágenes actuales</div>
+                    )}
+                  </div>
+
+                  <label style={{ fontSize: 13, color: "#aaa", marginTop: 8 }}>Subir nuevas imágenes (opcional)</label>
+                  <input className="admin-input" type="file" multiple accept="image/*" onChange={(e) => setProductFiles(e.target.files)} />
+
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <button type="submit" className="btn-primary" disabled={loading}>{loading ? "Guardando..." : "Actualizar producto"}</button>
+                    <button type="button" className="btn-secondary" onClick={resetProductForm}>Cancelar</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
 
           <section style={{ marginTop: "2rem" }}>
             <h3>Productos ({products.length})</h3>
             {loading && <p>Cargando...</p>}
             <div className="productos-grid admin-grid" style={{ marginTop: "1rem" }}>
               {products.map(p => (
-                <div key={p.id} className="producto-card" style={{ maxWidth: 320 }}>
-                  {p.images && p.images[0] && <img src={p.images[0]} alt={p.name || "imagen"} className="producto-imagen" />}
+                <div key={p.id} className="producto-card" style={{ maxWidth: 320, position: "relative", overflow: "hidden" }}>
+                  {p.images && p.images[0] ? (
+                    <img src={p.images[0]} alt={p.name || "imagen"} className="producto-imagen" />
+                  ) : (
+                    <div className="producto-imagen producto-imagen--placeholder" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span>Sin imagen</span>
+                    </div>
+                  )}
+
+                  {/* Botón Editar (debajo de Eliminar) - moved from overlay to stacked action */}
+
                   <strong style={{ color: "#fff" }}>{p.name}</strong>
                   <div style={{ marginTop: 8 }}>
                     <div style={{ color: "rgba(255,255,255,0.9)" }}>{p.description}</div>
                     <div style={{ marginTop: 6, fontWeight: 800 }}>${p.price}</div>
                   </div>
-                  <div style={{ marginTop: 10 }}>
+                  <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: "0.6rem", alignItems: "center" }}>
                     <button className="btn-secondary" onClick={() => deleteProduct(p.id)}>Eliminar</button>
+                    <button className="btn-secondary" onClick={() => startEditProduct(p)}>Editar</button>
                   </div>
                 </div>
               ))}
@@ -326,7 +705,7 @@ export default function Admin() {
             <div className="admin-grid" style={{ display: "flex", flexWrap: "wrap", gap: "1.5rem", marginTop: "1rem" }}>
               {promociones.map(promo => (
                 <div key={promo.id} className="promo-card" style={{ maxWidth: "280px", textAlign: "center" }}>
-                  <img src={promo.imagen_url} alt={promo.alt || promo.nombre} style={{ width: "100%", borderRadius: "12px", marginBottom: "0.5rem" }} />
+                  <img src={promo.imagen_url} className="producto-imagen" alt={promo.alt || promo.nombre} style={{ width: "100%", borderRadius: "12px", marginBottom: "0.5rem" }} />
                   <h4 style={{ color: "#fff", margin: "0.5rem 0" }}>{promo.nombre}</h4>
                   <p style={{ color: "#ccc", fontSize: "0.9rem" }}>{promo.bundle}</p>
                   <p style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#fcd901" }}>${promo.precio}</p>
@@ -338,7 +717,107 @@ export default function Admin() {
         </>
       )}
 
-      {message && <p style={{ marginTop: 12 }}>{message}</p>}
+        {activeTab === "testimonios" && (
+          <>
+            <section className="admin-section" style={{ marginTop: "1rem" }}>
+              <h3>{editingTestimonioId ? "Editar testimonio" : "Crear nuevo testimonio"}</h3>
+              {editingTestimonioId && (
+                <p style={{ marginBottom: "0.5rem", fontSize: "0.9rem" }}>
+                  Editando ID: {editingTestimonioId}
+                  <button
+                    type="button"
+                    onClick={resetTestimonioForm}
+                    style={{ marginLeft: "1rem", background: "none", border: "none", color: "#fcd901", cursor: "pointer" }}
+                  >
+                    Cancelar edición
+                  </button>
+                </p>
+              )}
+
+              <form onSubmit={handleTestimonioSubmit} className="admin-form">
+                <input className="admin-input" placeholder="Caption (opcional)" value={testimonioForm.caption} onChange={(e) => setTestimonioForm(s => ({ ...s, caption: e.target.value }))} />
+                <input className="admin-input" type="file" accept="video/*" onChange={(e) => setTestimonioFile(e.target.files[0])} />
+                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                  <button type="submit" className="btn-primary" disabled={loading}>{loading ? "Guardando..." : editingTestimonioId ? "Actualizar testimonio" : "Crear testimonio"}</button>
+                  {editingTestimonioId && (
+                    <button type="button" className="btn-secondary" onClick={resetTestimonioForm}>Cancelar</button>
+                  )}
+                </div>
+              </form>
+            </section>
+
+            <section style={{ marginTop: "2rem" }}>
+              <h3>Testimonios ({testimonios.length})</h3>
+              {loading && <p>Cargando...</p>}
+              <div className="admin-grid" style={{ display: "flex", flexWrap: "wrap", gap: "1rem", marginTop: "1rem" }}>
+                {testimonios.map(t => (
+                  <div key={t.id} className="promo-card" style={{ maxWidth: "320px", textAlign: "center", color: "#fff" }}>
+                    <video src={t.video_url && encodeURI(t.video_url)} controls className="testimonio-video" style={{ width: "100%", borderRadius: 12, marginBottom: 8 }} />
+                    <p style={{ color: "#ccc", minHeight: 32 }}>{t.caption}</p>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                      <button className="btn-secondary" onClick={() => startEditTestimonio(t)}>Editar</button>
+                      <button className="btn-secondary" onClick={() => deleteTestimonio(t.id)}>Eliminar</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </>
+        )}
+
+        {activeTab === "hero" && (
+          <section className="admin-section" style={{ marginTop: "1rem" }}>
+            <h3>Video Hero</h3>
+            <p style={{ color: '#ccc' }}>Sube el video que se mostrará en la sección principal (se transcodificará en el servidor si corresponde).</p>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input type="file" accept="video/*" onChange={(e) => setHeroFile(e.target.files[0])} />
+              <button className="btn-primary" onClick={async (e) => {
+                e.preventDefault();
+                if (!heroFile) return setMessage('Selecciona un archivo');
+                setHeroLoading(true);
+                setMessage('Subiendo video del hero...');
+                try {
+                  const sanitizeFileName = (name) => {
+                    if (!name) return 'hero';
+                    return name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-.]/g, '');
+                  };
+                  const safeName = sanitizeFileName(heroFile.name);
+                  const filePath = `hero/${Date.now()}_${safeName}`;
+                  const { error } = await supabase.storage.from('hero').upload(filePath, heroFile);
+                  if (error) {
+                    if (String(error.message || '').toLowerCase().includes('bucket not found')) {
+                      setMessage('Error: el bucket "hero" no existe en Supabase Storage. Crea el bucket desde el dashboard y vuelve a intentarlo.');
+                      setHeroLoading(false);
+                      return;
+                    }
+                    throw error;
+                  }
+                  const { data: publicData } = supabase.storage.from('hero').getPublicUrl(filePath);
+                  const publicUrl = publicData?.publicUrl || filePath;
+                  const { error: upsertError } = await supabase.from('site_settings').upsert([{ key: 'hero_video_url', value: publicUrl }]);
+                  if (upsertError) throw upsertError;
+                  setHeroUrl(publicUrl);
+                  setMessage('✅ Hero actualizado');
+                } catch (err) {
+                  setMessage(`Error: ${err.message || String(err)}`);
+                } finally {
+                  setHeroLoading(false);
+                }
+              }} disabled={heroLoading}>
+                {heroLoading ? 'Subiendo...' : 'Subir Hero'}
+              </button>
+            </div>
+
+            {heroUrl && (
+              <div style={{ marginTop: 12 }}>
+                <h4>Preview actual</h4>
+                <video src={heroUrl} controls style={{ width: '100%', maxWidth: 720, borderRadius: 12 }} />
+              </div>
+            )}
+          </section>
+        )}
+
+        {message && <p style={{ marginTop: 12 }}>{message}</p>}
     </div>
   );
 }

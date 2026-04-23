@@ -1,12 +1,33 @@
 import React, { useEffect, useRef, useState } from "react";
+import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
 import "../styles.css";
 
 export default function Testimonios() {
-	const videos = [
+	const staticVideos = [
 		{ src: `${import.meta.env.BASE_URL}imagenes/testimonios/videotestimonio.mp4` },
 		{ src: `${import.meta.env.BASE_URL}imagenes/testimonios/videotestimonio_1.mp4` },
 		{ src: `${import.meta.env.BASE_URL}imagenes/testimonios/videotestimonio_2.mp4` }
 	];
+
+	const [videos, setVideos] = useState(staticVideos);
+
+	useEffect(() => {
+		if (!isSupabaseConfigured) return;
+		let mounted = true;
+		(async () => {
+			try {
+				const { data, error } = await supabase.from('testimonios').select('*').order('created_at', { ascending: false });
+				if (!error && data && mounted) {
+					// Mapear a la forma esperada por el componente (codificar URLs)
+					const fetched = data.map(item => ({ src: item.video_url ? encodeURI(item.video_url) : item.video_url }));
+					setVideos(fetched.length ? fetched : staticVideos);
+				}
+			} catch (e) {
+				// ignore
+			}
+		})();
+		return () => { mounted = false; };
+	}, []);
 
 	const [indiceActual, setIndiceActual] = useState(0);
 	const touchStartX = useRef(0);

@@ -1,10 +1,37 @@
 import { useRef, useEffect, useState } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 export default function Hero() {
   const videoRef = useRef(null);
   const [isMuted, setIsMuted] = useState(true); // Estado del mute
+  const [videoSrc, setVideoSrc] = useState(null);
 
   useEffect(() => {
+    // Intentar cargar URL dinámica del hero desde la tabla `site_settings`
+    (async () => {
+      try {
+        const { data, error } = await supabase.from('site_settings').select('value').eq('key', 'hero_video_url').limit(1).maybeSingle();
+        if (!error && data && data.value) {
+          const v = data.value;
+          // Si es URL absoluta
+          if (/^https?:\/\//i.test(v)) {
+            setVideoSrc(v);
+            return;
+          }
+          // Si es ruta relativa dentro del bucket 'hero', obtener publicUrl
+          try {
+            const { data: publicData } = supabase.storage.from('hero').getPublicUrl(v);
+            if (publicData?.publicUrl) setVideoSrc(publicData.publicUrl);
+            else setVideoSrc(v);
+          } catch (e) {
+            setVideoSrc(v);
+          }
+        }
+      } catch (e) {
+        // ignore y usar valor por defecto
+      }
+    })();
+
     document.body.classList.add("has-hero");
     const header = document.querySelector('header');
     const prev = header
@@ -62,7 +89,7 @@ export default function Hero() {
       <video
         className="hero-video"
         ref={videoRef}
-        src={`${import.meta.env.BASE_URL}imagenes/Hero/phonecolombiavideohero.mp4`}
+        src={videoSrc || `${import.meta.env.BASE_URL}imagenes/Hero/phonecolombiavideohero.mp4`}
         autoPlay
         muted
         loop

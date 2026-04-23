@@ -41,3 +41,24 @@ ALTER TABLE promociones ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Usuarios autenticados pueden todo" ON promociones
   USING (auth.role() = 'authenticated');
+
+-- Tabla para testimonios (videos)
+CREATE TABLE IF NOT EXISTS public.testimonios (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  video_url text NOT NULL,
+  caption text,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Nota: crea en el dashboard de Supabase un bucket llamado `testimonios` en Storage
+-- y ajusta la visibilidad según sea necesario (público o privado con URLs firmadas).
+
+-- Tabla para ajustes del sitio (clave/valor)
+CREATE TABLE IF NOT EXISTS public.site_settings (
+  key text PRIMARY KEY,
+  value text,
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Insert ejemplo: valor por defecto para el video del hero (opcional)
+-- INSERT INTO public.site_settings (key, value) VALUES ('hero_video_url', '/imagenes/Hero/phonecolombiavideohero.mp4');

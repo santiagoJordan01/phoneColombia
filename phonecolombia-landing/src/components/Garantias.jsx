@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import "../styles.css";
 
 export default function Garantias() {
   const [allOpen, setAllOpen] = useState(false);
-
-  const items = [
+  const [items, setItems] = useState([
     {
       title: "Nuevos: Celulares",
       text1:
@@ -47,7 +47,26 @@ export default function Garantias() {
       text2:
         "Excepciones: baterías y consumibles con desgaste propio, daños por golpes o líquidos, sobrecargas, modificaciones de hardware/software no autorizadas y mal uso."
     }
-  ];
+  ]);
+
+  useEffect(() => {
+    // Intentar cargar garantías desde site_settings (si existen)
+    (async () => {
+      try {
+        const { data, error } = await supabase.from('site_settings').select('value').eq('key', 'garantias').limit(1).maybeSingle();
+        if (!error && data && data.value) {
+          try {
+            const parsed = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+            if (Array.isArray(parsed) && parsed.length > 0) setItems(parsed);
+          } catch (e) {
+            // ignore parse error, mantenemos defaults
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+  }, []);
 
   const toggleCard = () => {
     setAllOpen(prev => !prev);
@@ -60,7 +79,7 @@ export default function Garantias() {
         <div className="garantias-grid" data-animate="stagger">
           {items.map((item, index) => (
             <div
-              key={item.title}
+              key={item.title + index}
               className={`garantia-card ${allOpen ? "expanded" : ""}`}
               data-animate="fade-up"
               onClick={toggleCard}

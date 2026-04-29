@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
 import "../styles.css";
+if (typeof window !== 'undefined') window.supabase = supabase;
 
 export default function Admin() {
   const [email, setEmail] = useState("");
@@ -32,6 +33,9 @@ export default function Admin() {
   const [heroFile, setHeroFile] = useState(null);
   const [heroUrl, setHeroUrl] = useState(null);
   const [heroLoading, setHeroLoading] = useState(false);
+  // Garantías (editable desde Admin)
+  const [garantias, setGarantias] = useState([]);
+  const [garantiasLoading, setGarantiasLoading] = useState(false);
 
   if (!isSupabaseConfigured) {
     return (
@@ -72,8 +76,66 @@ export default function Admin() {
       fetchPromociones();
       fetchTestimonios();
       fetchHero();
+      fetchGarantias();
     }
   }, [user]);
+
+  const fetchGarantias = async () => {
+    try {
+      setGarantiasLoading(true);
+      const { data, error } = await supabase.from('site_settings').select('value').eq('key', 'garantias').limit(1).maybeSingle();
+      if (error) {
+        console.warn('fetchGarantias error', error);
+        setGarantias([]);
+      } else if (data && data.value) {
+        try {
+          const parsed = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+          if (Array.isArray(parsed)) setGarantias(parsed);
+          else setGarantias([]);
+        } catch (e) {
+          console.warn('No se pudo parsear garantias:', e);
+          setGarantias([]);
+        }
+      } else {
+        setGarantias([]);
+      }
+    } catch (e) {
+      console.error('fetchGarantias exception', e);
+      setGarantias([]);
+    } finally {
+      setGarantiasLoading(false);
+    }
+  };
+
+  const addGarantia = () => {
+    setGarantias(prev => [...prev, { title: 'Nueva garantía', text1: '', text2: '' }]);
+  };
+
+  const updateGarantia = (idx, field, value) => {
+    setGarantias(prev => prev.map((g, i) => (i === idx ? { ...g, [field]: value } : g)));
+  };
+
+  const deleteGarantia = (idx) => {
+    if (!confirm('Eliminar garantía?')) return;
+    setGarantias(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const saveGarantias = async () => {
+    setGarantiasLoading(true);
+    try {
+      const payload = JSON.stringify(garantias);
+      const { data, error } = await supabase.from('site_settings').upsert([{ key: 'garantias', value: payload }]);
+      if (error) {
+        setMessage('Error guardando garantías: ' + (error.message || JSON.stringify(error)));
+      } else {
+        setMessage('✅ Garantías guardadas');
+      }
+    } catch (e) {
+      setMessage('Error guardando garantías: ' + (e.message || String(e)));
+    } finally {
+      setGarantiasLoading(false);
+    }
+  };
 
   const fetchHero = async () => {
     try {
@@ -516,6 +578,53 @@ export default function Admin() {
     setTestimonios([]);
   };
 
+  // Diagnóstico RLS + Storage: list + upload pequeño para reproducir error
+  const runDiagnostics = async () => {
+    setMessage("");
+    setHeroLoading(true);
+    try {
+      const resp = await supabase.auth.getSession();
+      console.log('DIAG session:', resp);
+      setMessage(resp?.data?.session ? 'Sesión activa: ' + (resp.data.session.user?.email || resp.data.session.user?.id) : 'No hay sesión');
+
+      const { data: listData, error: listErr } = await supabase.storage.from('hero').list('', { limit: 5 });
+      console.log('DIAG list hero:', { listData, listErr });
+      if (listErr) {
+        setMessage(prev => (prev ? prev + ' | ' : '') + `List error: ${listErr.message || JSON.stringify(listErr)}`);
+      } else {
+        setMessage(prev => (prev ? prev + ' | ' : '') + `Hero list OK (${(listData||[]).length} items)`);
+      }
+
+      // Intento de subir archivo diagnóstico pequeño
+      const f = new File(['diagnostic'], `diag-${Date.now()}.txt`, { type: 'text/plain' });
+      const path = `diag/diag-${Date.now()}.txt`;
+      const { data: upData, error: upErr } = await supabase.storage.from('hero').upload(path, f, { upsert: true, contentType: 'text/plain' });
+      console.log('DIAG upload result:', { upData, upErr });
+      if (upErr) {
+        setMessage(prev => (prev ? prev + ' | ' : '') + `Upload error: ${upErr.message || JSON.stringify(upErr)}`);
+      } else {
+        setMessage(prev => (prev ? prev + ' | ' : '') + 'Upload OK — eliminando...');
+        const { error: rmErr } = await supabase.storage.from('hero').remove([path]);
+        console.log('DIAG remove result:', rmErr);
+        if (rmErr) setMessage(prev => (prev ? prev + ' | ' : '') + `Remove error: ${rmErr.message || JSON.stringify(rmErr)}`);
+        else setMessage(prev => (prev ? prev + ' | ' : '') + 'Remove OK');
+      }
+    } catch (e) {
+      console.error('DIAG exception', e);
+      setMessage(`Diagnóstico error: ${e.message || String(e)}`);
+    } finally {
+      setHeroLoading(false);
+    }
+  };
+
+  // Exponer helper para ejecutar desde la consola: `window.runDiagnostics()`
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.runDiagnostics = runDiagnostics;
+      return () => { try { delete window.runDiagnostics; } catch (e) {} };
+    }
+  }, [runDiagnostics]);
+
   if (!user) {
     return (
       <div className="container admin-login-wrapper" style={{ padding: "2rem" }}>
@@ -570,6 +679,7 @@ export default function Admin() {
       <header className="admin-header">
         <h2 className="admin-title">Panel Admin — Gestión de contenido</h2>
         <div className="admin-actions">
+          <button className="btn-secondary btn-diagnostics" onClick={runDiagnostics} title="Ejecutar diagnóstico RLS" aria-label="Diagnóstico RLS">Diagnóstico RLS</button>
           <button className="btn-secondary btn-logout" onClick={signOut}>Cerrar sesión</button>
         </div>
       </header>
@@ -580,6 +690,7 @@ export default function Admin() {
         <button onClick={() => setActiveTab("promociones")} className={`admin-tab ${activeTab === "promociones" ? "active" : ""}`}>Promociones</button>
         <button onClick={() => setActiveTab("testimonios")} className={`admin-tab ${activeTab === "testimonios" ? "active" : ""}`}>Testimonios</button>
         <button onClick={() => setActiveTab("hero")} className={`admin-tab ${activeTab === "hero" ? "active" : ""}`}>Hero</button>
+        <button onClick={() => setActiveTab("garantias")} className={`admin-tab ${activeTab === "garantias" ? "active" : ""}`}>Garantías</button>
       </div>
 
       {activeTab === "productos" && (
@@ -782,19 +893,45 @@ export default function Admin() {
                     return name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-.]/g, '');
                   };
                   const safeName = sanitizeFileName(heroFile.name);
-                  const filePath = `hero/${Date.now()}_${safeName}`;
-                  const { error } = await supabase.storage.from('hero').upload(filePath, heroFile);
-                  if (error) {
-                    if (String(error.message || '').toLowerCase().includes('bucket not found')) {
+                  // Guardar solo la ruta relativa dentro del bucket 'hero' (evita 'hero/hero/...' en la URL)
+                  const filePath = `${Date.now()}_${safeName}`;
+                  // Obtener sesión actual (diagnóstico)
+                  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+                  console.log('=== DIAGNÓSTICO DE SESIÓN ===');
+                  console.log('Session:', session);
+                  console.log('User ID:', session?.user?.id);
+                  console.log('User role:', session?.user?.role);
+                  console.log('Error de sesión:', sessionError);
+                  console.log('==============================');
+
+                  // Luego sigue con el upload (logs añadidos para diagnóstico)
+                  console.log('Iniciando upload Hero', { filePath, name: heroFile?.name, size: heroFile?.size, type: heroFile?.type });
+                  const uploadStart = Date.now();
+                  const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('hero')
+                    .upload(filePath, heroFile, { upsert: true, contentType: heroFile.type });
+
+                  console.log('Upload finalizado', { durationMs: Date.now() - uploadStart, uploadData, uploadError });
+
+                  if (uploadError) {
+                    console.error('Upload error', uploadError);
+                    if (String(uploadError.message || '').toLowerCase().includes('bucket not found')) {
                       setMessage('Error: el bucket "hero" no existe en Supabase Storage. Crea el bucket desde el dashboard y vuelve a intentarlo.');
                       setHeroLoading(false);
                       return;
                     }
-                    throw error;
+                    setMessage(`Error subiendo archivo: ${uploadError.message || JSON.stringify(uploadError)}`);
+                    setHeroLoading(false);
+                    return;
                   }
+
                   const { data: publicData } = supabase.storage.from('hero').getPublicUrl(filePath);
+                  console.log('getPublicUrl result', publicData);
                   const publicUrl = publicData?.publicUrl || filePath;
-                  const { error: upsertError } = await supabase.from('site_settings').upsert([{ key: 'hero_video_url', value: publicUrl }]);
+                  console.log('Public URL para hero:', publicUrl);
+
+                  const { data: upsertData, error: upsertError } = await supabase.from('site_settings').upsert([{ key: 'hero_video_url', value: publicUrl }]);
+                  console.log('Upsert site_settings result', { upsertData, upsertError });
                   if (upsertError) throw upsertError;
                   setHeroUrl(publicUrl);
                   setMessage('✅ Hero actualizado');
@@ -811,9 +948,40 @@ export default function Admin() {
             {heroUrl && (
               <div style={{ marginTop: 12 }}>
                 <h4>Preview actual</h4>
-                <video src={heroUrl} controls style={{ width: '100%', maxWidth: 720, borderRadius: 12 }} />
+                <video src={heroUrl} controls style={{ width: '100%', height: 'auto', maxWidth: 350, borderRadius: 12 }} />
               </div>
             )}
+          </section>
+        )}
+
+        {activeTab === "garantias" && (
+          <section className="admin-section" style={{ marginTop: "1rem" }}>
+            <h3>Editar Garantías</h3>
+            <p style={{ color: '#ccc' }}>Modifica los textos de garantías que se muestran en la página pública.</p>
+
+            {garantiasLoading && <p>Cargando garantías...</p>}
+
+            <div style={{ marginTop: 12 }}>
+              {garantias && garantias.length > 0 ? (
+                garantias.map((g, idx) => (
+                  <div key={idx} style={{ marginBottom: 12, padding: 12, borderRadius: 8, background: '#0b0b0b' }}>
+                    <input className="admin-input" placeholder="Título" value={g.title} onChange={(e) => updateGarantia(idx, 'title', e.target.value)} />
+                    <textarea className="admin-input" placeholder="Texto principal" value={g.text1} onChange={(e) => updateGarantia(idx, 'text1', e.target.value)} />
+                    <textarea className="admin-input" placeholder="Excepciones" value={g.text2} onChange={(e) => updateGarantia(idx, 'text2', e.target.value)} />
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                      <button className="btn-secondary" onClick={() => deleteGarantia(idx)}>Eliminar</button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p>No hay garantías definidas. Agrega una nueva.</p>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button className="btn-primary" onClick={addGarantia}>Agregar garantía</button>
+                <button className="btn-primary" onClick={saveGarantias} disabled={garantiasLoading}>{garantiasLoading ? 'Guardando...' : 'Guardar garantías'}</button>
+              </div>
+            </div>
           </section>
         )}
 

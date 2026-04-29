@@ -12,7 +12,23 @@ export default function Productos() {
   const touchEndX = useRef(0);
   const trackRef = useRef(null);
   const totalItems = productos.length;
-  const itemsPerPage = 3; // Tarjetas visibles a la vez
+
+  const getItemsPerPage = () => {
+    if (typeof window === "undefined") return 3;
+    const w = window.innerWidth;
+    if (w < 640) return 1; // móvil
+    if (w < 1024) return 2; // tablet
+    return 3; // escritorio
+  };
+
+  const [itemsPerPage, setItemsPerPage] = useState(getItemsPerPage);
+
+  useEffect(() => {
+    const onResize = () => setItemsPerPage(getItemsPerPage());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
   const maxIndice = Math.max(0, (totalPages - 1) * itemsPerPage);
 
@@ -35,10 +51,10 @@ export default function Productos() {
     fetchProductos();
   }, []);
 
-  // Reiniciar índice si cambian los productos
+  // Reiniciar índice si cambian los productos o el layout (items por página)
   useEffect(() => {
     setIndice(0);
-  }, [productos.length]);
+  }, [productos.length, itemsPerPage]);
 
   const prevSlide = () => {
     if (indice === 0) return;
@@ -138,7 +154,11 @@ export default function Productos() {
               }}
             >
               {productos.map((producto) => (
-                <div key={producto.id} className="entrega-card producto-slide">
+                <div
+                  key={producto.id}
+                  className="entrega-card producto-slide"
+                  style={{ flex: `0 0 ${100 / itemsPerPage}%`, boxSizing: "border-box" }}
+                >
                   <Producto
                     imagen={producto.images}
                     nombre={producto.name}

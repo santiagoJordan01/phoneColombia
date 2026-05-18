@@ -3,6 +3,7 @@ import "../styles.css";
 
 export default function Ubicacion() {
   const [mapaCargado, setMapaCargado] = useState(false);
+  const googleMapsUrl = "https://maps.google.com/?q=Centro+Comercial+San+Andresito+Del+Sur";
 
   return (
     <section id="ubicacion" className="ubicacion-section" data-animate="fade-up">
@@ -10,6 +11,11 @@ export default function Ubicacion() {
         <h2 className="productos-title-vertical">Encuentranos</h2>
         <p className="ubicacion-subtitle" data-animate="fade-up">
           Encuéntranos en nuestra tienda principal.
+        </p>
+        <p className="ubicacion-subtitle" data-animate="fade-up">
+          <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
+            Dar click aqui para ver ubicacion
+          </a>
         </p>
         <div className="mapa-mano-container" data-animate="fade-up">
           <img

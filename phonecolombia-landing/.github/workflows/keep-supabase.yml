@@ -1,0 +1,24 @@
+name: Keep Supabase Awake
+
+on:
+  schedule:
+    - cron: '*/15 * * * *' # every 15 minutes
+  workflow_dispatch: {}
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping URLs from secret
+        env:
+          TARGET_URLS: ${{ secrets.KEEP_ALIVE_URLS }}
+        run: |
+          if [ -z "$TARGET_URLS" ]; then
+            echo "Set the repository secret KEEP_ALIVE_URLS to comma-separated URLs"
+            exit 1
+          fi
+          IFS=',' read -ra URLS <<< "$TARGET_URLS"
+          for url in "${URLS[@]}"; do
+            echo "Pinging $url"
+            curl -sS -o /dev/null -w "%{http_code}\n" "$url" || true
+          done

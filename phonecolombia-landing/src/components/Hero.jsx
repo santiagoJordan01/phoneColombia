@@ -3,8 +3,9 @@ import { supabase } from "../lib/supabaseClient";
 
 export default function Hero() {
   const videoRef = useRef(null);
-  const [isMuted, setIsMuted] = useState(true); // Estado del mute
+  const [isMuted, setIsMuted] = useState(false); // Estado del mute (iniciar sin mute)
   const [videoSrc, setVideoSrc] = useState(null);
+  const [needsUserInteraction, setNeedsUserInteraction] = useState(false);
 
   useEffect(() => {
     // Intentar cargar URL dinámica del hero desde la tabla `site_settings`
@@ -64,6 +65,32 @@ export default function Hero() {
     };
   }, []);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const tryPlay = () => {
+      try {
+        const playPromise = video.play();
+        if (playPromise && typeof playPromise.then === 'function') {
+          playPromise
+            .then(() => setNeedsUserInteraction(false))
+            .catch(() => setNeedsUserInteraction(true));
+        }
+      } catch (e) {
+        setNeedsUserInteraction(true);
+      }
+    };
+
+    // intentar ahora y también cuando esté listo para reproducir
+    tryPlay();
+    video.addEventListener('canplay', tryPlay);
+
+    return () => {
+      video.removeEventListener('canplay', tryPlay);
+    };
+  }, [videoSrc]);
+
   const handleVideoClick = () => {
     const video = videoRef.current;
     if (!video) return;
@@ -84,6 +111,19 @@ export default function Hero() {
     }
   };
 
+  const startWithSound = (e) => {
+    e.stopPropagation();
+    const video = videoRef.current;
+    if (!video) return;
+    try {
+      video.muted = false;
+      setIsMuted(false);
+      video.play().catch(() => {});
+    } finally {
+      setNeedsUserInteraction(false);
+    }
+  };
+
   return (
     <section id="inicio" className="hero hero--fullscreen">
       <video
@@ -91,13 +131,45 @@ export default function Hero() {
         ref={videoRef}
         src={videoSrc || `${import.meta.env.BASE_URL}imagenes/Hero/phonecolombiavideohero.mp4`}
         autoPlay
-        muted
         loop
         playsInline
         onClick={handleVideoClick}
         style={{ cursor: "pointer" }}
         aria-hidden="true"
       />
+
+      {needsUserInteraction && (
+        <div
+          className="hero-play-overlay"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 20,
+            pointerEvents: 'auto',
+          }}
+        >
+          <button
+            onClick={startWithSound}
+            className="hero-play-btn"
+            style={{
+              padding: '1rem 1.5rem',
+              fontSize: '1rem',
+              borderRadius: '999px',
+              background: 'linear-gradient(120deg, #fcd901 0%, #ea580c 45%, #e12f01 100%)',
+              border: 'none',
+              color: '#fff',
+              cursor: 'pointer',
+              boxShadow: '0 10px 26px rgba(225,47,1,0.36)',
+            }}
+            aria-label="Reproducir con sonido"
+          >
+            Reproducir con sonido
+          </button>
+        </div>
+      )}
 
       {/* Botón de control de sonido */}
       <button

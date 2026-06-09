@@ -3,7 +3,7 @@ import api from "../lib/apiClient";
 
 export default function Hero() {
   const videoRef = useRef(null);
-  const [isMuted, setIsMuted] = useState(true); // Estado del mute
+  const [isMuted, setIsMuted] = useState(false); // Estado del mute (iniciar sin mute)
   const [videoSrc, setVideoSrc] = useState(null);
 
   useEffect(() => {
@@ -50,6 +50,33 @@ export default function Hero() {
     };
   }, []);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const tryPlay = () => {
+      try {
+        // Intentar reproducir sin silenciar; si el navegador bloquea autoplay con audio,
+        // la promise fallará y no mostraremos overlay — el usuario podrá reproducir manualmente.
+        video.muted = false;
+        const playPromise = video.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch(() => {});
+        }
+      } catch (e) {
+        // ignorar errores de autoplay
+      }
+    };
+
+    // intentar ahora y también cuando esté listo para reproducir
+    tryPlay();
+    video.addEventListener('canplay', tryPlay);
+
+    return () => {
+      video.removeEventListener('canplay', tryPlay);
+    };
+  }, [videoSrc]);
+
   const handleVideoClick = () => {
     const video = videoRef.current;
     if (!video) return;
@@ -70,6 +97,8 @@ export default function Hero() {
     }
   };
 
+  // El click sobre el video sigue manejado por `handleVideoClick` (pausa/reproduce)
+
   return (
     <section id="inicio" className="hero hero--fullscreen">
       <video
@@ -77,13 +106,14 @@ export default function Hero() {
         ref={videoRef}
         src={videoSrc || `${import.meta.env.BASE_URL}imagenes/Hero/phonecolombiavideohero.mp4`}
         autoPlay
-        muted
         loop
         playsInline
         onClick={handleVideoClick}
         style={{ cursor: "pointer" }}
         aria-hidden="true"
       />
+
+      {/* Sin overlay: click en el video pausa/reproduce como antes */}
 
       {/* Botón de control de sonido */}
       <button

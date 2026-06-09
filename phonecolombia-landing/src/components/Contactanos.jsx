@@ -45,7 +45,7 @@ export default function Contactanos() {
 						<ul className="contacto-info-list">
 							<li>
 								<span>Email</span>
-								<a href="mailto:info@phonecolombia.com">info@phonecolombia.com</a>
+								<a href="mailto:phonecolombia@hotmail.com">phonecolombia@hotmail.com</a>
 							</li>
 							<li>
 								<span>WhatsApp</span>

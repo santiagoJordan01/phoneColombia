@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { supabase } from "../lib/supabaseClient";
+import api from "../lib/apiClient";
 import Producto from "./Producto";
 import "../styles.css";
 
@@ -32,19 +32,15 @@ export default function Productos() {
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
   const maxIndice = Math.max(0, (totalPages - 1) * itemsPerPage);
 
-  // Cargar productos desde Supabase
   useEffect(() => {
     const fetchProductos = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) {
+      try {
+        const data = await api.getProducts();
+        setProductos(data || []);
+      } catch (error) {
         console.error("Error al cargar productos:", error.message);
         setProductos([]);
-      } else {
-        setProductos(data || []);
       }
       setLoading(false);
     };

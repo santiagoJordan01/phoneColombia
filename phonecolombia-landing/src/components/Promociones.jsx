@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { supabase } from "../lib/supabaseClient";
+import api from "../lib/apiClient";
 import "../styles.css";
 
 export default function Promociones() {
@@ -10,20 +10,15 @@ export default function Promociones() {
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
 
-  // Cargar promociones desde Supabase al montar el componente
   useEffect(() => {
     const fetchPromociones = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("promociones")
-        .select("*")
-        .order("created_at", { ascending: true });
-
-      if (error) {
+      try {
+        const data = await api.getPromociones({ ascending: true });
+        setPromociones(data || []);
+      } catch (error) {
         console.error("Error al cargar promociones:", error.message);
         setPromociones([]);
-      } else {
-        setPromociones(data || []);
       }
       setLoading(false);
     };

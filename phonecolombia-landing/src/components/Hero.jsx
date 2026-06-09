@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import api from "../lib/apiClient";
 
 export default function Hero() {
   const videoRef = useRef(null);
@@ -7,25 +7,11 @@ export default function Hero() {
   const [videoSrc, setVideoSrc] = useState(null);
 
   useEffect(() => {
-    // Intentar cargar URL dinámica del hero desde la tabla `site_settings`
     (async () => {
       try {
-        const { data, error } = await supabase.from('site_settings').select('value').eq('key', 'hero_video_url').limit(1).maybeSingle();
-        if (!error && data && data.value) {
-          const v = data.value;
-          // Si es URL absoluta
-          if (/^https?:\/\//i.test(v)) {
-            setVideoSrc(v);
-            return;
-          }
-          // Si es ruta relativa dentro del bucket 'hero', obtener publicUrl
-          try {
-            const { data: publicData } = supabase.storage.from('hero').getPublicUrl(v);
-            if (publicData?.publicUrl) setVideoSrc(publicData.publicUrl);
-            else setVideoSrc(v);
-          } catch (e) {
-            setVideoSrc(v);
-          }
+        const data = await api.getSetting("hero_video_url");
+        if (data?.value) {
+          setVideoSrc(data.value);
         }
       } catch (e) {
         // ignore y usar valor por defecto

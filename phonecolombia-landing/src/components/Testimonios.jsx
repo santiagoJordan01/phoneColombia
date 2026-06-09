@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
+import api, { isApiConfigured } from "../lib/apiClient";
 import "../styles.css";
 
 export default function Testimonios() {
@@ -12,13 +12,12 @@ export default function Testimonios() {
 	const [videos, setVideos] = useState(staticVideos);
 
 	useEffect(() => {
-		if (!isSupabaseConfigured) return;
+		if (!isApiConfigured) return;
 		let mounted = true;
 		(async () => {
 			try {
-				const { data, error } = await supabase.from('testimonios').select('*').order('created_at', { ascending: false });
-				if (!error && data && mounted) {
-					// Mapear a la forma esperada por el componente (codificar URLs)
+				const data = await api.getTestimonios();
+				if (data && mounted) {
 					const fetched = data.map(item => ({ src: item.video_url ? encodeURI(item.video_url) : item.video_url }));
 					setVideos(fetched.length ? fetched : staticVideos);
 				}

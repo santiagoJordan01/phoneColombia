@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { supabase } from "../lib/supabaseClient";
+import api from "../lib/apiClient";
 import "../styles.css";
 
 export default function Garantias() {
@@ -50,13 +50,12 @@ export default function Garantias() {
   ]);
 
   useEffect(() => {
-    // Intentar cargar garantías desde site_settings (si existen)
     (async () => {
       try {
-        const { data, error } = await supabase.from('site_settings').select('value').eq('key', 'garantias').limit(1).maybeSingle();
-        if (!error && data && data.value) {
+        const data = await api.getSetting("garantias");
+        if (data?.value) {
           try {
-            const parsed = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+            const parsed = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
             if (Array.isArray(parsed) && parsed.length > 0) setItems(parsed);
           } catch (e) {
             // ignore parse error, mantenemos defaults

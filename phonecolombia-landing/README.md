@@ -1,16 +1,85 @@
-# React + Vite
+# Phone Colombia — Landing + API Laravel
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Sitio web de Phone Colombia con frontend en **React + Vite** y backend en **Laravel**.
 
-Currently, two official plugins are available:
+## Estructura
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- `src/` — Frontend React (landing pública + panel admin)
+- `backend/` — API REST Laravel (productos, promociones, testimonios, configuración)
 
-## React Compiler
+## Requisitos
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js 18+
+- PHP 8.2+ y Composer
+- MySQL 8+ (XAMPP o MySQL Server)
 
-## Expanding the ESLint configuration
+## Backend (Laravel)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+**1. Crear la base de datos en MySQL:**
+
+```sql
+CREATE DATABASE phonecolombia CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+(O ejecuta `backend/database/setup_mysql.sql` en MySQL Workbench.)
+
+**2. Configurar y arrancar la API:**
+
+```bash
+cd backend
+composer install
+cp .env.example .env
+php artisan key:generate
+```
+
+Edita `backend/.env` con tus credenciales MySQL. Con **XAMPP** el puerto suele ser `3307` y `root` sin contraseña:
+
+```env
+DB_PORT=3307
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+```bash
+php artisan migrate
+php artisan db:seed
+php artisan storage:link
+php artisan serve
+```
+
+La API quedará en `http://localhost:8000/api`.
+
+**Usuario admin por defecto** (creado con el seeder):
+
+- Email: `admin@phonecolombia.com`
+- Contraseña: `admin123`
+
+Cambia estas credenciales en producción.
+
+## Frontend (React)
+
+```bash
+cp .env.example .env
+npm install
+npm run dev
+```
+
+El sitio quedará en `http://localhost:5173`.
+
+Asegúrate de que `VITE_API_URL` en `.env` apunte a tu API Laravel.
+
+## Endpoints principales
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/api/auth/login` | Inicio de sesión admin |
+| GET | `/api/products` | Listar productos |
+| GET | `/api/promociones` | Listar promociones |
+| GET | `/api/testimonios` | Listar testimonios |
+| GET | `/api/settings/{key}` | Obtener configuración (hero, garantías) |
+
+Las rutas de escritura (crear, editar, eliminar) requieren token Bearer de Sanctum.
+
+## Migración desde Supabase
+
+El proyecto dejó de usar Supabase. Los archivos en `supabase/` se conservan como referencia del esquema original. Los archivos subidos ahora se almacenan en `backend/storage/app/public/`.

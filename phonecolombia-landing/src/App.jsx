@@ -11,7 +11,7 @@ import Ubicacion from "./components/Ubicacion.jsx";
 import GarantiasPage from "./pages/GarantiasPage.jsx";
 import FloatingSocialButton from "./components/FloatingSocialButton.jsx";
 import Admin from "./pages/Admin.jsx";
-import InventarioAdmin from "./pages/InventarioAdmin.jsx";
+import InventarioLayout from "./pages/inventario/InventarioLayout.jsx";
 import "./App.css";
 
 function Home() {
@@ -69,7 +69,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/admin" element={<Admin />} />
-      <Route path="/admin/inventario" element={<InventarioAdmin />} />
+      <Route path="/admin/inventario/*" element={<InventarioLayout />} />
       <Route path="/garantias" element={<GarantiasPage />} />
     </Routes>
   );

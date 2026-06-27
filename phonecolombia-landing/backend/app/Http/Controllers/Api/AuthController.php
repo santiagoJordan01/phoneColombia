@@ -25,9 +25,9 @@ class AuthController extends Controller
             ], 401);
         }
 
-        if (! $user->is_admin) {
+        if (! $user->hasPanelAccess()) {
             return response()->json([
-                'message' => 'Acceso no autorizado. Tu cuenta no está en la lista de administradores.',
+                'message' => 'Acceso no autorizado. Tu cuenta no tiene permisos de panel.',
             ], 403);
         }
 
@@ -39,6 +39,10 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'role' => $user->resolvedRole(),
+                'is_admin' => $user->is_admin,
+                'supplier_id' => $user->supplier_id,
+                'service_technician_id' => $user->service_technician_id,
             ],
         ]);
     }
@@ -51,7 +55,10 @@ class AuthController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'role' => $user->resolvedRole(),
             'is_admin' => $user->is_admin,
+            'supplier_id' => $user->supplier_id,
+            'service_technician_id' => $user->service_technician_id,
         ]);
     }
 

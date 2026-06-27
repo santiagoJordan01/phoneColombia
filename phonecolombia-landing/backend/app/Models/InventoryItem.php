@@ -2,13 +2,16 @@
 
 namespace App\Models;
 
+use App\Support\InventoryStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class InventoryItem extends Model
 {
-    use HasUuids;
+    use HasUuids, SoftDeletes;
 
     public $incrementing = false;
 
@@ -19,7 +22,9 @@ class InventoryItem extends Model
         'name',
         'sku',
         'imei',
+        'barcode',
         'supplier',
+        'supplier_id',
         'category',
         'condition',
         'storage',
@@ -30,17 +35,47 @@ class InventoryItem extends Model
         'battery',
         'status',
         'notes',
+        'acquired_at',
     ];
 
     protected function casts(): array
     {
         return [
             'quantity' => 'integer',
+            'acquired_at' => 'datetime',
         ];
     }
 
     public function inventoryProduct(): BelongsTo
     {
         return $this->belongsTo(InventoryProduct::class);
+    }
+
+    public function supplierRelation(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class, 'supplier_id');
+    }
+
+    public function movements(): HasMany
+    {
+        return $this->hasMany(InventoryMovement::class)->orderByDesc('created_at');
+    }
+
+    public function sales(): HasMany
+    {
+        return $this->hasMany(Sale::class);
+    }
+
+    public function serviceTickets(): HasMany
+    {
+        return $this->hasMany(ServiceTicket::class);
+    }
+
+    public function isAvailableForSale(): bool
+    {
+        return in_array($this->status, [
+            InventoryStatus::DISPONIBLE,
+            InventoryStatus::SEPARADO,
+        ], true);
     }
 }

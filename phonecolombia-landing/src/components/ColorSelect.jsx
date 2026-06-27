@@ -55,7 +55,7 @@ export default function ColorSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className="inv-select2__trigger-inner">
+        <span className="inv-select2__trigger-inner inv-select2__trigger-inner--row">
           {value && <ColorSwatch name={value} size={16} />}
           <span className={value ? "inv-select2__value" : "inv-select2__placeholder"}>
             {value || placeholder}

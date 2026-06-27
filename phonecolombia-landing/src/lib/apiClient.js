@@ -1,11 +1,41 @@
+import { clearInventarioCache } from "./inventarioCache.js";
+
 const rawUrl = (import.meta.env.VITE_API_URL ?? "http://localhost:8000/api").trim().replace(/\/$/, "");
 const TOKEN_KEY = "phonecolombia_admin_token";
+const USER_KEY = "phonecolombia_admin_user";
 
 export const isApiConfigured = Boolean(rawUrl);
 
 const getToken = () => localStorage.getItem(TOKEN_KEY);
 const setToken = (token) => localStorage.setItem(TOKEN_KEY, token);
-const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+const clearToken = () => {
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(USER_KEY);
+};
+
+export function getStoredUser() {
+  try {
+    const raw = sessionStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredUser(user) {
+  if (user) {
+    sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+  } else {
+    sessionStorage.removeItem(USER_KEY);
+  }
+}
+
+function bootstrapQuery(params = {}) {
+  const qs = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+  ).toString();
+  return qs ? `?${qs}` : "";
+}
 
 async function parseResponse(res) {
   const text = await res.text();
@@ -17,7 +47,9 @@ async function parseResponse(res) {
   }
 }
 
-async function request(path, options = {}) {
+const inflightGet = new Map();
+
+async function requestOnce(path, options = {}) {
   const headers = { Accept: "application/json", ...(options.headers || {}) };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -48,6 +80,23 @@ async function request(path, options = {}) {
   return data;
 }
 
+async function request(path, options = {}) {
+  const method = (options.method || "GET").toUpperCase();
+  if (method !== "GET") {
+    return requestOnce(path, options);
+  }
+
+  if (inflightGet.has(path)) {
+    return inflightGet.get(path);
+  }
+
+  const promise = requestOnce(path, options).finally(() => {
+    inflightGet.delete(path);
+  });
+  inflightGet.set(path, promise);
+  return promise;
+}
+
 export const api = {
   isConfigured: isApiConfigured,
   getToken,
@@ -59,6 +108,7 @@ export const api = {
       body: { email, password },
     });
     if (data?.token) setToken(data.token);
+    if (data?.user) setStoredUser(data.user);
     return data;
   },
 
@@ -67,11 +117,34 @@ export const api = {
       await request("/auth/logout", { method: "POST" });
     } finally {
       clearToken();
+      clearInventarioCache();
     }
   },
 
   async me() {
-    return request("/auth/me");
+    const user = await request("/auth/me");
+    setStoredUser(user);
+    return user;
+  },
+
+  async bootstrapDashboard() {
+    return request("/bootstrap/dashboard");
+  },
+
+  async bootstrapInventory(params = {}) {
+    return request(`/bootstrap/inventory${bootstrapQuery(params)}`);
+  },
+
+  async bootstrapSales(params = {}) {
+    return request(`/bootstrap/sales${bootstrapQuery(params)}`);
+  },
+
+  async bootstrapServiceTickets(params = {}) {
+    return request(`/bootstrap/service-tickets${bootstrapQuery(params)}`);
+  },
+
+  async bootstrapReports(params = {}) {
+    return request(`/bootstrap/reports${bootstrapQuery(params)}`);
   },
 
   async getProducts() {
@@ -173,6 +246,13 @@ export const api = {
     });
   },
 
+  async updateDeviceColor(id, name) {
+    return request(`/device-colors/${id}`, {
+      method: "PUT",
+      body: { name },
+    });
+  },
+
   async deleteDeviceColor(id) {
     return request(`/device-colors/${id}`, { method: "DELETE" });
   },
@@ -184,6 +264,13 @@ export const api = {
   async createSupplier(data) {
     return request("/suppliers", {
       method: "POST",
+      body: data,
+    });
+  },
+
+  async updateSupplier(id, data) {
+    return request(`/suppliers/${id}`, {
+      method: "PUT",
       body: data,
     });
   },
@@ -214,11 +301,14 @@ export const api = {
     return request(`/inventory/products/${id}`, { method: "DELETE" });
   },
 
-  async getInventory({ q, status, category } = {}) {
+  async getInventory({ q, status, category, barcode, exclude_status, archived } = {}) {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (status) params.set("status", status);
     if (category) params.set("category", category);
+    if (barcode) params.set("barcode", barcode);
+    if (exclude_status) params.set("exclude_status", exclude_status);
+    if (archived) params.set("archived", "1");
     const query = params.toString();
     return request(`/inventory${query ? `?${query}` : ""}`);
   },
@@ -233,6 +323,219 @@ export const api = {
 
   async deleteInventoryItem(id) {
     return request(`/inventory/${id}`, { method: "DELETE" });
+  },
+
+  async retakeInventoryItem(id) {
+    return request(`/inventory/${id}/retake`, { method: "POST" });
+  },
+
+  async getInventoryItem(id) {
+    return request(`/inventory/${id}`);
+  },
+
+  async getInventorySummaryByModel(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/inventory/summary-by-model${qs ? `?${qs}` : ""}`);
+  },
+
+  async getDashboard() {
+    return request("/dashboard");
+  },
+
+  async getSales(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return request(`/sales${qs ? `?${qs}` : ""}`);
+  },
+
+  async createSale(data) {
+    return request("/sales", { method: "POST", body: data });
+  },
+
+  async addSalePayment(saleId, data) {
+    return request(`/sales/${saleId}/payments`, { method: "POST", body: data });
+  },
+
+  async getDailyReport(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return request(`/reports/daily${qs ? `?${qs}` : ""}`);
+  },
+
+  async getMonthlyReport(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return request(`/reports/monthly${qs ? `?${qs}` : ""}`);
+  },
+
+  async getCashRegisterReport(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return request(`/reports/cash-register${qs ? `?${qs}` : ""}`);
+  },
+
+  async getServiceTechnicians() {
+    return request("/service-tickets/technicians");
+  },
+
+  async getServiceWorkshops() {
+    return request("/service-tickets/workshops");
+  },
+
+  async getServiceCustomers(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/service/customers${qs ? `?${qs}` : ""}`);
+  },
+
+  async createServiceCustomer(data) {
+    return request("/service/customers", { method: "POST", body: data });
+  },
+
+  async updateServiceCustomer(id, data) {
+    return request(`/service/customers/${id}`, { method: "PUT", body: data });
+  },
+
+  async deleteServiceCustomer(id) {
+    return request(`/service/customers/${id}`, { method: "DELETE" });
+  },
+
+  async getServiceCategories(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/service/categories${qs ? `?${qs}` : ""}`);
+  },
+
+  async createServiceCategory(data) {
+    return request("/service/categories", { method: "POST", body: data });
+  },
+
+  async updateServiceCategory(id, data) {
+    return request(`/service/categories/${id}`, { method: "PUT", body: data });
+  },
+
+  async deleteServiceCategory(id) {
+    return request(`/service/categories/${id}`, { method: "DELETE" });
+  },
+
+  async getServiceTicketStates(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/service/states${qs ? `?${qs}` : ""}`);
+  },
+
+  async createServiceTicketState(data) {
+    return request("/service/states", { method: "POST", body: data });
+  },
+
+  async updateServiceTicketState(id, data) {
+    return request(`/service/states/${id}`, { method: "PUT", body: data });
+  },
+
+  async deleteServiceTicketState(id) {
+    return request(`/service/states/${id}`, { method: "DELETE" });
+  },
+
+  async getServiceTechniciansCatalog(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/service/technicians${qs ? `?${qs}` : ""}`);
+  },
+
+  async createServiceTechnician(data) {
+    return request("/service/technicians", { method: "POST", body: data });
+  },
+
+  async updateServiceTechnician(id, data) {
+    return request(`/service/technicians/${id}`, { method: "PUT", body: data });
+  },
+
+  async deleteServiceTechnician(id) {
+    return request(`/service/technicians/${id}`, { method: "DELETE" });
+  },
+
+  async getServiceTickets(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/service-tickets${qs ? `?${qs}` : ""}`);
+  },
+
+  async createServiceTicket(data) {
+    return request("/service-tickets", { method: "POST", body: data });
+  },
+
+  async updateServiceTicket(id, data) {
+    return request(`/service-tickets/${id}`, { method: "PUT", body: data });
+  },
+
+  async getAuditLogs(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/audit-logs${qs ? `?${qs}` : ""}`);
+  },
+
+  async getImportTemplate() {
+    return request("/inventory/import/template");
+  },
+
+  async importInventory(file) {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/inventory/import", { method: "POST", body: form });
+  },
+
+  exportInventoryUrl() {
+    return `${rawUrl}/inventory/export`;
+  },
+
+  exportSalesUrl(from, to) {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    const qs = params.toString();
+    return `${rawUrl}/reports/export/sales${qs ? `?${qs}` : ""}`;
+  },
+
+  exportDailyReportPdfUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/daily/export/pdf${qs ? `?${qs}` : ""}`;
+  },
+
+  exportDailyReportExcelUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/daily/export/xlsx${qs ? `?${qs}` : ""}`;
+  },
+
+  async downloadAuthenticated(url, filename) {
+    const token = getToken();
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+    const blob = await res.blob();
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  },
+
+  async getUsers() {
+    return request("/users");
+  },
+
+  async createUser(data) {
+    return request("/users", { method: "POST", body: data });
+  },
+
+  async updateUser(id, data) {
+    return request(`/users/${id}`, { method: "PUT", body: data });
+  },
+
+  async deleteUser(id) {
+    return request(`/users/${id}`, { method: "DELETE" });
   },
 };
 

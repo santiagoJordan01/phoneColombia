@@ -29,6 +29,7 @@ class AdminPanelApiTest extends TestCase
             'email' => 'admin@phonecolombia.com',
             'password' => Hash::make('admin123'),
             'is_admin' => true,
+            'role' => User::ROLE_SUPER_ADMIN,
         ]);
     }
 
@@ -53,6 +54,31 @@ class AdminPanelApiTest extends TestCase
             ->getJson('/api/auth/me')
             ->assertOk()
             ->assertJson(['email' => 'admin@phonecolombia.com', 'is_admin' => true]);
+    }
+
+    public function test_content_role_cannot_login_or_manage_products(): void
+    {
+        $contentUser = User::factory()->create([
+            'email' => 'content@test.com',
+            'password' => Hash::make('secret'),
+            'role' => User::ROLE_CONTENT,
+            'is_admin' => false,
+        ]);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'content@test.com',
+            'password' => 'secret',
+        ])->assertForbidden();
+
+        $token = $contentUser->createToken('test')->plainTextToken;
+
+        $this->withToken($token)
+            ->post('/api/products', [
+                'name' => 'Bloqueado',
+                'price' => '1',
+                'description' => 'Test',
+            ])
+            ->assertForbidden();
     }
 
     public function test_non_admin_cannot_login(): void

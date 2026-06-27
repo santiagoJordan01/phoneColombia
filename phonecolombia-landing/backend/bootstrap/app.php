@@ -1,5 +1,11 @@
 <?php
 
+use App\Http\Middleware\EnsureCanAccessServiceTickets;
+use App\Http\Middleware\EnsureCanAccessContent;
+use App\Http\Middleware\EnsureCanAccessInventory;
+use App\Http\Middleware\EnsureCanManageSales;
+use App\Http\Middleware\EnsureCanViewReports;
+use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -15,6 +21,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'admin' => EnsureUserIsAdmin::class,
+            'super_admin' => EnsureSuperAdmin::class,
+            'content' => EnsureCanAccessContent::class,
+            'inventory' => EnsureCanAccessInventory::class,
+            'sales' => EnsureCanManageSales::class,
+            'reports' => EnsureCanViewReports::class,
+            'service_tickets' => EnsureCanAccessServiceTickets::class,
         ]);
 
         $middleware->api(prepend: [

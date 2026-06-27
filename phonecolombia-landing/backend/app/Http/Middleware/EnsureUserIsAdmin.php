@@ -12,7 +12,7 @@ class EnsureUserIsAdmin
     {
         $user = $request->user();
 
-        if (! $user || ! $user->is_admin) {
+        if (! $user || ! $user->hasPanelAccess()) {
             return response()->json(['message' => 'Acceso no autorizado.'], 403);
         }
 

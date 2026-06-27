@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import api, { isApiConfigured } from "../lib/apiClient";
+import { canAccessContent, canAccessInventory, getDefaultInventarioPath, isServiceTechnician } from "./inventario/shared.jsx";
 import "../styles.css";
 
 export default function Admin() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [user, setUser] = useState(null);
   const [message, setMessage] = useState("");
@@ -52,14 +54,19 @@ export default function Admin() {
       try {
         const me = await api.me();
         setUser(me);
+        if (isServiceTechnician(me)) {
+          navigate("/admin/inventario/servicio-tecnico");
+        } else if (canAccessInventory(me) && !canAccessContent(me)) {
+          navigate(getDefaultInventarioPath(me));
+        }
       } catch {
         api.clearToken();
       }
     })();
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
-    if (user) {
+    if (user && canAccessContent(user)) {
       fetchProducts();
       fetchPromociones();
       fetchTestimonios();
@@ -326,6 +333,11 @@ export default function Admin() {
       const data = await api.login(trimmedEmail, password);
       setUser(data.user);
       setMessage("Sesión iniciada");
+      if (data.user && isServiceTechnician(data.user)) {
+        navigate("/admin/inventario/servicio-tecnico");
+      } else if (data.user && canAccessInventory(data.user) && !canAccessContent(data.user)) {
+        navigate(getDefaultInventarioPath(data.user));
+      }
     } catch (err) {
       setMessage(err.message || String(err));
     } finally {
@@ -386,12 +398,29 @@ export default function Admin() {
     );
   }
 
+  if (!canAccessContent(user)) {
+    if (isServiceTechnician(user)) {
+      return <Navigate to="/admin/inventario/servicio-tecnico" replace />;
+    }
+    if (canAccessInventory(user)) {
+      return <Navigate to={getDefaultInventarioPath(user)} replace />;
+    }
+    return (
+      <div className="container admin-page">
+        <p>Tu cuenta no tiene acceso al panel de gestión de contenido.</p>
+        <button type="button" className="btn-secondary" onClick={signOut}>Cerrar sesión</button>
+      </div>
+    );
+  }
+
   return (
     <div className="container admin-page">
       <header className="admin-header">
         <h2 className="admin-title">Panel Admin — Gestión de contenido</h2>
         <div className="admin-actions admin-actions--split">
-          <Link to="/admin/inventario" className="btn-secondary btn-admin-nav">Inventario</Link>
+          {canAccessInventory(user) && (
+            <Link to="/admin/inventario" className="btn-secondary btn-admin-nav">Inventario</Link>
+          )}
           <button type="button" className="btn-secondary btn-logout" onClick={signOut}>Cerrar sesión</button>
         </div>
       </header>

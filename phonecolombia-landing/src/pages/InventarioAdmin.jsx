@@ -1,104 +1,51 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Navigate } from "react-router-dom";
 import ColorSelect from "../components/ColorSelect.jsx";
 import ColorSwatch from "../components/ColorSwatch.jsx";
+import InventarioTopbar from "../components/inventario/InventarioTopbar.jsx";
+import CustomerCatalogModal from "../components/inventario/CustomerCatalogModal.jsx";
+import ConfirmDeleteDialog from "../components/inventario/ConfirmDeleteDialog.jsx";
+import InventoryHistoryModal from "../components/inventario/InventoryHistoryModal.jsx";
+import { useCachedQuery } from "../hooks/useCachedQuery.js";
 import api, { isApiConfigured } from "../lib/apiClient";
+import { invalidateInventarioCache } from "../lib/inventarioCache.js";
 import { getDeviceColorHex } from "../lib/deviceColorMap";
+import { useInventarioPage } from "./inventario/useInventarioPage.js";
+import {
+  CATEGORY_LABELS,
+  EMPTY_EQUIPO_FORM,
+  EMPTY_FORM,
+  EMPTY_SUPPLIER_FORM,
+  EMPTY_COLOR_FORM,
+  Field,
+  STATUS_LABELS,
+  editableInventoryStatuses,
+  buildProductPreview,
+  canAccessContent,
+  canAccessInventory,
+  canManageInventory,
+  canManageCustomers,
+  canManageSales,
+  canViewSensitiveInventoryFields,
+  formatPrice,
+  isServiceTechnician,
+  productToEquipoForm,
+  supplierSubtitle,
+  supplierToForm,
+} from "./inventario/shared.jsx";
 import "../styles.css";
-
-const EMPTY_COLOR_FORM = { name: "" };
-
-const CATEGORY_LABELS = {
-  celular: "Celular",
-  tablet: "Tablet",
-  accesorio: "Accesorio",
-  computador: "Computador",
-  otro: "Otro",
-};
-
-const EMPTY_EQUIPO_FORM = {
-  brand: "",
-  model: "",
-  storage: "",
-  color: "",
-  category: "celular",
-  reference_price: "",
-  notes: "",
-};
-
-const EMPTY_SUPPLIER_FORM = {
-  name: "",
-  contact_name: "",
-  phone: "",
-  email: "",
-  city: "",
-  address: "",
-  notes: "",
-};
-
-function buildProductPreview({ brand, model, storage, color }) {
-  return [brand, model, storage, color].filter(Boolean).join(" ").trim().toUpperCase();
-}
-
-function productToEquipoForm(product) {
-  return {
-    brand: product.brand || "",
-    model: product.model || "",
-    storage: product.storage || "",
-    color: product.color || "",
-    category: product.category || "celular",
-    reference_price: product.reference_price || "",
-    notes: product.notes || "",
-  };
-}
-
-function supplierSubtitle(s) {
-  const parts = [s.contact_name, s.phone, s.city].filter(Boolean);
-  return parts.join(" · ");
-}
-
-const EMPTY_FORM = {
-  imei: "",
-  name: "",
-  color: "",
-  supplier: "",
-  sale_price: "",
-  battery: "",
-  status: "disponible",
-  notes: "",
-  inventory_product_id: "",
-};
-
-const STATUS_LABELS = {
-  disponible: "DISPONIBLE",
-  servicio_tecnico: "SERVICIO TECNICO",
-  separado: "SEPARADO",
-  vendido: "VENDIDO",
-  reservado: "SEPARADO",
-};
 
 const SEARCH_DEBOUNCE_MS = 400;
 
-function formatPrice(value) {
-  if (!value && value !== 0) return "";
-  const raw = String(value).trim();
-  if (raw.startsWith("$")) return raw;
-  const num = Number(raw.replace(/[^\d.]/g, ""));
-  if (Number.isNaN(num)) return raw;
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(num);
-}
-
-function Field({ label, children, className = "" }) {
-  return (
-    <label className={`inv-field ${className}`}>
-      <span className="inv-field__label">{label}</span>
-      {children}
-    </label>
-  );
+function formatArchivedAt(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("es-CO", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function TableSkeleton({ rows = 8 }) {
@@ -106,6 +53,7 @@ function TableSkeleton({ rows = 8 }) {
     <tbody>
       {Array.from({ length: rows }, (_, i) => (
         <tr key={i} className="inv-skeleton-row">
+          <td><span className="inv-skeleton inv-skeleton--md" /></td>
           <td><span className="inv-skeleton inv-skeleton--md" /></td>
           <td><span className="inv-skeleton inv-skeleton--lg" /></td>
           <td><span className="inv-skeleton inv-skeleton--xs" /></td>
@@ -122,10 +70,10 @@ function TableSkeleton({ rows = 8 }) {
 }
 
 export default function InventarioAdmin() {
-  const navigate = useNavigate();
+  const { user, authChecked, signOut, navigate } = useInventarioPage();
   const imeiInputRef = useRef(null);
+  const barcodeInputRef = useRef(null);
 
-  const [user, setUser] = useState(null);
   const [items, setItems] = useState([]);
   const [catalogProducts, setCatalogProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -136,45 +84,42 @@ export default function InventarioAdmin() {
   const [colorForm, setColorForm] = useState(EMPTY_COLOR_FORM);
   const [editingId, setEditingId] = useState(null);
   const [toast, setToast] = useState(null);
-  const [listLoading, setListLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [creatingEquipo, setCreatingEquipo] = useState(false);
   const [editingEquipoId, setEditingEquipoId] = useState(null);
+  const [editingSupplierId, setEditingSupplierId] = useState(null);
+  const [editingColorId, setEditingColorId] = useState(null);
   const [creatingSupplier, setCreatingSupplier] = useState(false);
   const [creatingColor, setCreatingColor] = useState(false);
   const [deletingSupplierId, setDeletingSupplierId] = useState(null);
   const [deletingColorId, setDeletingColorId] = useState(null);
+  const [catalogDeleteTarget, setCatalogDeleteTarget] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [filters, setFilters] = useState({ q: "", status: "" });
   const [searchDraft, setSearchDraft] = useState("");
+  const [listScope, setListScope] = useState("active");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [equipoModalOpen, setEquipoModalOpen] = useState(false);
   const [supplierModalOpen, setSupplierModalOpen] = useState(false);
   const [colorModalOpen, setColorModalOpen] = useState(false);
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState("list");
+  const [groupedSummary, setGroupedSummary] = useState([]);
+  const [historyItem, setHistoryItem] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [retakingId, setRetakingId] = useState(null);
 
-  const hasActiveFilters = Boolean(filters.q || filters.status);
+  const viewingArchived = listScope === "archived";
+
+  const switchListScope = (scope) => {
+    setListScope(scope);
+    if (scope === "archived") setViewMode("list");
+  };
 
   const showToast = useCallback((text, type = "success") => {
     setToast({ text, type });
   }, []);
-
-  useEffect(() => {
-    if (!isApiConfigured) return;
-    (async () => {
-      if (!api.getToken()) {
-        navigate("/admin");
-        return;
-      }
-      try {
-        const me = await api.me();
-        setUser(me);
-      } catch {
-        api.clearToken();
-        navigate("/admin");
-      }
-    })();
-  }, [navigate]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -210,29 +155,81 @@ export default function InventarioAdmin() {
     }
   }, [showToast]);
 
+  const inventoryCacheKey = useMemo(
+    () => ["inventory", { q: filters.q, status: filters.status, archived: listScope === "archived" }],
+    [filters.q, filters.status, listScope],
+  );
+
+  const {
+    data: cachedItems,
+    loading: listLoading,
+    refreshing: listRefreshing,
+    refetch: refetchItems,
+    setData: setCachedItems,
+  } = useCachedQuery(
+    inventoryCacheKey,
+    () => api.getInventory({
+      q: filters.q || undefined,
+      status: filters.status || undefined,
+      archived: listScope === "archived",
+    }),
+    { enabled: Boolean(user) },
+  );
+
+  useEffect(() => {
+    setItems(cachedItems || []);
+  }, [cachedItems]);
+
   const fetchItems = useCallback(async () => {
-    setListLoading(true);
     try {
-      const data = await api.getInventory({
-        q: filters.q || undefined,
-        status: filters.status || undefined,
-      });
-      setItems(data || []);
+      await refetchItems();
     } catch (e) {
       showToast(e.message, "error");
-    } finally {
-      setListLoading(false);
     }
-  }, [filters.q, filters.status, showToast]);
+  }, [refetchItems, showToast]);
+
+  const bumpInventoryCaches = useCallback(() => {
+    invalidateInventarioCache("inventory", "salesBootstrap", "dashboard");
+  }, []);
+
+  const fetchGroupedSummary = useCallback(async () => {
+    try {
+      const data = await api.getInventorySummaryByModel({
+        status: filters.status || undefined,
+      });
+      setGroupedSummary(data || []);
+    } catch (e) {
+      showToast(e.message, "error");
+    }
+  }, [filters.status, showToast]);
 
   useEffect(() => {
     if (user) {
-      fetchCatalogProducts();
-      fetchSuppliers();
-      fetchDeviceColors();
-      fetchItems();
+      if (viewMode === "grouped") fetchGroupedSummary();
     }
-  }, [user, fetchItems, fetchCatalogProducts, fetchSuppliers, fetchDeviceColors]);
+  }, [user, viewMode, fetchGroupedSummary]);
+
+  useEffect(() => {
+    if (!user) return;
+    if ((itemModalOpen || equipoModalOpen) && catalogProducts.length === 0) {
+      fetchCatalogProducts();
+    }
+    if (itemModalOpen && suppliers.length === 0) fetchSuppliers();
+    if ((itemModalOpen || colorModalOpen) && deviceColors.length === 0) fetchDeviceColors();
+    if (supplierModalOpen && suppliers.length === 0) fetchSuppliers();
+  }, [
+    user,
+    itemModalOpen,
+    equipoModalOpen,
+    supplierModalOpen,
+    colorModalOpen,
+    catalogProducts.length,
+    suppliers.length,
+    deviceColors.length,
+    fetchCatalogProducts,
+    fetchSuppliers,
+    fetchDeviceColors,
+  ]);
 
   useEffect(() => {
     if (!toast) return;
@@ -241,24 +238,35 @@ export default function InventarioAdmin() {
   }, [toast]);
 
   useEffect(() => {
-    if (!deleteTarget && !itemModalOpen && !equipoModalOpen && !supplierModalOpen && !colorModalOpen) return;
+    if (!deleteTarget && !catalogDeleteTarget && !itemModalOpen && !equipoModalOpen && !supplierModalOpen && !colorModalOpen) return;
     const onKey = (e) => {
       if (e.key !== "Escape") return;
-      if (colorModalOpen && !creatingColor) setColorModalOpen(false);
-      else if (supplierModalOpen && !creatingSupplier) setSupplierModalOpen(false);
-      else if (equipoModalOpen && !creatingEquipo) closeEquipoModal();
+      if (catalogDeleteTarget && !deletingColorId && !deletingSupplierId) {
+        setCatalogDeleteTarget(null);
+        return;
+      }
+      if (deleteTarget && !deletingId) {
+        setDeleteTarget(null);
+        return;
+      }
+      if (colorModalOpen && !creatingColor) {
+        if (editingColorId) cancelColorEdit();
+        else setColorModalOpen(false);
+      } else if (supplierModalOpen && !creatingSupplier) {
+        if (editingSupplierId) cancelSupplierEdit();
+        else setSupplierModalOpen(false);
+      } else if (equipoModalOpen && !creatingEquipo) closeEquipoModal();
       else if (itemModalOpen && !submitting) closeItemModal();
-      else if (deleteTarget && !deletingId) setDeleteTarget(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [deleteTarget, itemModalOpen, equipoModalOpen, supplierModalOpen, colorModalOpen, creatingEquipo, creatingSupplier, creatingColor, submitting, deletingId]);
+  }, [deleteTarget, catalogDeleteTarget, itemModalOpen, equipoModalOpen, supplierModalOpen, colorModalOpen, creatingEquipo, creatingSupplier, creatingColor, submitting, deletingId, deletingColorId, deletingSupplierId, editingColorId, editingSupplierId]);
 
   const openNewItemModal = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
     setItemModalOpen(true);
-    requestAnimationFrame(() => imeiInputRef.current?.focus());
+    requestAnimationFrame(() => barcodeInputRef.current?.focus());
   };
 
   const closeItemModal = () => {
@@ -272,14 +280,18 @@ export default function InventarioAdmin() {
     setEditingId(item.id);
     setForm({
       imei: item.imei || "",
+      barcode: item.barcode || "",
       name: item.name || "",
       color: item.color || "",
       supplier: item.supplier || "",
+      supplier_id: item.supplier_id || "",
+      purchase_price: item.purchase_price || "",
       sale_price: item.sale_price || "",
       battery: item.battery ?? "",
       status: item.status || "disponible",
       notes: item.notes || "",
       inventory_product_id: item.inventory_product_id || "",
+      acquired_at: item.acquired_at ? item.acquired_at.slice(0, 10) : "",
     });
     setItemModalOpen(true);
   };
@@ -296,17 +308,22 @@ export default function InventarioAdmin() {
       const payload = {
         ...form,
         battery: form.battery === "" ? null : Number(form.battery),
+        supplier_id: form.supplier_id || undefined,
+        acquired_at: form.acquired_at || undefined,
       };
       if (editingId) {
-        await api.updateInventoryItem(editingId, payload);
+        const updated = await api.updateInventoryItem(editingId, payload);
         showToast("Equipo actualizado");
+        bumpInventoryCaches();
+        setCachedItems((prev) => (prev || []).map((item) => (item.id === editingId ? updated : item)));
       } else {
-        await api.createInventoryItem(payload);
+        const created = await api.createInventoryItem(payload);
         showToast("Equipo agregado al inventario");
+        bumpInventoryCaches();
+        setCachedItems((prev) => [created, ...(prev || [])]);
       }
       resetForm();
       setItemModalOpen(false);
-      fetchItems();
     } catch (err) {
       showToast(err.message || String(err), "error");
     } finally {
@@ -382,12 +399,12 @@ export default function InventarioAdmin() {
     }
   };
 
-  const handleCreateSupplier = async (e) => {
+  const handleSaveSupplier = async (e) => {
     e.preventDefault();
     if (!supplierForm.name.trim()) return;
     setCreatingSupplier(true);
     try {
-      const created = await api.createSupplier({
+      const payload = {
         name: supplierForm.name.trim(),
         contact_name: supplierForm.contact_name.trim() || undefined,
         phone: supplierForm.phone.trim() || undefined,
@@ -395,11 +412,22 @@ export default function InventarioAdmin() {
         city: supplierForm.city.trim() || undefined,
         address: supplierForm.address.trim() || undefined,
         notes: supplierForm.notes.trim() || undefined,
-      });
-      await fetchSuppliers();
-      setForm((s) => ({ ...s, supplier: created.name }));
-      setSupplierForm(EMPTY_SUPPLIER_FORM);
-      showToast(`Proveedor "${created.name}" creado`);
+      };
+
+      if (editingSupplierId) {
+        const updated = await api.updateSupplier(editingSupplierId, payload);
+        await fetchSuppliers();
+        await fetchItems();
+        setEditingSupplierId(null);
+        setSupplierForm(EMPTY_SUPPLIER_FORM);
+        showToast(`Proveedor "${updated.name}" actualizado`);
+      } else {
+        const created = await api.createSupplier(payload);
+        await fetchSuppliers();
+        setForm((s) => ({ ...s, supplier: created.name, supplier_id: created.id }));
+        setSupplierForm(EMPTY_SUPPLIER_FORM);
+        showToast(`Proveedor "${created.name}" creado`);
+      }
     } catch (err) {
       showToast(err.message || String(err), "error");
     } finally {
@@ -407,15 +435,35 @@ export default function InventarioAdmin() {
     }
   };
 
-  const handleCreateColor = async (e) => {
+  const startEditSupplier = (supplier) => {
+    setEditingSupplierId(supplier.id);
+    setSupplierForm(supplierToForm(supplier));
+  };
+
+  const cancelSupplierEdit = () => {
+    setEditingSupplierId(null);
+    setSupplierForm(EMPTY_SUPPLIER_FORM);
+  };
+
+  const handleSaveColor = async (e) => {
     e.preventDefault();
     if (!colorForm.name.trim()) return;
     setCreatingColor(true);
     try {
-      const created = await api.createDeviceColor(colorForm.name.trim());
-      await fetchDeviceColors();
-      setColorForm(EMPTY_COLOR_FORM);
-      showToast(`Color "${created.name}" agregado`);
+      if (editingColorId) {
+        const updated = await api.updateDeviceColor(editingColorId, colorForm.name.trim());
+        await fetchDeviceColors();
+        await fetchCatalogProducts();
+        await fetchItems();
+        setEditingColorId(null);
+        setColorForm(EMPTY_COLOR_FORM);
+        showToast(`Color "${updated.name}" actualizado`);
+      } else {
+        const created = await api.createDeviceColor(colorForm.name.trim());
+        await fetchDeviceColors();
+        setColorForm(EMPTY_COLOR_FORM);
+        showToast(`Color "${created.name}" agregado`);
+      }
     } catch (err) {
       showToast(err.message || String(err), "error");
     } finally {
@@ -423,33 +471,61 @@ export default function InventarioAdmin() {
     }
   };
 
-  const removeColor = async (id, name) => {
-    if (!confirm(`¿Eliminar el color "${name}"?`)) return;
-    setDeletingColorId(id);
-    try {
-      await api.deleteDeviceColor(id);
-      await fetchDeviceColors();
-      showToast(`Color "${name}" eliminado`);
-    } catch (err) {
-      showToast(err.message || String(err), "error");
-    } finally {
-      setDeletingColorId(null);
-    }
+  const startEditColor = (color) => {
+    setEditingColorId(color.id);
+    setColorForm({ name: color.name || "" });
   };
 
-  const removeSupplier = async (id, name) => {
-    if (!confirm(`¿Eliminar el proveedor "${name}"?`)) return;
+  const cancelColorEdit = () => {
+    setEditingColorId(null);
+    setColorForm(EMPTY_COLOR_FORM);
+  };
+
+  const removeColor = (id, name) => {
+    setCatalogDeleteTarget({ kind: "color", id, name });
+  };
+
+  const removeSupplier = (id, name) => {
+    setCatalogDeleteTarget({ kind: "supplier", id, name });
+  };
+
+  const confirmCatalogDelete = async () => {
+    if (!catalogDeleteTarget) return;
+    const { kind, id, name } = catalogDeleteTarget;
+
+    if (kind === "color") {
+      setDeletingColorId(id);
+      try {
+        await api.deleteDeviceColor(id);
+        await fetchDeviceColors();
+        showToast(`Color "${name}" eliminado`);
+        setCatalogDeleteTarget(null);
+      } catch (err) {
+        showToast(err.message || String(err), "error");
+      } finally {
+        setDeletingColorId(null);
+      }
+      return;
+    }
+
     setDeletingSupplierId(id);
     try {
       await api.deleteSupplier(id);
       await fetchSuppliers();
       showToast(`Proveedor "${name}" eliminado`);
+      setCatalogDeleteTarget(null);
     } catch (err) {
       showToast(err.message || String(err), "error");
     } finally {
       setDeletingSupplierId(null);
     }
   };
+
+  const catalogDeleteLoading = catalogDeleteTarget?.kind === "color"
+    ? deletingColorId === catalogDeleteTarget?.id
+    : catalogDeleteTarget?.kind === "supplier"
+      ? deletingSupplierId === catalogDeleteTarget?.id
+      : false;
 
   const pickEquipoFromCatalog = (productId) => {
     const product = catalogProducts.find((p) => p.id === productId);
@@ -471,7 +547,7 @@ export default function InventarioAdmin() {
     setDeletingId(id);
     try {
       await api.deleteInventoryItem(id);
-      showToast(`"${deleteTarget.name}" eliminado`);
+      showToast(`"${deleteTarget.name}" archivado`);
       if (editingId === id) {
         resetForm();
         setItemModalOpen(false);
@@ -485,14 +561,52 @@ export default function InventarioAdmin() {
     }
   };
 
+  const handleRetake = async (item) => {
+    setRetakingId(item.id);
+    try {
+      await api.retakeInventoryItem(item.id);
+      const msg = item.status === "vendido"
+        ? `"${item.name}" marcado como retomado`
+        : `"${item.name}" reingresado al inventario`;
+      showToast(msg);
+      fetchItems();
+      if (viewMode === "grouped") fetchGroupedSummary();
+    } catch (e) {
+      showToast(e.message, "error");
+    } finally {
+      setRetakingId(null);
+    }
+  };
+
+  const openGroupedDetail = (group) => {
+    setViewMode("list");
+    setSearchDraft(group.name);
+    setFilters((prev) => ({ ...prev, q: group.name }));
+  };
+
+  const sellItem = (item) => {
+    navigate(`/admin/inventario/ventas?item=${item.id}`);
+  };
+
+  const showSensitive = canViewSensitiveInventoryFields(user);
+
+  const showHistory = async (item) => {
+    setHistoryItem(item);
+    setHistoryLoading(true);
+    try {
+      const detail = await api.getInventoryItem(item.id);
+      setHistoryItem(detail);
+    } catch (e) {
+      setHistoryItem(null);
+      showToast(e.message, "error");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   const clearFilters = () => {
     setSearchDraft("");
     setFilters({ q: "", status: "" });
-  };
-
-  const signOut = async () => {
-    await api.logout();
-    navigate("/admin");
   };
 
   if (!isApiConfigured) {
@@ -503,7 +617,7 @@ export default function InventarioAdmin() {
     );
   }
 
-  if (!user) {
+  if (!authChecked || !user) {
     return (
       <div className="inv-dash inv-dash--centered">
         <div className="inv-loader" aria-label="Cargando" />
@@ -512,35 +626,42 @@ export default function InventarioAdmin() {
     );
   }
 
+  if (isServiceTechnician(user)) {
+    return <Navigate to="/admin/inventario/servicio-tecnico" replace />;
+  }
+
+  if (!canAccessInventory(user)) {
+    if (canAccessContent(user)) {
+      return <Navigate to="/admin" replace />;
+    }
+    return (
+      <div className="inv-dash inv-dash--centered">
+        <p className="inv-dash__muted">Tu cuenta no tiene acceso al inventario.</p>
+        <button type="button" className="inv-btn inv-btn--outline" onClick={signOut}>Cerrar sesión</button>
+      </div>
+    );
+  }
+
   const countByStatus = (status) => items.filter((i) => i.status === status).length;
+  const hasActiveFilters = Boolean(filters.q || filters.status);
+  const filterableStatuses = Object.entries(STATUS_LABELS).filter(([value]) => value !== "archived");
   const isInitialLoad = listLoading && items.length === 0;
   const isFilteredEmpty = !listLoading && items.length === 0 && hasActiveFilters;
   const equipoSuggestions = catalogProducts.map((p) => p.name);
 
   return (
     <div className="inv-dash">
-      <header className="inv-topbar">
-        <div className="inv-topbar__brand">
-          <span className="inv-topbar__icon" aria-hidden="true">
-            <img
-              src={`${import.meta.env.BASE_URL}imagenes/logo-blanco-rojo.jfif`}
-              alt=""
-              className="inv-topbar__logo"
-            />
-          </span>
-          <div>
-            <h1 className="inv-topbar__title">Inventario</h1>
-            <p className="inv-topbar__subtitle">Gestión de equipos · Phone Colombia</p>
-          </div>
-        </div>
-        <nav className="inv-topbar__nav">
-          <Link to="/admin" className="inv-btn inv-btn--ghost">Panel de contenido</Link>
-          <button type="button" className="inv-btn inv-btn--outline" onClick={signOut}>Cerrar sesión</button>
-        </nav>
-      </header>
+      <InventarioTopbar current="inventario" user={user} onSignOut={signOut} />
 
       <main className="inv-main inv-main--sheet">
         <div className="inv-stats inv-stats--5" aria-live="polite">
+          {viewingArchived ? (
+            <article className="inv-stat inv-stat--slate">
+              <span className="inv-stat__label">Archivados</span>
+              <strong className="inv-stat__value">{listLoading ? "…" : items.length}</strong>
+            </article>
+          ) : (
+            <>
           <article className="inv-stat inv-stat--blue">
             <span className="inv-stat__label">Equipos</span>
             <strong className="inv-stat__value">{listLoading ? "…" : items.length}</strong>
@@ -561,6 +682,12 @@ export default function InventarioAdmin() {
             <span className="inv-stat__label">Vendido</span>
             <strong className="inv-stat__value">{listLoading ? "…" : countByStatus("vendido")}</strong>
           </article>
+          <article className="inv-stat inv-stat--purple">
+            <span className="inv-stat__label">Retomado</span>
+            <strong className="inv-stat__value">{listLoading ? "…" : countByStatus("retomado")}</strong>
+          </article>
+            </>
+          )}
         </div>
 
         <section className={`inv-panel inv-panel--sheet ${listLoading && items.length > 0 ? "is-refreshing" : ""}`}>
@@ -579,7 +706,7 @@ export default function InventarioAdmin() {
                 </svg>
                 <input
                   className="inv-search__input"
-                  placeholder="Buscar IMEI, equipo, proveedor…"
+                  placeholder="Buscar código barras, IMEI, equipo, proveedor…"
                   value={searchDraft}
                   onChange={(e) => setSearchDraft(e.target.value)}
                   aria-label="Buscar"
@@ -595,7 +722,7 @@ export default function InventarioAdmin() {
                 aria-label="Filtrar por estado"
               >
                 <option value="">Todos los estados</option>
-                {Object.entries(STATUS_LABELS).map(([v, l]) => (
+                {filterableStatuses.map(([v, l]) => (
                   <option key={v} value={v}>{l}</option>
                 ))}
               </select>
@@ -608,24 +735,67 @@ export default function InventarioAdmin() {
             <div className="inv-sheet-actions">
               <button
                 type="button"
-                className="inv-btn inv-btn--outline"
-                onClick={() => { setColorForm(EMPTY_COLOR_FORM); setColorModalOpen(true); }}
+                className={`inv-btn inv-btn--ghost${listScope === "active" ? " is-active" : ""}`}
+                onClick={() => switchListScope("active")}
               >
-                + Color
+                Activos
               </button>
               <button
                 type="button"
-                className="inv-btn inv-btn--outline"
-                onClick={() => { setSupplierForm(EMPTY_SUPPLIER_FORM); setSupplierModalOpen(true); }}
+                className={`inv-btn inv-btn--ghost${listScope === "archived" ? " is-active" : ""}`}
+                onClick={() => switchListScope("archived")}
               >
-                + Proveedor
+                Archivados
               </button>
-              <button type="button" className="inv-btn inv-btn--outline" onClick={openEquipoModal}>
-                + Modelo
+              <button
+                type="button"
+                className={`inv-btn inv-btn--ghost${viewMode === "list" ? " is-active" : ""}`}
+                onClick={() => setViewMode("list")}
+              >
+                Lista
               </button>
-              <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openNewItemModal}>
-                + Agregar equipo
+              {!viewingArchived && (
+              <button
+                type="button"
+                className={`inv-btn inv-btn--ghost${viewMode === "grouped" ? " is-active" : ""}`}
+                onClick={() => { setViewMode("grouped"); fetchGroupedSummary(); }}
+              >
+                Por modelo
               </button>
+              )}
+              {canManageCustomers(user) && (
+                <button
+                  type="button"
+                  className="inv-btn inv-btn--outline"
+                  onClick={() => setCustomerModalOpen(true)}
+                >
+                  + Cliente
+                </button>
+              )}
+              {canManageInventory(user) && !viewingArchived && (
+                <>
+                  <button
+                    type="button"
+                    className="inv-btn inv-btn--outline"
+                    onClick={() => { setColorForm(EMPTY_COLOR_FORM); setEditingColorId(null); setColorModalOpen(true); }}
+                  >
+                    + Color
+                  </button>
+                  <button
+                    type="button"
+                    className="inv-btn inv-btn--outline"
+                    onClick={() => { setSupplierForm(EMPTY_SUPPLIER_FORM); setEditingSupplierId(null); setSupplierModalOpen(true); }}
+                  >
+                    + Proveedor
+                  </button>
+                  <button type="button" className="inv-btn inv-btn--outline" onClick={openEquipoModal}>
+                    + Modelo
+                  </button>
+                  <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openNewItemModal}>
+                    + Agregar equipo
+                  </button>
+                </>
+              )}
               <button
                 type="button"
                 className="inv-btn inv-btn--icon"
@@ -643,16 +813,43 @@ export default function InventarioAdmin() {
           </div>
 
           <div className="inv-table-wrap inv-table-wrap--sheet">
+            {viewMode === "grouped" && !viewingArchived ? (
+              <div className="inv-grouped-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "1rem", padding: "1rem" }}>
+                {groupedSummary.length === 0 ? (
+                  <p className="inv-sheet-empty">Sin datos agrupados.</p>
+                ) : (
+                  groupedSummary.map((group) => (
+                    <article
+                      key={group.inventory_product_id || group.name}
+                      className="inv-panel"
+                      style={{ borderLeft: `4px solid ${group.color}`, padding: "1rem", cursor: "pointer" }}
+                      onClick={() => openGroupedDetail(group)}
+                      title="Clic para ver unidades"
+                    >
+                      <h3 style={{ margin: "0 0 0.5rem", fontSize: "0.95rem" }}>{group.name}</h3>
+                      <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700 }}>{group.total} uds.</p>
+                      <ul style={{ margin: "0.75rem 0 0", padding: 0, listStyle: "none", fontSize: "0.85rem" }}>
+                        {Object.entries(group.by_status || {}).filter(([, n]) => n > 0).map(([status, count]) => (
+                          <li key={status}>{STATUS_LABELS[status] || status}: {count}</li>
+                        ))}
+                      </ul>
+                    </article>
+                  ))
+                )}
+              </div>
+            ) : (
             <table className="inv-table inv-table--sheet">
               <thead>
                 <tr>
-                  <th>IMEI / Ref.</th>
+                  {showSensitive && <th>IMEI / Ref.</th>}
+                  <th>Cód. barras</th>
                   <th>Equipo</th>
                   <th>Color</th>
                   <th>Proveedor</th>
                   <th>Precio</th>
                   <th>Batería</th>
                   <th>Estado</th>
+                  {viewingArchived && <th>Archivado el</th>}
                   <th>Observaciones</th>
                   <th />
                 </tr>
@@ -662,9 +859,13 @@ export default function InventarioAdmin() {
               ) : items.length === 0 ? (
                 <tbody>
                   <tr>
-                    <td colSpan={9} className="inv-sheet-empty">
-                      <p>{isFilteredEmpty ? "Sin resultados para los filtros aplicados." : "No hay equipos registrados."}</p>
-                      {!isFilteredEmpty && (
+                    <td colSpan={showSensitive ? (viewingArchived ? 11 : 10) : (viewingArchived ? 10 : 9)} className="inv-sheet-empty">
+                      <p>
+                        {viewingArchived
+                          ? (isFilteredEmpty ? "Sin archivados para los filtros aplicados." : "No hay equipos archivados.")
+                          : (isFilteredEmpty ? "Sin resultados para los filtros aplicados." : "No hay equipos registrados.")}
+                      </p>
+                      {!isFilteredEmpty && !viewingArchived && (
                         <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openNewItemModal}>
                           Agregar primer equipo
                         </button>
@@ -677,13 +878,18 @@ export default function InventarioAdmin() {
                   {items.map((item) => (
                     <tr
                       key={item.id}
-                      className={`inv-sheet-row is-clickable ${editingId === item.id ? "is-editing" : ""} ${item.color ? "has-color" : ""}`}
+                      className={`inv-sheet-row ${viewingArchived ? "" : "is-clickable"} ${editingId === item.id ? "is-editing" : ""} ${item.color ? "has-color" : ""} ${item.is_archived ? "is-archived" : ""}`}
                       style={item.color ? { "--inv-row-accent": getDeviceColorHex(item.color) } : undefined}
-                      onClick={() => startEdit(item)}
-                      title="Clic para editar"
+                      onClick={viewingArchived ? undefined : () => startEdit(item)}
+                      title={viewingArchived ? undefined : "Clic para editar"}
                     >
+                      {showSensitive && (
                       <td data-label="IMEI / Ref.">
                         <span className="inv-sheet-imei">{item.imei || "—"}</span>
+                      </td>
+                      )}
+                      <td data-label="Cód. barras">
+                        <span className="inv-sheet-imei">{item.barcode || "—"}</span>
                       </td>
                       <td data-label="Equipo">
                         <span className="inv-sheet-equipo">{item.name}</span>
@@ -710,25 +916,71 @@ export default function InventarioAdmin() {
                         </span>
                       </td>
                       <td data-label="Estado">
-                        <span className={`inv-badge inv-badge--${item.status}`}>
-                          {STATUS_LABELS[item.status] || item.status}
+                        <span className={`inv-badge inv-badge--${item.is_archived ? "archived" : item.status}`}>
+                          {item.is_archived ? "ARCHIVADO" : (STATUS_LABELS[item.status] || item.status)}
                         </span>
                       </td>
+                      {viewingArchived && (
+                        <td data-label="Archivado el">
+                          <span className="inv-sheet-muted">{formatArchivedAt(item.deleted_at)}</span>
+                        </td>
+                      )}
                       <td data-label="Observaciones">
                         <span className="inv-sheet-notes">{item.notes || ""}</span>
                       </td>
                       <td data-label="Acciones" onClick={(e) => e.stopPropagation()}>
                         <div className="inv-row-actions">
-                          <button type="button" className="inv-icon-btn" title="Editar" onClick={() => startEdit(item)}>
+                          <button type="button" className="inv-icon-btn" title="Historial" onClick={() => showHistory(item)}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              <circle cx="12" cy="12" r="10" />
+                              <path d="M12 6v6l4 2" />
                             </svg>
                           </button>
+                          {!viewingArchived && canManageInventory(user) && (
+                            <button type="button" className="inv-icon-btn" title="Editar" onClick={() => startEdit(item)}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              </svg>
+                            </button>
+                          )}
+                          {!viewingArchived && (item.status === "disponible" || item.status === "separado") && canManageSales(user) && (
+                            <button
+                              type="button"
+                              className="inv-icon-btn"
+                              title="Vender"
+                              onClick={() => sellItem(item)}
+                            >
+                              $
+                            </button>
+                          )}
+                          {!viewingArchived && item.status === "vendido" && canManageInventory(user) && (
+                            <button
+                              type="button"
+                              className="inv-icon-btn"
+                              title="Retomar"
+                              disabled={retakingId === item.id}
+                              onClick={() => handleRetake(item)}
+                            >
+                              ↺
+                            </button>
+                          )}
+                          {!viewingArchived && item.status === "retomado" && canManageInventory(user) && (
+                            <button
+                              type="button"
+                              className="inv-icon-btn"
+                              title="Reingresar"
+                              disabled={retakingId === item.id}
+                              onClick={() => handleRetake(item)}
+                            >
+                              ✓
+                            </button>
+                          )}
+                          {!viewingArchived && canManageInventory(user) && item.status !== "vendido" && item.status !== "retomado" && (
                           <button
                             type="button"
                             className="inv-icon-btn inv-icon-btn--danger"
-                            title="Eliminar"
+                            title="Archivar"
                             disabled={deletingId === item.id}
                             onClick={() => setDeleteTarget({ id: item.id, name: item.name })}
                           >
@@ -740,6 +992,7 @@ export default function InventarioAdmin() {
                               </svg>
                             )}
                           </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -747,6 +1000,7 @@ export default function InventarioAdmin() {
                 </tbody>
               )}
             </table>
+            )}
           </div>
         </section>
       </main>
@@ -764,6 +1018,18 @@ export default function InventarioAdmin() {
               {editingId ? "Editar equipo" : "Agregar equipo"}
             </h3>
             <form onSubmit={handleSubmit} className="inv-modal-form inv-modal-form--grid">
+              <Field label="Código de barras">
+                <input
+                  ref={barcodeInputRef}
+                  className="inv-field__input inv-field__input--mono"
+                  placeholder="Escanear o escribir código EAN/UPC"
+                  value={form.barcode}
+                  onChange={(e) => setForm((s) => ({ ...s, barcode: e.target.value }))}
+                  autoComplete="off"
+                />
+              </Field>
+
+              {showSensitive && (
               <Field label="IMEI / Ref.">
                 <input
                   ref={imeiInputRef}
@@ -774,6 +1040,7 @@ export default function InventarioAdmin() {
                   autoComplete="off"
                 />
               </Field>
+              )}
 
               {catalogProducts.length > 0 && (
                 <Field label="Cargar del catálogo (opcional)" className="inv-field--span-all">
@@ -820,20 +1087,39 @@ export default function InventarioAdmin() {
               <Field label="Proveedor">
                 <select
                   className="inv-field__input"
-                  value={form.supplier}
-                  onChange={(e) => setForm((s) => ({ ...s, supplier: e.target.value }))}
+                  value={form.supplier_id || form.supplier}
+                  onChange={(e) => {
+                    const supplier = suppliers.find((s) => s.id === e.target.value || s.name === e.target.value);
+                    setForm((s) => ({
+                      ...s,
+                      supplier_id: supplier?.id || "",
+                      supplier: supplier?.name || e.target.value,
+                    }));
+                  }}
                   aria-label="Seleccionar proveedor"
                 >
                   <option value="">
                     {suppliers.length === 0 ? "Crea proveedores con + Proveedor" : "Sin proveedor"}
                   </option>
                   {suppliers.map((s) => (
-                    <option key={s.id} value={s.name}>{s.name}</option>
+                    <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
               </Field>
 
-              <Field label="Precio">
+              {showSensitive && (
+              <Field label="Precio compra">
+                <input
+                  className="inv-field__input"
+                  inputMode="numeric"
+                  placeholder="$2,500,000"
+                  value={form.purchase_price}
+                  onChange={(e) => setForm((s) => ({ ...s, purchase_price: e.target.value }))}
+                />
+              </Field>
+              )}
+
+              <Field label="Precio venta">
                 <input
                   className="inv-field__input"
                   inputMode="numeric"
@@ -855,16 +1141,40 @@ export default function InventarioAdmin() {
                 />
               </Field>
 
-              <Field label="Estado">
-                <select
+              <Field label="Fecha ingreso">
+                <input
                   className="inv-field__input"
-                  value={form.status}
-                  onChange={(e) => setForm((s) => ({ ...s, status: e.target.value }))}
-                >
-                  {Object.entries(STATUS_LABELS).map(([v, l]) => (
-                    <option key={v} value={v}>{l}</option>
-                  ))}
-                </select>
+                  type="date"
+                  value={form.acquired_at}
+                  onChange={(e) => setForm((s) => ({ ...s, acquired_at: e.target.value }))}
+                />
+              </Field>
+
+              <Field label="Estado">
+                {editableInventoryStatuses(form.status) ? (
+                  <select
+                    className="inv-field__input"
+                    value={form.status}
+                    onChange={(e) => setForm((s) => ({ ...s, status: e.target.value }))}
+                  >
+                    {Object.entries(editableInventoryStatuses(form.status)).map(([v, l]) => (
+                      <option key={v} value={v}>{l}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="inv-field__input" style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "var(--inv-surface-muted, #f8fafc)" }}>
+                    <span className={`inv-badge inv-badge--${form.status}`}>
+                      {STATUS_LABELS[form.status] || form.status}
+                    </span>
+                    <span className="inv-dash__muted" style={{ fontSize: "0.85rem" }}>
+                      {form.status === "vendido" || form.status === "retomado"
+                        ? "Use Retomar / Reingresar en la tabla."
+                        : form.status === "servicio_tecnico"
+                          ? "Se libera al cerrar el ticket de ST."
+                          : "No editable manualmente."}
+                    </span>
+                  </div>
+                )}
               </Field>
 
               <Field label="Observaciones" className="inv-field--span-all">
@@ -899,12 +1209,16 @@ export default function InventarioAdmin() {
             aria-labelledby="inv-color-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="inv-color-title" className="inv-modal__title">Colores disponibles</h3>
+            <h3 id="inv-color-title" className="inv-modal__title">
+              {editingColorId ? "Editar color" : "Colores disponibles"}
+            </h3>
             <p className="inv-modal__text">
-              Administra los colores que aparecen al registrar equipos en el inventario.
+              {editingColorId
+                ? "Al renombrar un color se actualiza también en equipos y modelos que lo usen."
+                : "Administra los colores que aparecen al registrar equipos en el inventario."}
             </p>
-            <form onSubmit={handleCreateColor} className="inv-modal-form">
-              <Field label="Nuevo color">
+            <form onSubmit={handleSaveColor} className="inv-modal-form">
+              <Field label={editingColorId ? "Color" : "Nuevo color"}>
                 <input
                   className="inv-field__input"
                   placeholder="NEGRO"
@@ -915,20 +1229,37 @@ export default function InventarioAdmin() {
                   autoComplete="off"
                 />
               </Field>
-              <button type="submit" className="inv-btn inv-btn--primary inv-btn--inline" disabled={creatingColor}>
-                {creatingColor ? "Guardando…" : "Agregar color"}
-              </button>
+              <div className="inv-modal__actions">
+                {editingColorId && (
+                  <button type="button" className="inv-btn inv-btn--outline" onClick={cancelColorEdit} disabled={creatingColor}>
+                    Cancelar edición
+                  </button>
+                )}
+                <button type="submit" className="inv-btn inv-btn--primary inv-btn--inline" disabled={creatingColor}>
+                  {creatingColor ? "Guardando…" : editingColorId ? "Actualizar color" : "Agregar color"}
+                </button>
+              </div>
             </form>
             {deviceColors.length > 0 && (
               <div className="inv-supplier-list">
-                <p className="inv-supplier-list__title">Catálogo ({deviceColors.length})</p>
+                <p className="inv-supplier-list__title">Catálogo ({deviceColors.length}) — clic para editar</p>
                 <ul className="inv-supplier-list__items inv-supplier-list__items--tall">
                   {deviceColors.map((c) => (
-                    <li key={c.id} className="inv-supplier-list__item">
-                      <span className="inv-supplier-list__name">
-                        <ColorSwatch name={c.name} size={14} />
-                        {c.name}
-                      </span>
+                    <li
+                      key={c.id}
+                      className={`inv-supplier-list__item inv-supplier-list__item--clickable ${editingColorId === c.id ? "is-selected" : ""}`}
+                    >
+                      <button
+                        type="button"
+                        className="inv-supplier-list__pick"
+                        onClick={() => startEditColor(c)}
+                        disabled={creatingColor}
+                      >
+                        <span className="inv-supplier-list__name">
+                          <ColorSwatch name={c.name} size={14} />
+                          {c.name}
+                        </span>
+                      </button>
                       <button
                         type="button"
                         className="inv-supplier-list__remove"
@@ -944,7 +1275,7 @@ export default function InventarioAdmin() {
               </div>
             )}
             <div className="inv-modal__actions inv-modal__actions--solo">
-              <button type="button" className="inv-btn inv-btn--outline" onClick={() => setColorModalOpen(false)}>
+              <button type="button" className="inv-btn inv-btn--outline" onClick={() => { cancelColorEdit(); setColorModalOpen(false); }}>
                 Cerrar
               </button>
             </div>
@@ -961,11 +1292,15 @@ export default function InventarioAdmin() {
             aria-labelledby="inv-supplier-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="inv-supplier-title" className="inv-modal__title">Proveedores</h3>
+            <h3 id="inv-supplier-title" className="inv-modal__title">
+              {editingSupplierId ? "Editar proveedor" : "Proveedores"}
+            </h3>
             <p className="inv-modal__text">
-              Registra la información del proveedor para usarla al ingresar equipos al inventario.
+              {editingSupplierId
+                ? "Modifica los datos del proveedor. Si cambias el nombre, se actualiza en los equipos vinculados."
+                : "Registra la información del proveedor para usarla al ingresar equipos al inventario."}
             </p>
-            <form onSubmit={handleCreateSupplier} className="inv-modal-form inv-modal-form--grid">
+            <form onSubmit={handleSaveSupplier} className="inv-modal-form inv-modal-form--grid">
               <Field label="Nombre / Empresa *">
                 <input
                   className="inv-field__input"
@@ -1033,25 +1368,40 @@ export default function InventarioAdmin() {
                   rows={2}
                 />
               </Field>
-              <div className="inv-field--span-all">
+              <div className="inv-field--span-all inv-modal__actions">
+                {editingSupplierId && (
+                  <button type="button" className="inv-btn inv-btn--outline" onClick={cancelSupplierEdit} disabled={creatingSupplier}>
+                    Cancelar edición
+                  </button>
+                )}
                 <button type="submit" className="inv-btn inv-btn--primary inv-btn--inline" disabled={creatingSupplier}>
-                  {creatingSupplier ? "Guardando…" : "Agregar proveedor"}
+                  {creatingSupplier ? "Guardando…" : editingSupplierId ? "Actualizar proveedor" : "Agregar proveedor"}
                 </button>
               </div>
             </form>
 
             {suppliers.length > 0 && (
               <div className="inv-supplier-list">
-                <p className="inv-supplier-list__title">Registrados ({suppliers.length})</p>
+                <p className="inv-supplier-list__title">Registrados ({suppliers.length}) — clic para editar</p>
                 <ul className="inv-supplier-list__items">
                   {suppliers.map((s) => (
-                    <li key={s.id} className="inv-supplier-list__item">
-                      <div className="inv-supplier-list__info">
-                        <span className="inv-supplier-list__name">{s.name}</span>
-                        {supplierSubtitle(s) && (
-                          <span className="inv-supplier-list__meta">{supplierSubtitle(s)}</span>
-                        )}
-                      </div>
+                    <li
+                      key={s.id}
+                      className={`inv-supplier-list__item inv-supplier-list__item--clickable ${editingSupplierId === s.id ? "is-selected" : ""}`}
+                    >
+                      <button
+                        type="button"
+                        className="inv-supplier-list__pick"
+                        onClick={() => startEditSupplier(s)}
+                        disabled={creatingSupplier}
+                      >
+                        <div className="inv-supplier-list__info">
+                          <span className="inv-supplier-list__name">{s.name}</span>
+                          {supplierSubtitle(s) && (
+                            <span className="inv-supplier-list__meta">{supplierSubtitle(s)}</span>
+                          )}
+                        </div>
+                      </button>
                       <button
                         type="button"
                         className="inv-supplier-list__remove"
@@ -1068,7 +1418,7 @@ export default function InventarioAdmin() {
             )}
 
             <div className="inv-modal__actions inv-modal__actions--solo">
-              <button type="button" className="inv-btn inv-btn--outline" onClick={() => setSupplierModalOpen(false)}>
+              <button type="button" className="inv-btn inv-btn--outline" onClick={() => { cancelSupplierEdit(); setSupplierModalOpen(false); }}>
                 Cerrar
               </button>
             </div>
@@ -1214,6 +1564,10 @@ export default function InventarioAdmin() {
         </div>
       )}
 
+      {customerModalOpen && (
+        <CustomerCatalogModal open={customerModalOpen} onClose={() => setCustomerModalOpen(false)} />
+      )}
+
       {toast && (
         <div className={`inv-toast inv-toast--${toast.type}`} role={toast.type === "error" ? "alert" : "status"}>
           <span className="inv-toast__text">{toast.text}</span>
@@ -1221,23 +1575,67 @@ export default function InventarioAdmin() {
         </div>
       )}
 
+      {historyItem && (
+        <InventoryHistoryModal
+          item={historyItem}
+          loading={historyLoading}
+          showSensitive={showSensitive}
+          onClose={() => {
+            setHistoryItem(null);
+            setHistoryLoading(false);
+          }}
+        />
+      )}
+
       {deleteTarget && (
-        <div className="inv-modal-overlay" role="presentation" onClick={() => !deletingId && setDeleteTarget(null)}>
-          <div className="inv-modal" role="dialog" aria-modal="true" aria-labelledby="inv-delete-title" onClick={(e) => e.stopPropagation()}>
-            <h3 id="inv-delete-title" className="inv-modal__title">¿Eliminar equipo?</h3>
-            <p className="inv-modal__text">
-              Se eliminará <strong>{deleteTarget.name}</strong> del inventario.
-            </p>
-            <div className="inv-modal__actions">
-              <button type="button" className="inv-btn inv-btn--outline" onClick={() => setDeleteTarget(null)} disabled={Boolean(deletingId)}>
-                Cancelar
-              </button>
-              <button type="button" className="inv-btn inv-btn--danger" onClick={confirmDelete} disabled={Boolean(deletingId)}>
-                {deletingId ? "Eliminando…" : "Eliminar"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteDialog
+          open
+          tone="warning"
+          icon="archive"
+          title="¿Archivar equipo?"
+          description={
+            <>
+              Se archivará <strong>{deleteTarget.name}</strong>. El historial se conserva; no se borra el registro.
+            </>
+          }
+          confirmLabel="Archivar"
+          loading={Boolean(deletingId)}
+          onCancel={() => !deletingId && setDeleteTarget(null)}
+          onConfirm={confirmDelete}
+        />
+      )}
+
+      {catalogDeleteTarget && (
+        <ConfirmDeleteDialog
+          open
+          title={
+            catalogDeleteTarget.kind === "color"
+              ? "¿Eliminar color?"
+              : "¿Eliminar proveedor?"
+          }
+          itemName={catalogDeleteTarget.name}
+          description={
+            catalogDeleteTarget.kind === "color" ? (
+              <>
+                Se eliminará el color <strong>{catalogDeleteTarget.name}</strong> del catálogo.
+                Los equipos existentes conservan su color actual.
+              </>
+            ) : (
+              <>
+                Se eliminará el proveedor <strong>{catalogDeleteTarget.name}</strong>.
+                Los equipos vinculados mantienen el nombre hasta que los edites.
+              </>
+            )
+          }
+          confirmLabel={
+            catalogDeleteTarget.kind === "color"
+              ? "Eliminar color"
+              : "Eliminar proveedor"
+          }
+          loading={catalogDeleteLoading}
+          onCancel={() => !catalogDeleteLoading && setCatalogDeleteTarget(null)}
+          onConfirm={confirmCatalogDelete}
+        />
       )}
     </div>
   );

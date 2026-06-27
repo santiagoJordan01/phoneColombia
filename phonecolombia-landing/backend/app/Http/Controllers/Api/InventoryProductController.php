@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\DeniesReadOnlyInventoryRoles;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryProduct;
 use Illuminate\Http\JsonResponse;
@@ -10,6 +11,8 @@ use Illuminate\Validation\Rule;
 
 class InventoryProductController extends Controller
 {
+    use DeniesReadOnlyInventoryRoles;
+
     public function index(): JsonResponse
     {
         $products = InventoryProduct::query()
@@ -21,6 +24,8 @@ class InventoryProductController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->denyIfCannotManageCatalog($request->user());
+
         $data = $request->validate([
             'name' => ['nullable', 'string', 'max:255'],
             'category' => ['nullable', 'string', Rule::in(['celular', 'tablet', 'accesorio', 'computador', 'otro'])],
@@ -56,6 +61,8 @@ class InventoryProductController extends Controller
 
     public function update(Request $request, InventoryProduct $inventoryProduct): JsonResponse
     {
+        $this->denyIfCannotManageCatalog($request->user());
+
         $data = $request->validate([
             'name' => ['nullable', 'string', 'max:255'],
             'category' => ['nullable', 'string', Rule::in(['celular', 'tablet', 'accesorio', 'computador', 'otro'])],
@@ -89,8 +96,10 @@ class InventoryProductController extends Controller
         return response()->json($inventoryProduct->fresh());
     }
 
-    public function destroy(InventoryProduct $inventoryProduct): JsonResponse
+    public function destroy(Request $request, InventoryProduct $inventoryProduct): JsonResponse
     {
+        $this->denyIfCannotManageCatalog($request->user());
+
         $inventoryProduct->delete();
 
         return response()->json(['message' => 'Modelo eliminado del catálogo']);

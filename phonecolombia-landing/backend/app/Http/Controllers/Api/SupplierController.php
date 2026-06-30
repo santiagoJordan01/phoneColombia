@@ -32,6 +32,8 @@ class SupplierController extends Controller
             'contact_name' => ['nullable', 'string', 'max:120'],
             'phone' => ['nullable', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:120'],
+            'department_code' => ['nullable', 'string', 'size:2', 'regex:/^\d{2}$/'],
+            'municipality_code' => ['nullable', 'string', 'size:5', 'regex:/^\d{5}$/'],
             'city' => ['nullable', 'string', 'max:100'],
             'address' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
@@ -42,6 +44,8 @@ class SupplierController extends Controller
             'contact_name' => isset($data['contact_name']) ? trim($data['contact_name']) : null,
             'phone' => $data['phone'] ?? null,
             'email' => isset($data['email']) ? strtolower(trim($data['email'])) : null,
+            'department_code' => $data['department_code'] ?? null,
+            'municipality_code' => $data['municipality_code'] ?? null,
             'city' => isset($data['city']) ? trim($data['city']) : null,
             'address' => isset($data['address']) ? trim($data['address']) : null,
             'notes' => $data['notes'] ?? null,
@@ -59,6 +63,8 @@ class SupplierController extends Controller
             'contact_name' => ['nullable', 'string', 'max:120'],
             'phone' => ['nullable', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:120'],
+            'department_code' => ['nullable', 'string', 'size:2', 'regex:/^\d{2}$/'],
+            'municipality_code' => ['nullable', 'string', 'size:5', 'regex:/^\d{5}$/'],
             'city' => ['nullable', 'string', 'max:100'],
             'address' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
@@ -79,6 +85,12 @@ class SupplierController extends Controller
             $supplier->email = $data['email'] !== null && $data['email'] !== ''
                 ? strtolower(trim($data['email']))
                 : null;
+        }
+        if (array_key_exists('department_code', $data)) {
+            $supplier->department_code = $data['department_code'] ?: null;
+        }
+        if (array_key_exists('municipality_code', $data)) {
+            $supplier->municipality_code = $data['municipality_code'] ?: null;
         }
         if (array_key_exists('city', $data)) {
             $supplier->city = $data['city'] !== null && $data['city'] !== ''

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import DailyReportDocument from "../components/inventario/DailyReportDocument.jsx";
+import SellerReportDocument from "../components/inventario/SellerReportDocument.jsx";
 import api, { isApiConfigured } from "../lib/apiClient";
 import { canViewReports } from "./inventario/shared.jsx";
 import "../styles.css";
@@ -29,6 +30,8 @@ export default function InventarioInformePreview() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
 
+  const reportType = searchParams.get("type") === "by_seller" ? "by_seller" : "daily";
+  const isBySeller = reportType === "by_seller";
   const queryParams = useMemo(() => paramsFromSearch(searchParams), [searchParams]);
   const periodLabel = queryParams.from === queryParams.to
     ? queryParams.to
@@ -43,13 +46,17 @@ export default function InventarioInformePreview() {
     setLoading(true);
     setError(null);
     try {
-      setReport(await api.getDailyReport(queryParams));
+      setReport(
+        isBySeller
+          ? await api.getBySellerReport(queryParams)
+          : await api.getDailyReport(queryParams),
+      );
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [queryParams]);
+  }, [isBySeller, queryParams]);
 
   useEffect(() => {
     if (!isApiConfigured) return;
@@ -72,10 +79,11 @@ export default function InventarioInformePreview() {
   const exportPdf = async () => {
     setExporting(true);
     try {
-      await api.downloadAuthenticated(
-        api.exportDailyReportPdfUrl(queryParams),
-        `informe_diario_${periodLabel}.pdf`,
-      );
+      const url = isBySeller
+        ? api.exportBySellerReportPdfUrl(queryParams)
+        : api.exportDailyReportPdfUrl(queryParams);
+      const prefix = isBySeller ? "informe_por_vendedor" : "informe_diario";
+      await api.downloadAuthenticated(url, `${prefix}_${periodLabel}.pdf`);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -86,10 +94,11 @@ export default function InventarioInformePreview() {
   const exportExcel = async () => {
     setExporting(true);
     try {
-      await api.downloadAuthenticated(
-        api.exportDailyReportExcelUrl(queryParams),
-        `informe_diario_${periodLabel}.xlsx`,
-      );
+      const url = isBySeller
+        ? api.exportBySellerReportExcelUrl(queryParams)
+        : api.exportDailyReportExcelUrl(queryParams);
+      const prefix = isBySeller ? "informe_por_vendedor" : "informe_diario";
+      await api.downloadAuthenticated(url, `${prefix}_${periodLabel}.xlsx`);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -124,7 +133,9 @@ export default function InventarioInformePreview() {
           <button type="button" className="inv-btn inv-btn--ghost" onClick={goBack}>
             ← Volver a informes
           </button>
-          <span className="inv-report-preview__hint">Vista previa del informe diario</span>
+          <span className="inv-report-preview__hint">
+            {isBySeller ? "Vista previa del informe por vendedor" : "Vista previa del informe diario"}
+          </span>
         </div>
         <div className="inv-report-preview__toolbar-actions">
           <button
@@ -168,12 +179,21 @@ export default function InventarioInformePreview() {
         )}
         {!loading && !error && report && (
           <article className="inv-report-preview__paper">
-            <DailyReportDocument
-              report={report}
-              from={queryParams.from}
-              to={queryParams.to}
-              generatedAt={generatedAt}
-            />
+            {isBySeller ? (
+              <SellerReportDocument
+                report={report}
+                from={queryParams.from}
+                to={queryParams.to}
+                generatedAt={generatedAt}
+              />
+            ) : (
+              <DailyReportDocument
+                report={report}
+                from={queryParams.from}
+                to={queryParams.to}
+                generatedAt={generatedAt}
+              />
+            )}
           </article>
         )}
       </div>

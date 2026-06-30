@@ -20,6 +20,12 @@ final class InventoryStatusGuard
         InventoryStatus::SEPARADO,
     ];
 
+    /** @var list<string> */
+    public const POST_SERVICE_RELEASE_STATUSES = [
+        InventoryStatus::DISPONIBLE,
+        InventoryStatus::SEPARADO,
+    ];
+
     public static function assertAllowedOnCreate(?string $status): void
     {
         $status = $status ?? InventoryStatus::DISPONIBLE;
@@ -132,5 +138,26 @@ final class InventoryStatusGuard
             ->where('inventory_item_id', $item->id)
             ->whereNull('delivered_at')
             ->exists();
+    }
+
+    public static function statusAfterServiceRelease(InventoryItem $item, ?string $ticketId = null): string
+    {
+        $query = $item->movements()
+            ->where('type', 'status_change')
+            ->where('new_value', InventoryStatus::SERVICIO_TECNICO)
+            ->orderByDesc('created_at');
+
+        if ($ticketId !== null) {
+            $query->where('meta->ticket_id', $ticketId);
+        }
+
+        $ingress = $query->first();
+        $previous = $ingress?->old_value;
+
+        if (in_array($previous, self::POST_SERVICE_RELEASE_STATUSES, true)) {
+            return $previous;
+        }
+
+        return InventoryStatus::DISPONIBLE;
     }
 }

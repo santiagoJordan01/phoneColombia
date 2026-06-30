@@ -30,7 +30,8 @@ export default function SearchSelect({
     return options.filter(
       (o) =>
         o.label.toLowerCase().includes(q) ||
-        (o.sublabel && o.sublabel.toLowerCase().includes(q)),
+        (o.sublabel && o.sublabel.toLowerCase().includes(q)) ||
+        (o.searchText && o.searchText.toLowerCase().includes(q)),
     );
   }, [options, search]);
 

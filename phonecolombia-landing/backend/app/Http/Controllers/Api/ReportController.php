@@ -7,8 +7,11 @@ use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use App\Models\Sale;
 use App\Models\SalePayment;
+use App\Services\BySellerReportExporter;
 use App\Services\DailySalesReportExporter;
 use App\Support\InventoryStatus;
+use App\Support\MoneyFormatter;
+use App\Support\SaleCostResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +23,7 @@ class ReportController extends Controller
 
     public function __construct(
         private DailySalesReportExporter $dailyExporter,
+        private BySellerReportExporter $bySellerExporter,
     ) {}
 
     public function daily(Request $request): JsonResponse
@@ -43,6 +47,20 @@ class ReportController extends Controller
         return $this->dailyExporter->toExcel($report, $label);
     }
 
+    public function exportBySellerPdf(Request $request): StreamedResponse
+    {
+        [$label, $report] = $this->resolveBySellerReportForExport($request);
+
+        return $this->bySellerExporter->toPdf($report, $label);
+    }
+
+    public function exportBySellerExcel(Request $request): StreamedResponse
+    {
+        [$label, $report] = $this->resolveBySellerReportForExport($request);
+
+        return $this->bySellerExporter->toExcel($report, $label);
+    }
+
     public function monthly(Request $request): JsonResponse
     {
         $user = $this->authorizeReports($request);
@@ -53,7 +71,7 @@ class ReportController extends Controller
 
         $sales = $this->applySalesFilters($this->scopedSales($user), $request)
             ->whereBetween('sold_at', [$start, $end])
-            ->with(['inventoryItem', 'user', 'payments', 'serviceCustomer'])
+            ->with(['inventoryItem', 'user', 'payments', 'serviceCustomer', 'creditPaymentMethod'])
             ->get();
 
         $inventoryQuery = InventoryItem::query();
@@ -67,14 +85,29 @@ class ReportController extends Controller
 
         $prevStart = $start->copy()->subMonth();
         $prevEnd = $prevStart->copy()->endOfMonth();
-        $prevSales = $this->scopedSales($user)->whereBetween('sold_at', [$prevStart, $prevEnd])->sum('amount_paid');
+        $prevMonthSales = $this->applySalesFilters($this->scopedSales($user), $request)
+            ->whereBetween('sold_at', [$prevStart, $prevEnd])
+            ->with(['inventoryItem', 'user', 'payments', 'serviceCustomer', 'creditPaymentMethod'])
+            ->get();
+        $prevTotals = $this->buildSalesReport($prevMonthSales, $prevStart->format('Y-m'), 'monthly')['totals'];
+        $currentRevenue = (float) ($report['totals']['revenue'] ?? 0);
+        $previousRevenue = (float) ($prevTotals['revenue'] ?? 0);
         $report['comparison'] = [
-            'previous_month_revenue' => $prevSales,
-            'current_month_revenue' => $report['totals']['collected'],
-            'change_percent' => $prevSales > 0
-                ? round((($report['totals']['collected'] - $prevSales) / $prevSales) * 100, 1)
+            'previous_month_revenue' => $previousRevenue,
+            'current_month_revenue' => $currentRevenue,
+            'previous_month_profit' => (float) ($prevTotals['profit'] ?? 0),
+            'current_month_profit' => (float) ($report['totals']['profit'] ?? 0),
+            'change_percent' => $previousRevenue > 0
+                ? round((($currentRevenue - $previousRevenue) / $previousRevenue) * 100, 1)
                 : null,
         ];
+
+        return response()->json($report);
+    }
+
+    public function bySeller(Request $request): JsonResponse
+    {
+        [, , , $report] = $this->resolveBySellerReport($request);
 
         return response()->json($report);
     }
@@ -85,25 +118,37 @@ class ReportController extends Controller
         $from = $request->date('from') ?? now()->startOfDay();
         $to = $request->date('to') ?? now()->endOfDay();
 
-        $sales = $this->applySalesFilters($this->scopedSales($user), $request)
-            ->whereBetween('sold_at', [$from, $to])->get();
-        $payments = SalePayment::query()
-            ->whereIn('sale_id', $sales->pluck('id'))
+        $salesQuery = $this->applySalesFilters($this->scopedSales($user), $request);
+        $sales = (clone $salesQuery)
+            ->whereBetween('sold_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
             ->get();
 
-        $byMethod = $payments->groupBy('method')->map->sum('amount');
-        $collected = $payments->sum('amount');
-        $expected = $sales->sum(fn ($s) => (float) preg_replace('/[^\d.]/', '', $s->sale_price));
-        $pending = $sales->where('credit_status', 'pending')->sum('amount_due');
+        $scopedSaleIds = (clone $salesQuery)->pluck('id');
+        $paymentsInPeriod = SalePayment::query()
+            ->whereIn('sale_id', $scopedSaleIds)
+            ->whereBetween('paid_at', [$from, $to])
+            ->get();
+
+        $byMethod = $paymentsInPeriod
+            ->groupBy('method')
+            ->map(fn ($group) => round((float) $group->sum('amount'), 2))
+            ->all();
+        $cashCollected = round((float) $paymentsInPeriod->sum('amount'), 2);
+
+        $expected = round($sales->sum(fn ($s) => MoneyFormatter::parse($s->sale_price)), 2);
+        $salesCollected = round((float) $sales->sum('amount_paid'), 2);
+        $pending = round((float) $sales->sum('amount_due'), 2);
 
         return response()->json([
             'period' => ['from' => $from, 'to' => $to],
             'sales_count' => $sales->count(),
             'by_payment_method' => $byMethod,
-            'total_collected' => $collected,
+            'total_collected' => $cashCollected,
+            'cash_collected_in_period' => $cashCollected,
             'total_expected' => $expected,
+            'sales_collected_status' => $salesCollected,
             'pending_credits' => $pending,
-            'difference' => $expected - $collected - $pending,
+            'difference' => round($expected - $salesCollected - $pending, 2),
         ]);
     }
 
@@ -151,7 +196,7 @@ class ReportController extends Controller
 
         $sales = $this->applySalesFilters($this->scopedSales($user), $request)
             ->whereBetween('sold_at', [$from, $to])
-            ->with(['inventoryItem', 'user'])
+            ->with(['inventoryItem', 'user', 'creditPaymentMethod'])
             ->orderBy('sold_at')
             ->get();
 
@@ -159,16 +204,19 @@ class ReportController extends Controller
 
         return response()->streamDownload(function () use ($sales) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Fecha', 'Equipo', 'IMEI', 'Precio', 'Método', 'Pagado', 'Pendiente', 'Cliente', 'Vendedor']);
+            fputcsv($out, ['Fecha', 'Equipo', 'IMEI', 'Precio venta', 'Costo', 'Utilidad', 'Método', 'Pagado', 'Pendiente', 'Cliente', 'Vendedor']);
             foreach ($sales as $sale) {
+                $row = $this->mapSaleRow($sale);
                 fputcsv($out, [
                     $sale->sold_at?->toDateTimeString(),
                     $sale->inventoryItem?->name,
                     $sale->inventoryItem?->imei,
-                    $sale->sale_price,
+                    MoneyFormatter::format($row['sale_price_num']),
+                    MoneyFormatter::format($row['purchase_price_num']),
+                    MoneyFormatter::format($row['net_profit']),
                     $sale->payment_method,
-                    $sale->amount_paid,
-                    $sale->amount_due,
+                    MoneyFormatter::format($row['amount_paid']),
+                    MoneyFormatter::format($row['amount_due']),
                     $sale->customer_name,
                     $sale->user?->name,
                 ]);
@@ -235,7 +283,7 @@ class ReportController extends Controller
 
         $sales = $this->applySalesFilters($this->scopedSales($user), $request)
             ->whereBetween('sold_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
-            ->with(['inventoryItem', 'user', 'payments', 'serviceCustomer'])
+            ->with(['inventoryItem', 'user', 'payments', 'serviceCustomer', 'creditPaymentMethod'])
             ->orderBy('sold_at')
             ->get();
 
@@ -263,34 +311,141 @@ class ReportController extends Controller
         return [$label, $report];
     }
 
+    /** @return array{0: \App\Models\User, 1: \Illuminate\Support\Carbon, 2: \Illuminate\Support\Carbon, 3: array<string, mixed>} */
+    private function resolveBySellerReport(Request $request): array
+    {
+        $user = $this->authorizeReports($request);
+        $from = $request->date('from') ?? now()->startOfMonth();
+        $to = $request->date('to') ?? now();
+
+        if ($from->gt($to)) {
+            [$from, $to] = [$to->copy(), $from->copy()];
+        }
+
+        $sales = $this->applySalesFilters($this->scopedSales($user), $request)
+            ->whereBetween('sold_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+            ->with(['inventoryItem', 'user', 'payments', 'creditPaymentMethod'])
+            ->orderBy('sold_at')
+            ->get();
+
+        $rows = $sales->map(fn ($s) => $this->mapSaleRow($s));
+        $grouped = $rows->groupBy(fn ($row) => $row['seller_id'] ?? 'unknown')->map(function ($items, $sellerId) {
+            $first = $items->first();
+            $revenue = round($items->sum('sale_price_num'), 2);
+            $profit = round($items->sum('net_profit'), 2);
+
+            return [
+                'seller_id' => $sellerId === 'unknown' ? null : $sellerId,
+                'seller' => $first['seller'] ?? 'Sin vendedor',
+                'count' => $items->count(),
+                'collected' => round($items->sum('amount_paid'), 2),
+                'pending' => round($items->sum('amount_due'), 2),
+                'revenue' => $revenue,
+                'cost' => round($items->sum('purchase_price_num'), 2),
+                'profit' => $profit,
+                'margin_percent' => $revenue > 0 ? round(($profit / $revenue) * 100, 1) : null,
+                'sales' => $items->values(),
+            ];
+        })->values()->sortByDesc('revenue')->values();
+
+        $revenue = round($rows->sum('sale_price_num'), 2);
+        $profit = round($rows->sum('net_profit'), 2);
+
+        $report = [
+            'type' => 'by_seller',
+            'period_from' => $from->toDateString(),
+            'period_to' => $to->toDateString(),
+            'sellers' => $grouped,
+            'totals' => [
+                'count' => $rows->count(),
+                'collected' => round($rows->sum('amount_paid'), 2),
+                'pending' => round($rows->sum('amount_due'), 2),
+                'revenue' => $revenue,
+                'cost' => round($rows->sum('purchase_price_num'), 2),
+                'profit' => $profit,
+                'margin_percent' => $revenue > 0 ? round(($profit / $revenue) * 100, 1) : null,
+            ],
+            'methodology' => 'Ventas agrupadas por vendedor según fecha de venta. Utilidad bruta con costo congelado al momento de la venta.',
+        ];
+
+        return [$user, $from, $to, $report];
+    }
+
+    /** @return array{0: string, 1: array<string, mixed>} */
+    private function resolveBySellerReportForExport(Request $request): array
+    {
+        [, $from, $to, $report] = $this->resolveBySellerReport($request);
+
+        $label = $from->isSameDay($to)
+            ? $to->format('Y-m-d')
+            : $from->format('Y-m-d').'_'.$to->format('Y-m-d');
+
+        return [$label, $report];
+    }
+
     private function buildSalesReport($sales, string $period, string $type): array
     {
         $byMethod = [];
-        foreach ($sales as $sale) {
-            $byMethod[$sale->payment_method] = ($byMethod[$sale->payment_method] ?? 0) + $sale->amount_paid;
-        }
+        $rows = $sales->map(function ($s) use (&$byMethod) {
+            $row = $this->mapSaleRow($s);
+            foreach (SaleCostResolver::collectedByPaymentMethod($s) as $method => $amount) {
+                $byMethod[$method] = round(($byMethod[$method] ?? 0) + $amount, 2);
+            }
+
+            return $row;
+        });
+
+        $revenue = round($rows->sum('sale_price_num'), 2);
+        $cost = round($rows->sum('purchase_price_num'), 2);
+        $profit = round($rows->sum('net_profit'), 2);
 
         return [
             'type' => $type,
             'period' => $period,
-            'sales' => $sales->map(fn ($s) => [
-                'id' => $s->id,
-                'sold_at' => $s->sold_at,
-                'item' => $s->inventoryItem?->name,
-                'imei' => $s->inventoryItem?->imei,
-                'sale_price' => $s->sale_price,
-                'payment_method' => $s->payment_method,
-                'amount_paid' => $s->amount_paid,
-                'amount_due' => $s->amount_due,
-                'customer' => $s->serviceCustomer?->name ?? $s->customer_name,
-                'seller' => $s->user?->name,
-            ]),
+            'sales' => $rows,
             'totals' => [
                 'count' => $sales->count(),
-                'collected' => $sales->sum('amount_paid'),
-                'pending' => $sales->sum('amount_due'),
+                'collected' => round($rows->sum('amount_paid'), 2),
+                'pending' => round($rows->sum('amount_due'), 2),
+                'revenue' => $revenue,
+                'cost' => $cost,
+                'profit' => $profit,
+                'margin_percent' => $revenue > 0 ? round(($profit / $revenue) * 100, 1) : null,
                 'by_method' => $byMethod,
             ],
+            'methodology' => 'Ingresos y utilidad por fecha de venta (devengo). Utilidad bruta = precio venta − costo al momento de la venta. Recaudado/Pendiente = estado de cobro de esas ventas.',
+        ];
+    }
+
+    private function mapSaleRow(Sale $s): array
+    {
+        $salePrice = MoneyFormatter::parse($s->sale_price);
+        $purchasePrice = SaleCostResolver::purchasePriceAtSale($s);
+        $purchasePriceRaw = $s->purchase_price_at_sale ?? $s->inventoryItem?->purchase_price;
+
+        return [
+            'id' => $s->id,
+            'sold_at' => $s->sold_at,
+            'item' => $s->inventoryItem?->name,
+            'imei' => $s->inventoryItem?->imei,
+            'barcode' => $s->inventoryItem?->barcode,
+            'sale_price' => $s->sale_price,
+            'sale_price_num' => $salePrice,
+            'purchase_price' => $purchasePriceRaw,
+            'purchase_price_num' => $purchasePrice,
+            'net_profit' => SaleCostResolver::netProfit($s),
+            'margin_percent' => $salePrice > 0
+                ? round((($salePrice - $purchasePrice) / $salePrice) * 100, 1)
+                : null,
+            'payment_method' => $s->payment_method,
+            'credit_payment_method' => $s->creditPaymentMethod?->name,
+            'credit_term_type' => $s->credit_term_type,
+            'credit_due_at' => $s->credit_due_at,
+            'amount_paid' => (float) $s->amount_paid,
+            'amount_due' => (float) $s->amount_due,
+            'customer' => $s->serviceCustomer?->name ?? $s->customer_name,
+            'seller_id' => $s->user_id,
+            'seller' => $s->user?->name,
         ];
     }
 }

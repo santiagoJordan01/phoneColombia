@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BootstrapController;
+use App\Http\Controllers\Api\CreditConfigController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DeviceColorController;
 use App\Http\Controllers\Api\InventoryImportExportController;
@@ -116,7 +117,9 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::middleware('sales')->group(function () {
         Route::get('/sales', [SaleController::class, 'index']);
         Route::post('/sales', [SaleController::class, 'store']);
+        Route::match(['put', 'patch'], '/sales/{sale}', [SaleController::class, 'update']);
         Route::post('/sales/{sale}/payments', [SaleController::class, 'addPayment']);
+        Route::get('/credit-config', [CreditConfigController::class, 'index']);
     });
 
     Route::middleware('reports')->group(function () {
@@ -124,6 +127,9 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::get('/reports/daily/export/pdf', [ReportController::class, 'exportDailyPdf']);
         Route::get('/reports/daily/export/xlsx', [ReportController::class, 'exportDailyExcel']);
         Route::get('/reports/monthly', [ReportController::class, 'monthly']);
+        Route::get('/reports/by-seller', [ReportController::class, 'bySeller']);
+        Route::get('/reports/by-seller/export/pdf', [ReportController::class, 'exportBySellerPdf']);
+        Route::get('/reports/by-seller/export/xlsx', [ReportController::class, 'exportBySellerExcel']);
         Route::get('/reports/cash-register', [ReportController::class, 'cashRegister']);
         Route::get('/reports/export/sales', [ReportController::class, 'exportSales']);
     });
@@ -134,5 +140,9 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::match(['put', 'post'], '/users/{user}', [UserController::class, 'update']);
         Route::delete('/users/{user}', [UserController::class, 'destroy']);
         Route::get('/audit-logs', [AuditLogController::class, 'index']);
+        Route::post('/credit-config/methods', [CreditConfigController::class, 'storeMethod']);
+        Route::match(['put', 'patch'], '/credit-config/methods/{creditPaymentMethod}', [CreditConfigController::class, 'updateMethod']);
+        Route::delete('/credit-config/methods/{creditPaymentMethod}', [CreditConfigController::class, 'destroyMethod']);
+        Route::match(['put', 'patch'], '/credit-config/settings', [CreditConfigController::class, 'updateSettings']);
     });
 });

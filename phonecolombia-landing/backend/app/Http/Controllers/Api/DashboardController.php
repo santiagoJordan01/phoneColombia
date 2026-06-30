@@ -6,7 +6,6 @@ use App\Http\Controllers\Concerns\ScopesInventoryForUser;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use App\Models\Sale;
-use App\Models\SalePayment;
 use App\Support\InventoryStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -46,6 +45,21 @@ class DashboardController extends Controller
         $pendingCredits = (clone $salesQuery)->where('credit_status', 'pending')->count();
         $pendingCreditAmount = (clone $salesQuery)->where('credit_status', 'pending')->sum('amount_due');
 
+        $salesLast7 = [];
+        $revenueLast7 = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i)->toDateString();
+            $dayQuery = (clone $salesQuery)->whereDate('sold_at', $date);
+            $salesLast7[] = (int) $dayQuery->count();
+            $revenueLast7[] = (float) $dayQuery->sum('amount_paid');
+        }
+
+        $inventoryAddedLast7 = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i)->toDateString();
+            $inventoryAddedLast7[] = (int) (clone $inventoryQuery)->whereDate('created_at', $date)->count();
+        }
+
         return response()->json([
             'inventory' => [
                 'total' => $byStatus->sum(),
@@ -62,6 +76,11 @@ class DashboardController extends Controller
                 'revenue_month' => $revenueMonth,
                 'pending_credits' => $pendingCredits,
                 'pending_credit_amount' => $pendingCreditAmount,
+            ],
+            'trends' => [
+                'sales_count_7d' => $salesLast7,
+                'sales_revenue_7d' => $revenueLast7,
+                'inventory_added_7d' => $inventoryAddedLast7,
             ],
         ]);
     }

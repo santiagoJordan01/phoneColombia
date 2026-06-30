@@ -260,18 +260,18 @@ export default function InventarioServicioCatalogos() {
                     <tr><td colSpan={6} className="inv-sheet-empty">No hay estados. Crea el primero con + Nuevo.</td></tr>
                   ) : (
                     states.map((row) => (
-                      <tr key={row.id}>
-                        <td>
+                      <tr key={row.id} className="inv-sheet-row">
+                        <td data-label="Nombre">
                           {row.name}
                           {row.is_default && <span className="inv-badge inv-badge--amber" style={{ marginLeft: "0.35rem" }}>Inicial</span>}
                         </td>
-                        <td className="inv-cell-mono">{row.slug}</td>
-                        <td>{row.sort_order ?? 0}</td>
-                        <td>
+                        <td data-label="Código" className="inv-cell-mono">{row.slug}</td>
+                        <td data-label="Orden">{row.sort_order ?? 0}</td>
+                        <td data-label="Inventario">
                           {[row.marks_in_service && "Marca en ST", row.releases_inventory && "Libera equipo"].filter(Boolean).join(" · ") || "—"}
                         </td>
-                        <td>{row.is_active ? "Activo" : "Inactivo"}</td>
-                        <td>
+                        <td data-label="Estado">{row.is_active ? "Activo" : "Inactivo"}</td>
+                        <td data-label="Acciones">
                           {canManageInventory(user) && (
                             <>
                               <button type="button" className="inv-btn inv-btn--compact inv-btn--ghost" onClick={() => openEdit(row)}>Editar</button>
@@ -298,13 +298,13 @@ export default function InventarioServicioCatalogos() {
                     <tr><td colSpan={6} className="inv-sheet-empty">No hay clientes.</td></tr>
                   ) : (
                     customers.map((row) => (
-                      <tr key={row.id}>
-                        <td>{row.name}</td>
-                        <td>{row.phone || "—"}</td>
-                        <td>{row.email || "—"}</td>
-                        <td>{row.document || "—"}</td>
-                        <td>{row.is_active ? "Activo" : "Inactivo"}</td>
-                        <td>
+                      <tr key={row.id} className="inv-sheet-row">
+                        <td data-label="Nombre">{row.name}</td>
+                        <td data-label="Teléfono">{row.phone || "—"}</td>
+                        <td data-label="Email">{row.email || "—"}</td>
+                        <td data-label="Documento">{row.document || "—"}</td>
+                        <td data-label="Estado">{row.is_active ? "Activo" : "Inactivo"}</td>
+                        <td data-label="Acciones">
                           {canManageInventory(user) && (
                             <>
                               <button type="button" className="inv-btn inv-btn--compact inv-btn--ghost" onClick={() => openEdit(row)}>Editar</button>
@@ -331,13 +331,13 @@ export default function InventarioServicioCatalogos() {
                     <tr><td colSpan={6} className="inv-sheet-empty">No hay categorías.</td></tr>
                   ) : (
                     categories.map((row) => (
-                      <tr key={row.id}>
-                        <td>{row.name}</td>
-                        <td className="inv-cell-mono">{row.slug}</td>
-                        <td>{row.sort_order ?? 0}</td>
-                        <td>{row.description || "—"}</td>
-                        <td>{row.is_active ? "Activa" : "Inactiva"}</td>
-                        <td>
+                      <tr key={row.id} className="inv-sheet-row">
+                        <td data-label="Nombre">{row.name}</td>
+                        <td data-label="Código" className="inv-cell-mono">{row.slug}</td>
+                        <td data-label="Orden">{row.sort_order ?? 0}</td>
+                        <td data-label="Descripción">{row.description || "—"}</td>
+                        <td data-label="Estado">{row.is_active ? "Activa" : "Inactiva"}</td>
+                        <td data-label="Acciones">
                           {canManageInventory(user) && (
                             <>
                               <button type="button" className="inv-btn inv-btn--compact inv-btn--ghost" onClick={() => openEdit(row)}>Editar</button>
@@ -364,14 +364,14 @@ export default function InventarioServicioCatalogos() {
                     <tr><td colSpan={7} className="inv-sheet-empty">No hay técnicos.</td></tr>
                   ) : (
                     technicians.map((row) => (
-                      <tr key={row.id}>
-                        <td>{row.name}</td>
-                        <td>{row.workshop || "—"}</td>
-                        <td>{row.phone || "—"}</td>
-                        <td>{row.email || "—"}</td>
-                        <td>{row.address || "—"}</td>
-                        <td>{row.is_active ? "Activo" : "Inactivo"}</td>
-                        <td>
+                      <tr key={row.id} className="inv-sheet-row">
+                        <td data-label="Nombre">{row.name}</td>
+                        <td data-label="Taller">{row.workshop || "—"}</td>
+                        <td data-label="Teléfono">{row.phone || "—"}</td>
+                        <td data-label="Email">{row.email || "—"}</td>
+                        <td data-label="Dirección">{row.address || "—"}</td>
+                        <td data-label="Estado">{row.is_active ? "Activo" : "Inactivo"}</td>
+                        <td data-label="Acciones">
                           {canManageInventory(user) && (
                             <>
                               <button type="button" className="inv-btn inv-btn--compact inv-btn--ghost" onClick={() => openEdit(row)}>Editar</button>

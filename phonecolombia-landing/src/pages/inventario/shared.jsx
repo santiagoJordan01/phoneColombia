@@ -1,3 +1,5 @@
+import { formatDaneLocation, resolveLocationFromSupplier } from "../../lib/daneLocations.js";
+
 export const EMPTY_COLOR_FORM = { name: "" };
 
 export const EMPTY_FORM = {
@@ -39,6 +41,8 @@ export const EMPTY_SUPPLIER_FORM = {
   contact_name: "",
   phone: "",
   email: "",
+  department_code: "",
+  municipality_code: "",
   city: "",
   address: "",
   notes: "",
@@ -85,19 +89,27 @@ export function productToEquipoForm(product) {
 }
 
 export function supplierToForm(supplier) {
+  const location = resolveLocationFromSupplier(supplier);
   return {
     name: supplier.name || "",
     contact_name: supplier.contact_name || "",
     phone: supplier.phone || "",
     email: supplier.email || "",
-    city: supplier.city || "",
+    department_code: location.department_code,
+    municipality_code: location.municipality_code,
+    city: location.city,
     address: supplier.address || "",
     notes: supplier.notes || "",
   };
 }
 
 export function supplierSubtitle(s) {
-  const parts = [s.contact_name, s.phone, s.city].filter(Boolean);
+  const location = formatDaneLocation({
+    departmentCode: s.department_code,
+    municipalityCode: s.municipality_code,
+    city: s.city,
+  });
+  const parts = [s.contact_name, s.phone, location].filter(Boolean);
   return parts.join(" · ");
 }
 
@@ -110,8 +122,19 @@ export function formatPrice(value) {
   return new Intl.NumberFormat("es-CO", {
     style: "currency",
     currency: "COP",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(num);
+}
+
+export const CREDIT_TERM_OPTIONS = [
+  { value: "8_days", label: "8 días" },
+  { value: "15_days", label: "15 días" },
+  { value: "custom", label: "Fecha de corte / personalizado" },
+];
+
+export function creditTermLabel(value) {
+  return CREDIT_TERM_OPTIONS.find((o) => o.value === value)?.label ?? value ?? "—";
 }
 
 export function Field({ label, children, className = "" }) {
@@ -132,6 +155,10 @@ export const AJUSTES_SECTIONS = {
     title: "Auditoría",
     subtitle: "Registro de cambios en inventario, ventas y usuarios",
   },
+  credito: {
+    title: "Crédito y cobranza",
+    subtitle: "Medios de pago de crédito (Addi, Sistecredito) y fecha de corte",
+  },
 };
 
 /** Opciones avanzadas bajo Ajustes (solo administrador principal). */
@@ -147,6 +174,12 @@ export const AJUSTES_MENU = [
     path: "/admin/inventario/ajustes/auditoria",
     label: "Auditoría",
     description: "Quién cambió qué y cuándo",
+  },
+  {
+    id: "credito",
+    path: "/admin/inventario/ajustes/credito",
+    label: "Crédito y cobranza",
+    description: "Addi, Sistecredito y plazos de vencimiento",
   },
 ];
 

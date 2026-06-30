@@ -64,7 +64,7 @@ class InventoryCatalogApiTest extends TestCase
     {
         $token = $this->tokenFor(User::ROLE_INVENTORY);
 
-        $color = DeviceColor::create(['name' => 'NEGRO']);
+        $color = DeviceColor::query()->where('name', 'NEGRO')->firstOrFail();
 
         $item = InventoryItem::create([
             'name' => 'IPHONE 13 128GB NEGRO',
@@ -85,23 +85,23 @@ class InventoryCatalogApiTest extends TestCase
         ]);
 
         $this->withToken($token)
-            ->putJson("/api/device-colors/{$color->id}", ['name' => 'GRAFITO'])
+            ->putJson("/api/device-colors/{$color->id}", ['name' => 'CARBON'])
             ->assertOk()
-            ->assertJsonPath('name', 'GRAFITO');
+            ->assertJsonPath('name', 'CARBON');
 
         $item->refresh();
         $product->refresh();
 
-        $this->assertSame('GRAFITO', $item->color);
-        $this->assertSame('GRAFITO', $product->color);
-        $this->assertSame('IPHONE 13 128GB GRAFITO', $product->name);
+        $this->assertSame('CARBON', $item->color);
+        $this->assertSame('CARBON', $product->color);
+        $this->assertSame('IPHONE 13 128GB CARBON', $product->name);
     }
 
     public function test_seller_cannot_update_catalog_entries(): void
     {
         $token = $this->tokenFor(User::ROLE_SELLER);
         $supplier = Supplier::create(['name' => 'PROV']);
-        $color = DeviceColor::create(['name' => 'AZUL']);
+        $color = DeviceColor::query()->where('name', 'AZUL')->firstOrFail();
 
         $this->withToken($token)
             ->putJson("/api/suppliers/{$supplier->id}", ['name' => 'OTRO'])

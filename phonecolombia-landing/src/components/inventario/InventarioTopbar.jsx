@@ -35,12 +35,12 @@ export default function InventarioTopbar({
             className="inv-topbar__logo"
           />
         </span>
-        <div>
+        <div className="inv-topbar__titles">
           <h1 className="inv-topbar__title">{title}</h1>
           <p className="inv-topbar__subtitle">{subtitle}</p>
         </div>
       </div>
-      <nav className="inv-topbar__nav">
+      <nav className="inv-topbar__nav" aria-label="Secciones del inventario">
         {NAV.map((item) => {
           if (isServiceTechnician(user) && item.id !== "servicio") return null;
           if (item.requiresSales && user && !canManageSales(user)) return null;
@@ -66,10 +66,18 @@ export default function InventarioTopbar({
         {showContentLink && (
           <Link to="/admin" className="inv-btn inv-btn--ghost">Panel de contenido</Link>
         )}
-        <button type="button" className="inv-btn inv-btn--outline" onClick={onSignOut}>
-          Cerrar sesión
-        </button>
       </nav>
+      <div className="inv-topbar__account">
+        <button
+          type="button"
+          className="inv-btn inv-btn--outline inv-topbar__signout"
+          onClick={onSignOut}
+          aria-label="Cerrar sesión"
+        >
+          <span className="inv-topbar__signout-short" aria-hidden="true">Salir</span>
+          <span className="inv-topbar__signout-full">Cerrar sesión</span>
+        </button>
+      </div>
     </header>
   );
 }

@@ -59,6 +59,17 @@ class InventoryItemController extends Controller
             $query->where('barcode', trim($request->string('barcode')->toString()));
         }
 
+        if ($request->filled('imei')) {
+            $query->where('imei', trim($request->string('imei')->toString()));
+        }
+
+        if ($request->filled('identifier')) {
+            $identifier = trim($request->string('identifier')->toString());
+            $query->where(function ($q) use ($identifier) {
+                $q->where('barcode', $identifier)->orWhere('imei', $identifier);
+            });
+        }
+
         if ($request->filled('q')) {
             $term = '%'.$request->string('q').'%';
             $query->where(function ($q) use ($term) {
@@ -148,6 +159,10 @@ class InventoryItemController extends Controller
 
         InventoryStatusGuard::assertAllowedOnCreate($data['status']);
 
+        if ($data['status'] !== InventoryStatus::DISPONIBLE && ! InventoryFieldGuard::canUpdateStatus($user)) {
+            abort(403, 'No tienes permiso para ingresar equipos apartados.');
+        }
+
         $this->syncSupplierFields($data);
 
         $item = InventoryItem::create($data);
@@ -162,6 +177,13 @@ class InventoryItemController extends Controller
         $this->authorizeItemAccess($request, $inventoryItem);
         $user = $request->user();
         $this->denyIfReadOnlyInventoryRole($user);
+
+        if ($request->has('status')) {
+            $requestedStatus = $request->string('status')->toString();
+            if ($requestedStatus !== $inventoryItem->status && ! InventoryFieldGuard::canUpdateStatus($user)) {
+                abort(403, 'No tienes permiso para cambiar el estado del equipo.');
+            }
+        }
 
         $data = InventoryFieldGuard::stripRestrictedUpdates(
             $this->applyProductDefaults($this->validated($request, partial: true)),
@@ -192,7 +214,7 @@ class InventoryItemController extends Controller
 
         $this->syncSupplierFields($data);
 
-        if (isset($data['status'])) {
+        if (array_key_exists('status', $data)) {
             InventoryStatusGuard::assertManualTransition($inventoryItem, $data['status']);
         }
 

@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\AuditLog;
+use App\Models\CreditPaymentMethod;
 use App\Models\InventoryItem;
+use Database\Seeders\CreditPaymentMethodSeeder;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Support\InventoryStatus;
@@ -14,6 +16,17 @@ use Tests\TestCase;
 class InventoryOperationsApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(CreditPaymentMethodSeeder::class);
+    }
+
+    private function creditMethodId(): string
+    {
+        return CreditPaymentMethod::query()->where('slug', 'addi')->value('id');
+    }
 
     private function tokenFor(string $role, array $extra = []): string
     {
@@ -134,6 +147,8 @@ class InventoryOperationsApiTest extends TestCase
                 'inventory_item_id' => $item->id,
                 'sale_price' => '1000000',
                 'payment_method' => 'credito',
+                'credit_payment_method_id' => $this->creditMethodId(),
+                'credit_term_type' => '15_days',
             ])
             ->assertCreated()
             ->assertJsonPath('credit_status', 'pending')
@@ -230,6 +245,17 @@ class InventoryOperationsApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('0.id', $item->id)
             ->assertJsonPath('0.barcode', '7701234567890');
+    }
+
+    public function test_sale_lookup_by_identifier_imei(): void
+    {
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+        $item = $this->createItem(['imei' => '356938035643809', 'status' => InventoryStatus::DISPONIBLE]);
+
+        $this->withToken($token)
+            ->getJson('/api/inventory?identifier=356938035643809')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $item->id]);
     }
 
     public function test_content_cannot_access_sales(): void

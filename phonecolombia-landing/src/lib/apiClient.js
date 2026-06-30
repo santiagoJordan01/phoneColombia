@@ -301,12 +301,14 @@ export const api = {
     return request(`/inventory/products/${id}`, { method: "DELETE" });
   },
 
-  async getInventory({ q, status, category, barcode, exclude_status, archived } = {}) {
+  async getInventory({ q, status, category, barcode, imei, identifier, exclude_status, archived } = {}) {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (status) params.set("status", status);
     if (category) params.set("category", category);
     if (barcode) params.set("barcode", barcode);
+    if (imei) params.set("imei", imei);
+    if (identifier) params.set("identifier", identifier);
     if (exclude_status) params.set("exclude_status", exclude_status);
     if (archived) params.set("archived", "1");
     const query = params.toString();
@@ -353,6 +355,10 @@ export const api = {
     return request("/sales", { method: "POST", body: data });
   },
 
+  async updateSale(id, data) {
+    return request(`/sales/${id}`, { method: "PUT", body: data });
+  },
+
   async addSalePayment(saleId, data) {
     return request(`/sales/${saleId}/payments`, { method: "POST", body: data });
   },
@@ -376,6 +382,33 @@ export const api = {
       Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
     ).toString();
     return request(`/reports/cash-register${qs ? `?${qs}` : ""}`);
+  },
+
+  async getBySellerReport(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return request(`/reports/by-seller${qs ? `?${qs}` : ""}`);
+  },
+
+  async getCreditConfig() {
+    return request("/credit-config");
+  },
+
+  async createCreditPaymentMethod(data) {
+    return request("/credit-config/methods", { method: "POST", body: data });
+  },
+
+  async updateCreditPaymentMethod(id, data) {
+    return request(`/credit-config/methods/${id}`, { method: "PUT", body: data });
+  },
+
+  async deleteCreditPaymentMethod(id) {
+    return request(`/credit-config/methods/${id}`, { method: "DELETE" });
+  },
+
+  async updateCreditSettings(data) {
+    return request("/credit-config/settings", { method: "PUT", body: data });
   },
 
   async getServiceTechnicians() {
@@ -506,6 +539,20 @@ export const api = {
       Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
     ).toString();
     return `${rawUrl}/reports/daily/export/xlsx${qs ? `?${qs}` : ""}`;
+  },
+
+  exportBySellerReportPdfUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/by-seller/export/pdf${qs ? `?${qs}` : ""}`;
+  },
+
+  exportBySellerReportExcelUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/by-seller/export/xlsx${qs ? `?${qs}` : ""}`;
   },
 
   async downloadAuthenticated(url, filename) {

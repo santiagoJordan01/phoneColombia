@@ -85,6 +85,53 @@ class InventoryStatusGuardTest extends TestCase
         ]);
     }
 
+    public function test_seller_cannot_change_inventory_status(): void
+    {
+        $token = $this->tokenFor(User::ROLE_SELLER);
+        $item = $this->createItem();
+
+        $this->withToken($token)
+            ->putJson("/api/inventory/{$item->id}", ['status' => InventoryStatus::SEPARADO])
+            ->assertForbidden();
+    }
+
+    public function test_separado_restored_after_service_ticket_release(): void
+    {
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+        $item = $this->createItem(['status' => InventoryStatus::SEPARADO]);
+
+        $ticketId = $this->withToken($token)
+            ->postJson('/api/service-tickets', [
+                'ticket_type' => ServiceTicketType::INVENTARIO,
+                'inventory_item_id' => $item->id,
+                'issue_description' => 'Revisión apartado',
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $this->withToken($token)
+            ->putJson("/api/service-tickets/{$ticketId}", [
+                'status' => ServiceTicketStatus::SERVICIO_TECNICO,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('inventory_items', [
+            'id' => $item->id,
+            'status' => InventoryStatus::SERVICIO_TECNICO,
+        ]);
+
+        $this->withToken($token)
+            ->putJson("/api/service-tickets/{$ticketId}", [
+                'status' => ServiceTicketStatus::SERVICIO_REALIZADO,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('inventory_items', [
+            'id' => $item->id,
+            'status' => InventoryStatus::SEPARADO,
+        ]);
+    }
+
     public function test_cannot_sell_item_with_open_service_ticket(): void
     {
         $token = $this->tokenFor(User::ROLE_INVENTORY);

@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState, Suspense } from "react";
+import React, { useCallback, useEffect, useRef, useState, Suspense, useMemo } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import SearchSelect from "../components/SearchSelect.jsx";
 import AjustesSidebar from "../components/inventario/AjustesSidebar.jsx";
 import InventarioTopbar from "../components/inventario/InventarioTopbar.jsx";
 import api, { isApiConfigured } from "../lib/apiClient";
@@ -15,9 +16,11 @@ import {
   canAccessInventory,
   canAccessContent,
 } from "./inventario/shared.jsx";
+import { serviceTechnicianCatalogOptions, supplierSelectOptions } from "../lib/inventarioSelectOptions.js";
 import "../styles.css";
 
 const AuditoriaPanel = React.lazy(() => import("../components/inventario/AuditoriaPanel.jsx"));
+const CreditConfigPanel = React.lazy(() => import("../components/inventario/CreditConfigPanel.jsx"));
 
 function AjustesHub() {
   return (
@@ -64,6 +67,12 @@ export default function InventarioAjustes() {
   const [toast, setToast] = useState(null);
 
   const sectionMeta = section ? AJUSTES_SECTIONS[section] : null;
+
+  const supplierOptions = useMemo(() => supplierSelectOptions(suppliers), [suppliers]);
+  const serviceTechnicianOptions = useMemo(
+    () => serviceTechnicianCatalogOptions(serviceTechnicians),
+    [serviceTechnicians],
+  );
 
   const showToast = useCallback((text, type = "success") => {
     setToast({ text, type });
@@ -125,6 +134,14 @@ export default function InventarioAjustes() {
 
   const handleSaveUser = async (e) => {
     e.preventDefault();
+    if (userForm.role === "supplier" && !userForm.supplier_id) {
+      showToast("Selecciona el proveedor asignado", "error");
+      return;
+    }
+    if (userForm.role === "service_technician" && !userForm.service_technician_id) {
+      showToast("Selecciona el perfil de técnico ST", "error");
+      return;
+    }
     setSavingUser(true);
     try {
       const payload = {
@@ -285,34 +302,26 @@ export default function InventarioAjustes() {
                       </Field>
                       {userForm.role === "supplier" && (
                         <Field label="Proveedor asignado" className="inv-field--full">
-                          <select
-                            className="inv-field__input"
+                          <SearchSelect
                             value={userForm.supplier_id}
-                            onChange={(e) => setUserForm((s) => ({ ...s, supplier_id: e.target.value }))}
-                            required
-                          >
-                            <option value="">Seleccionar proveedor…</option>
-                            {suppliers.map((s) => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                          </select>
+                            onChange={(id) => setUserForm((s) => ({ ...s, supplier_id: id }))}
+                            options={supplierOptions}
+                            placeholder="Buscar proveedor…"
+                            allowClear={false}
+                            clearLabel="Seleccionar proveedor…"
+                          />
                         </Field>
                       )}
                       {userForm.role === "service_technician" && (
                         <Field label="Perfil de técnico ST" className="inv-field--full">
-                          <select
-                            className="inv-field__input"
+                          <SearchSelect
                             value={userForm.service_technician_id}
-                            onChange={(e) => setUserForm((s) => ({ ...s, service_technician_id: e.target.value }))}
-                            required
-                          >
-                            <option value="">Seleccionar técnico…</option>
-                            {serviceTechnicians.map((t) => (
-                              <option key={t.id} value={t.id}>
-                                {[t.name, t.workshop].filter(Boolean).join(" · ")}
-                              </option>
-                            ))}
-                          </select>
+                            onChange={(id) => setUserForm((s) => ({ ...s, service_technician_id: id }))}
+                            options={serviceTechnicianOptions}
+                            placeholder="Buscar técnico…"
+                            allowClear={false}
+                            clearLabel="Seleccionar técnico…"
+                          />
                         </Field>
                       )}
                       <Field label={editingUserId ? "Nueva contraseña" : "Contraseña"}>
@@ -418,6 +427,17 @@ export default function InventarioAjustes() {
               )}
               >
                 <AuditoriaPanel users={panelUsers} onError={handleAuditError} />
+              </Suspense>
+            )}
+
+            {section === "credito" && (
+              <Suspense fallback={(
+                <section className="inv-panel inv-panel--ajustes">
+                  <div className="inv-loader" aria-label="Cargando crédito" />
+                </section>
+              )}
+              >
+                <CreditConfigPanel onToast={showToast} />
               </Suspense>
             )}
           </div>

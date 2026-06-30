@@ -3,16 +3,19 @@ import { Navigate, useSearchParams } from "react-router-dom";
 import InventarioTopbar from "../components/inventario/InventarioTopbar.jsx";
 import CustomerCatalogModal from "../components/inventario/CustomerCatalogModal.jsx";
 import SearchSelect from "../components/SearchSelect.jsx";
+import InventoryItemSelect from "../components/InventoryItemSelect.jsx";
 import { useCachedQuery } from "../hooks/useCachedQuery.js";
 import api, { isApiConfigured } from "../lib/apiClient";
 import { invalidateInventarioCache } from "../lib/inventarioCache.js";
 import { useInventarioPage } from "./inventario/useInventarioPage.js";
 import {
   Field,
+  CREDIT_TERM_OPTIONS,
   canAccessInventory,
   canManageCustomers,
   canManageSales,
   canViewSensitiveInventoryFields,
+  creditTermLabel,
   formatPrice,
   isServiceTechnician,
   serviceCustomerSubtitle,
@@ -51,6 +54,7 @@ export default function InventarioVentas() {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingSale, setEditingSale] = useState(null);
   const [paymentModal, setPaymentModal] = useState(null);
   const [mixedPayments, setMixedPayments] = useState([
     { ...EMPTY_MIXED_PAYMENT },
@@ -63,6 +67,9 @@ export default function InventarioVentas() {
     customer_name: "",
     customer_phone: "",
     service_customer_id: "",
+    credit_payment_method_id: "",
+    credit_term_type: "",
+    credit_due_at: "",
     notes: "",
   });
   const [paymentForm, setPaymentForm] = useState({ method: "efectivo", amount: "", notes: "" });
@@ -123,6 +130,8 @@ export default function InventarioVentas() {
 
   const sales = salesBootstrap?.sales || [];
   const availableItems = salesBootstrap?.available_items || [];
+  const creditMethods = salesBootstrap?.credit_config?.methods || [];
+  const creditSettings = salesBootstrap?.credit_config?.settings || { billing_day: 15 };
 
   const addAvailableItem = useCallback((item) => {
     if (!item) return;
@@ -210,20 +219,21 @@ export default function InventarioVentas() {
     setScannedItem(item || null);
   };
 
-  const lookupBarcode = useCallback(async (code) => {
+  const lookupIdentifier = useCallback(async (code) => {
     const trimmed = String(code || "").trim();
     if (!trimmed) return;
 
     setScanningBarcode(true);
     try {
-      const items = await api.getInventory({ barcode: trimmed });
-      const item = items?.find((i) => i.status === "disponible" || i.status === "separado");
+      const items = await api.getInventory({ identifier: trimmed });
+      const eligible = items?.filter((i) => i.status === "disponible" || i.status === "separado") || [];
+      const item = eligible[0];
       if (!item) {
         setScannedItem(null);
-        showToast("No hay equipo disponible o separado con ese código de barras", "error");
+        showToast("No hay equipo disponible o separado con ese código de barras o IMEI", "error");
         return;
       }
-      if (items.filter((i) => i.status === "disponible" || i.status === "separado").length > 1) {
+      if (eligible.length > 1) {
         showToast("Código duplicado en inventario. Contacta al administrador.", "error");
         return;
       }
@@ -235,6 +245,7 @@ export default function InventarioVentas() {
         sale_price: item.sale_price || s.sale_price,
       }));
       setBarcodeScan("");
+      setEditingSale(null);
       setModalOpen(true);
       showToast(`Equipo agregado: ${item.name}`, "success");
     } catch (e) {
@@ -242,12 +253,12 @@ export default function InventarioVentas() {
     } finally {
       setScanningBarcode(false);
     }
-  }, [showToast]);
+  }, [addAvailableItem, showToast]);
 
   const handleBarcodeKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      lookupBarcode(barcodeScan);
+      lookupIdentifier(barcodeScan);
     }
   };
 
@@ -264,22 +275,61 @@ export default function InventarioVentas() {
       customer_name: "",
       customer_phone: "",
       service_customer_id: "",
+      credit_payment_method_id: "",
+      credit_term_type: "",
+      credit_due_at: "",
       notes: "",
     });
     setMixedPayments([{ ...EMPTY_MIXED_PAYMENT }, { method: "transferencia", amount: "" }]);
     setBarcodeScan("");
     setScannedItem(null);
+    setEditingSale(null);
   };
+
+  const openEditSale = (sale) => {
+    setEditingSale(sale);
+    setScannedItem(sale.inventory_item || null);
+    setForm({
+      inventory_item_id: sale.inventory_item_id,
+      sale_price: sale.sale_price || "",
+      payment_method: sale.payment_method || "efectivo",
+      customer_name: sale.customer_name || "",
+      customer_phone: sale.customer_phone || "",
+      service_customer_id: sale.service_customer_id || "",
+      credit_payment_method_id: sale.credit_payment_method_id || "",
+      credit_term_type: sale.credit_term_type || "",
+      credit_due_at: sale.credit_due_at ? String(sale.credit_due_at).slice(0, 10) : "",
+      notes: sale.notes || "",
+    });
+    setModalOpen(true);
+  };
+
+  const needsCreditMeta = useMemo(() => {
+    const salePriceNum = parseSalePrice(form.sale_price);
+    if (form.payment_method === "credito") return true;
+    if (form.payment_method === "mixto" && mixedTotal < salePriceNum) return true;
+    return false;
+  }, [form.payment_method, form.sale_price, mixedTotal]);
+
+  const selectedSaleItem = useMemo(() => {
+    if (!form.inventory_item_id) return scannedItem;
+    if (scannedItem?.id === form.inventory_item_id) return scannedItem;
+    return availableItems.find((i) => i.id === form.inventory_item_id) || scannedItem;
+  }, [form.inventory_item_id, scannedItem, availableItems]);
 
   const handleCreateSale = async (e) => {
     e.preventDefault();
-    if (!form.inventory_item_id) {
+    if (!editingSale && !form.inventory_item_id) {
       showToast("Selecciona un equipo", "error");
       return;
     }
 
     const payload = { ...form };
     if (!payload.service_customer_id) delete payload.service_customer_id;
+    if (!payload.credit_payment_method_id) delete payload.credit_payment_method_id;
+    if (!payload.credit_term_type) delete payload.credit_term_type;
+    if (!payload.credit_due_at) delete payload.credit_due_at;
+
     const salePriceNum = parseSalePrice(form.sale_price);
     if (isMixto) {
       const validPayments = mixedPayments
@@ -297,16 +347,49 @@ export default function InventarioVentas() {
       payload.payments = validPayments;
     }
 
+    const requiresCredit = form.payment_method === "credito"
+      || (isMixto && mixedTotal < salePriceNum);
+    if (requiresCredit) {
+      if (!form.credit_payment_method_id) {
+        showToast("Selecciona el medio de pago de crédito (Addi, Sistecredito, etc.)", "error");
+        return;
+      }
+      if (!form.credit_term_type) {
+        showToast("Selecciona el plazo de crédito", "error");
+        return;
+      }
+    }
+
+    if (!editingSale && selectedSaleItem?.status === "separado") {
+      const apartadoNote = selectedSaleItem.notes?.trim();
+      const confirmMsg = apartadoNote
+        ? `Este equipo está SEPARADO (apartado).\n\nApartado: ${apartadoNote}\n\n¿Confirmar venta?`
+        : "Este equipo está SEPARADO (apartado). ¿Confirmar que corresponde registrar la venta?";
+      if (!window.confirm(confirmMsg)) return;
+    }
+
     setSubmitting(true);
     try {
-      const sale = await api.createSale(payload);
-      showToast("Venta registrada");
-      setModalOpen(false);
-      resetSaleForm();
-      patchSalesAfterMutation((prev) => ({
-        sales: [sale, ...(prev.sales || [])],
-        available_items: (prev.available_items || []).filter((i) => i.id !== payload.inventory_item_id),
-      }));
+      if (editingSale) {
+        const { inventory_item_id, payments, ...updatePayload } = payload;
+        const sale = await api.updateSale(editingSale.id, updatePayload);
+        showToast("Venta actualizada");
+        setModalOpen(false);
+        resetSaleForm();
+        patchSalesAfterMutation((prev) => ({
+          ...prev,
+          sales: (prev.sales || []).map((s) => (s.id === sale.id ? sale : s)),
+        }));
+      } else {
+        const sale = await api.createSale(payload);
+        showToast("Venta registrada");
+        setModalOpen(false);
+        resetSaleForm();
+        patchSalesAfterMutation((prev) => ({
+          sales: [sale, ...(prev.sales || [])],
+          available_items: (prev.available_items || []).filter((i) => i.id !== payload.inventory_item_id),
+        }));
+      }
     } catch (err) {
       showToast(err.message, "error");
     } finally {
@@ -377,19 +460,19 @@ export default function InventarioVentas() {
         <section className="inv-panel inv-panel--sheet">
           <div className="inv-sheet-toolbar">
             <div className="inv-sheet-toolbar__main">
-              <h2 className="inv-panel__title" style={{ margin: 0 }}>Historial de ventas</h2>
+              <h2 className="inv-panel__title inv-panel__title--toolbar" style={{ margin: 0 }}>Historial de ventas</h2>
               <label className="inv-sale-scan">
-                <span className="inv-sale-scan__label">Código de barras</span>
+                <span className="inv-sale-scan__label">Código de barras / IMEI</span>
                 <input
                   ref={toolbarBarcodeRef}
                   className="inv-sale-scan__input inv-field__input--mono"
-                  placeholder="Escanear para nueva venta…"
+                  placeholder="Escanear código de barras o IMEI…"
                   value={barcodeScan}
                   onChange={(e) => setBarcodeScan(e.target.value)}
                   onKeyDown={handleBarcodeKeyDown}
                   disabled={scanningBarcode || modalOpen}
                   autoComplete="off"
-                  aria-label="Escanear código de barras"
+                  aria-label="Escanear código de barras o IMEI"
                 />
               </label>
             </div>
@@ -427,25 +510,34 @@ export default function InventarioVentas() {
                   <tr><td colSpan={9} className="inv-sheet-empty">No hay ventas registradas.</td></tr>
                 ) : (
                   sales.map((sale) => (
-                    <tr key={sale.id}>
-                      <td>{sale.sold_at ? new Date(sale.sold_at).toLocaleString("es-CO") : "—"}</td>
-                      <td>{sale.inventory_item?.name || "—"}</td>
-                      <td>{formatPrice(sale.sale_price)}</td>
-                      <td>{paymentLabel(sale.payment_method)}</td>
-                      <td>{formatPrice(sale.amount_paid)}</td>
-                      <td>{sale.amount_due > 0 ? formatPrice(sale.amount_due) : "—"}</td>
-                      <td>{sale.customer_name || sale.service_customer?.name || "—"}</td>
-                      <td>{sale.user?.name || "—"}</td>
-                      <td>
-                        {sale.credit_status === "pending" && (
+                    <tr key={sale.id} className="inv-sheet-row">
+                      <td data-label="Fecha">{sale.sold_at ? new Date(sale.sold_at).toLocaleString("es-CO") : "—"}</td>
+                      <td data-label="Equipo">{sale.inventory_item?.name || "—"}</td>
+                      <td data-label="Precio">{formatPrice(sale.sale_price)}</td>
+                      <td data-label="Método">{paymentLabel(sale.payment_method)}</td>
+                      <td data-label="Pagado">{formatPrice(sale.amount_paid)}</td>
+                      <td data-label="Pendiente">{sale.amount_due > 0 ? formatPrice(sale.amount_due) : "—"}</td>
+                      <td data-label="Cliente">{sale.customer_name || sale.service_customer?.name || "—"}</td>
+                      <td data-label="Vendedor">{sale.user?.name || "—"}</td>
+                      <td data-label="Acciones">
+                        <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
                           <button
                             type="button"
-                            className="inv-btn inv-btn--compact inv-btn--outline"
-                            onClick={() => setPaymentModal(sale)}
+                            className="inv-btn inv-btn--compact inv-btn--ghost"
+                            onClick={() => openEditSale(sale)}
                           >
-                            Abonar
+                            Editar
                           </button>
-                        )}
+                          {sale.credit_status === "pending" && (
+                            <button
+                              type="button"
+                              className="inv-btn inv-btn--compact inv-btn--outline"
+                              onClick={() => setPaymentModal(sale)}
+                            >
+                              Abonar
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -459,36 +551,43 @@ export default function InventarioVentas() {
       {modalOpen && (
         <div className="inv-modal-overlay" onClick={() => !submitting && setModalOpen(false)}>
           <div className="inv-modal inv-modal--wide" onClick={(e) => e.stopPropagation()}>
-            <h3 className="inv-modal__title">Registrar venta</h3>
+            <h3 className="inv-modal__title">{editingSale ? "Editar venta" : "Registrar venta"}</h3>
             <form onSubmit={handleCreateSale} className="inv-modal-form inv-modal-form--grid">
               {scannedItem && (
                 <p className="inv-audit-entity__summary inv-field--span-all" style={{ margin: 0 }}>
                   Equipo: <strong>{scannedItem.name}</strong>
                   {scannedItem.barcode ? ` · ${scannedItem.barcode}` : ""}
+                  {showSensitive && scannedItem.imei ? ` · IMEI ${scannedItem.imei}` : ""}
                   {scannedItem.sale_price ? ` · ${formatPrice(scannedItem.sale_price)}` : ""}
                 </p>
               )}
 
+              {!editingSale && selectedSaleItem?.status === "separado" && (
+                <div className="inv-separado-alert inv-field--span-all" role="status">
+                  <span className="inv-badge inv-badge--separado">SEPARADO</span>
+                  <span>
+                    Equipo apartado. Verifica que el cliente corresponde antes de registrar la venta.
+                    {selectedSaleItem.notes?.trim() ? (
+                      <> <strong>Notas:</strong> {selectedSaleItem.notes.trim()}</>
+                    ) : null}
+                  </span>
+                </div>
+              )}
+
+              {!editingSale && (
               <Field label="Equipo disponible *" className="inv-field--span-all">
-                <select
-                  className="inv-field__input"
+                <InventoryItemSelect
+                  items={availableItems}
                   value={form.inventory_item_id}
-                  onChange={(e) => onItemSelect(e.target.value)}
-                  required
-                >
-                  <option value="">Seleccionar…</option>
-                  {availableItems.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                      {item.status === "separado" ? " · Separado" : ""}
-                      {item.barcode ? ` · ${item.barcode}` : ""}
-                      {showSensitive && item.imei ? ` · IMEI ${item.imei}` : ""}
-                      {" — "}
-                      {formatPrice(item.sale_price)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={onItemSelect}
+                  showSensitive={showSensitive}
+                  placeholder="Buscar equipo…"
+                  allowClear={false}
+                  clearLabel="Seleccionar…"
+                />
               </Field>
+              )}
+
               <Field label="Precio de venta *">
                 <input
                   className="inv-field__input"
@@ -511,8 +610,50 @@ export default function InventarioVentas() {
 
               {form.payment_method === "credito" && (
                 <p className="inv-dash__muted inv-field--span-all" style={{ margin: 0 }}>
-                  El monto total quedará pendiente de cobro. Podrás registrar abonos desde el historial.
+                  El monto total quedará pendiente de cobro. Debes indicar medio de crédito y plazo.
                 </p>
+              )}
+
+              {needsCreditMeta && (
+                <>
+                  <Field label="Medio de pago crédito *">
+                    <select
+                      className="inv-field__input"
+                      value={form.credit_payment_method_id}
+                      onChange={(e) => setForm((s) => ({ ...s, credit_payment_method_id: e.target.value }))}
+                      required
+                    >
+                      <option value="">Seleccionar…</option>
+                      {creditMethods.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Plazo de crédito *">
+                    <select
+                      className="inv-field__input"
+                      value={form.credit_term_type}
+                      onChange={(e) => setForm((s) => ({ ...s, credit_term_type: e.target.value, credit_due_at: "" }))}
+                      required
+                    >
+                      <option value="">Seleccionar…</option>
+                      {CREDIT_TERM_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  {form.credit_term_type === "custom" && (
+                    <Field label={`Vencimiento (corte día ${creditSettings.billing_day ?? 15}) o fecha manual`}>
+                      <input
+                        type="date"
+                        className="inv-field__input"
+                        value={form.credit_due_at}
+                        onChange={(e) => setForm((s) => ({ ...s, credit_due_at: e.target.value }))}
+                      />
+                      <p className="inv-field__hint">Si lo dejas vacío, se usará la próxima fecha de corte.</p>
+                    </Field>
+                  )}
+                </>
               )}
 
               {isMixto && (
@@ -618,7 +759,7 @@ export default function InventarioVentas() {
                   Cancelar
                 </button>
                 <button type="submit" className="inv-btn inv-btn--primary inv-btn--inline" disabled={submitting}>
-                  {submitting ? "Guardando…" : "Registrar venta"}
+                  {submitting ? "Guardando…" : editingSale ? "Guardar cambios" : "Registrar venta"}
                 </button>
               </div>
             </form>

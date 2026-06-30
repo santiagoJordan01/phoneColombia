@@ -53,6 +53,13 @@ class BootstrapApiTest extends TestCase
 
         $this->getJson('/api/bootstrap/dashboard')
             ->assertOk()
-            ->assertJsonStructure(['user', 'dashboard' => ['inventory', 'sales']]);
+            ->assertJsonStructure([
+                'user',
+                'dashboard' => [
+                    'inventory',
+                    'sales',
+                    'trends' => ['sales_count_7d', 'sales_revenue_7d', 'inventory_added_7d'],
+                ],
+            ]);
     }
 }

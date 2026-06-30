@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CreditPaymentMethod;
+use App\Models\CreditSetting;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -63,6 +65,14 @@ class BootstrapController extends Controller
             'user' => $this->userPayload($user),
             'sales' => $this->sales->index($request)->getData(true),
             'available_items' => $this->inventoryItems->index($itemsRequest)->getData(true),
+            'credit_config' => [
+                'methods' => CreditPaymentMethod::query()
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'slug']),
+                'settings' => CreditSetting::current(),
+            ],
         ]);
     }
 

@@ -100,6 +100,8 @@ class DailySalesReportExporter
         $count = (int) ($totals['count'] ?? 0);
         $collected = (float) ($totals['collected'] ?? 0);
         $pending = (float) ($totals['pending'] ?? 0);
+        $profit = (float) ($totals['profit'] ?? 0);
+        $cost = (float) ($totals['cost'] ?? 0);
         $avgTicket = $count > 0 ? $collected / $count : 0;
 
         $sheet->setCellValue('A1', 'PHONE COLOMBIA');
@@ -133,9 +135,9 @@ class DailySalesReportExporter
 
         $kpis = [
             ['Total ventas', $count, NumberFormat::FORMAT_NUMBER],
-            ['Recaudado', $collected, '"$"#,##0'],
-            ['Pendiente (crédito)', $pending, '"$"#,##0'],
-            ['Ticket promedio', $avgTicket, '"$"#,##0'],
+            ['Recaudado', $collected, '"$"#,##0.00'],
+            ['Costo total', $cost, '"$"#,##0.00'],
+            ['Utilidad neta', $profit, '"$"#,##0.00'],
         ];
 
         $col = 'A';

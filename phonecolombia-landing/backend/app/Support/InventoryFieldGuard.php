@@ -35,11 +35,20 @@ final class InventoryFieldGuard
             return true;
         }
 
+        if ($field === 'status') {
+            return false;
+        }
+
         if (in_array($field, self::RESTRICTED_FIELDS, true)) {
             return false;
         }
 
         return $user->isSeller();
+    }
+
+    public static function canUpdateStatus(User $user): bool
+    {
+        return $user->isSuperAdmin() || $user->resolvedRole() === User::ROLE_INVENTORY;
     }
 
     public static function filterItemArray(array $item, User $user): array

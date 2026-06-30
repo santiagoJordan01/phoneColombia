@@ -18,6 +18,8 @@ class Supplier extends Model
         'contact_name',
         'phone',
         'email',
+        'department_code',
+        'municipality_code',
         'city',
         'address',
         'notes',

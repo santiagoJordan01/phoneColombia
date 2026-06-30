@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ColorSwatch from "./ColorSwatch.jsx";
+import { getCanonicalColorName } from "../lib/deviceColorMap";
 
 export default function ColorSelect({
   value,
@@ -58,7 +59,7 @@ export default function ColorSelect({
         <span className="inv-select2__trigger-inner inv-select2__trigger-inner--row">
           {value && <ColorSwatch name={value} size={16} />}
           <span className={value ? "inv-select2__value" : "inv-select2__placeholder"}>
-            {value || placeholder}
+            {value ? getCanonicalColorName(value) : placeholder}
           </span>
         </span>
         <span className="inv-select2__chevron" aria-hidden="true" />
@@ -98,7 +99,7 @@ export default function ColorSelect({
                     onClick={() => pick(c.name)}
                   >
                     <ColorSwatch name={c.name} size={14} />
-                    <span>{c.name}</span>
+                    <span>{getCanonicalColorName(c.name)}</span>
                   </button>
                 </li>
               ))

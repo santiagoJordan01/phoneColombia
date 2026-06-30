@@ -38,12 +38,14 @@ export default function Admin() {
 
   if (!isApiConfigured) {
     return (
+      <div className="admin-dash">
       <div className="container admin-page">
         <h2>Panel Admin — API no configurada</h2>
         <p>
           Define <code>VITE_API_URL</code> en tu archivo <code>.env</code> (por ejemplo{" "}
           <code>http://localhost:8000/api</code>) y reinicia el servidor de desarrollo.
         </p>
+      </div>
       </div>
     );
   }
@@ -355,6 +357,7 @@ export default function Admin() {
 
   if (!user) {
     return (
+      <div className="admin-dash">
       <div className="container admin-login-wrapper">
         <div className="admin-login-card" role="region" aria-label="Login administrador">
           <div className="admin-login-brand">
@@ -363,7 +366,7 @@ export default function Admin() {
             </div>
             <div>
               <h2 style={{ margin: 0 }}>Panel Admin</h2>
-              <p style={{ margin: 0, color: "rgba(255,255,255,0.75)", fontSize: "0.95rem" }}>Ingresa tus credenciales</p>
+              <p className="admin-dash__muted" style={{ margin: 0, fontSize: "0.95rem" }}>Ingresa tus credenciales</p>
             </div>
           </div>
 
@@ -395,6 +398,7 @@ export default function Admin() {
           {message && <p className="admin-login-message">{message}</p>}
         </div>
       </div>
+      </div>
     );
   }
 
@@ -406,14 +410,17 @@ export default function Admin() {
       return <Navigate to={getDefaultInventarioPath(user)} replace />;
     }
     return (
+      <div className="admin-dash">
       <div className="container admin-page">
         <p>Tu cuenta no tiene acceso al panel de gestión de contenido.</p>
         <button type="button" className="btn-secondary" onClick={signOut}>Cerrar sesión</button>
+      </div>
       </div>
     );
   }
 
   return (
+    <div className="admin-dash">
     <div className="container admin-page">
       <header className="admin-header">
         <h2 className="admin-title">Panel Admin — Gestión de contenido</h2>
@@ -449,7 +456,7 @@ export default function Admin() {
               <textarea className="admin-input" placeholder="Descripción" value={productForm.description} onChange={(e) => setProductForm((s) => ({ ...s, description: e.target.value }))} rows={3} />
               <input className="admin-input" type="file" multiple accept="image/*" onChange={(e) => setProductFiles(e.target.files)} />
               {editingProductId && (
-                <p style={{ fontSize: "0.8rem", color: "#aaa" }}>Si no seleccionas nuevas imágenes, se conservarán las actuales.</p>
+                <p className="admin-dash__muted" style={{ fontSize: "0.8rem" }}>Si no seleccionas nuevas imágenes, se conservarán las actuales.</p>
               )}
               <button type="submit" className="btn-primary" disabled={loading}>{loading ? "Guardando..." : editingProductId ? "Actualizar producto" : "Crear producto"}</button>
             </form>
@@ -474,11 +481,11 @@ export default function Admin() {
                         <img key={idx} src={src} alt={`preview-${idx}`} />
                       ))
                     ) : (
-                      <span style={{ color: "#aaa", fontSize: "0.85rem" }}>Sin imágenes actuales</span>
+                      <span className="admin-dash__muted" style={{ fontSize: "0.85rem" }}>Sin imágenes actuales</span>
                     )}
                   </div>
 
-                  <label style={{ fontSize: "0.85rem", color: "#aaa" }}>Subir nuevas imágenes (opcional)</label>
+                  <label className="admin-dash__muted" style={{ fontSize: "0.85rem" }}>Subir nuevas imágenes (opcional)</label>
                   <input className="admin-input" type="file" multiple accept="image/*" onChange={(e) => setProductFiles(e.target.files)} />
 
                   <div className="admin-modal-actions">
@@ -503,10 +510,10 @@ export default function Admin() {
                       <span>Sin imagen</span>
                     </div>
                   )}
-                  <strong style={{ color: "#fff" }}>{p.name}</strong>
+                  <strong className="admin-card-title">{p.name}</strong>
                   <div style={{ marginTop: 8 }}>
-                    <div style={{ color: "rgba(255,255,255,0.9)" }}>{p.description}</div>
-                    <div style={{ marginTop: 6, fontWeight: 800 }}>${p.price}</div>
+                    <div className="admin-card-desc">{p.description}</div>
+                    <div className="admin-card-price">${p.price}</div>
                   </div>
                   <div className="admin-card-actions">
                     <button type="button" className="btn-secondary" onClick={() => deleteProduct(p.id)}>Eliminar</button>
@@ -540,9 +547,9 @@ export default function Admin() {
               {promociones.map((promo) => (
                 <div key={promo.id} className="promo-card">
                   <img src={promo.imagen_url} className="producto-imagen" alt={promo.alt || promo.nombre} />
-                  <h4 style={{ color: "#fff", margin: "0.5rem 0" }}>{promo.nombre}</h4>
-                  <p style={{ color: "#ccc", fontSize: "0.9rem" }}>{promo.bundle}</p>
-                  <p style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#fcd901" }}>${promo.precio}</p>
+                  <h4 className="admin-card-title" style={{ margin: "0.5rem 0" }}>{promo.nombre}</h4>
+                  <p className="admin-dash__muted" style={{ fontSize: "0.9rem" }}>{promo.bundle}</p>
+                  <p className="admin-card-price">${promo.precio}</p>
                   <div className="admin-card-actions">
                     <button type="button" className="btn-secondary" onClick={() => deletePromocion(promo.id)}>Eliminar</button>
                   </div>
@@ -577,7 +584,7 @@ export default function Admin() {
               {testimonios.map((t) => (
                 <div key={t.id} className="promo-card">
                   <video src={t.video_url && encodeURI(t.video_url)} controls className="testimonio-video" />
-                  <p style={{ color: "#ccc", minHeight: 32 }}>{t.caption}</p>
+                  <p className="admin-dash__muted" style={{ minHeight: 32 }}>{t.caption}</p>
                   <div className="admin-card-actions admin-card-actions--row">
                     <button type="button" className="btn-secondary" onClick={() => startEditTestimonio(t)}>Editar</button>
                     <button type="button" className="btn-secondary" onClick={() => deleteTestimonio(t.id)}>Eliminar</button>
@@ -592,7 +599,7 @@ export default function Admin() {
       {activeTab === "hero" && (
         <section className="admin-section">
           <h3>Video Hero</h3>
-          <p style={{ color: "#ccc" }}>Sube el video que se mostrará en la sección principal.</p>
+          <p className="admin-dash__muted">Sube el video que se mostrará en la sección principal.</p>
           <div className="admin-hero-controls">
             <input type="file" accept="video/*" className="admin-input" onChange={(e) => setHeroFile(e.target.files[0])} />
             <button
@@ -630,7 +637,7 @@ export default function Admin() {
       {activeTab === "garantias" && (
         <section className="admin-section">
           <h3>Editar Garantías</h3>
-          <p style={{ color: "#ccc" }}>Modifica los textos de garantías que se muestran en la página pública.</p>
+          <p className="admin-dash__muted">Modifica los textos de garantías que se muestran en la página pública.</p>
 
           {garantiasLoading && <p>Cargando garantías...</p>}
 
@@ -659,6 +666,7 @@ export default function Admin() {
       )}
 
       {message && <p className="admin-message" role="status">{message}</p>}
+    </div>
     </div>
   );
 }

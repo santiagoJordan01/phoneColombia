@@ -1,15 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
+import DaneLocationFields from "../components/DaneLocationFields.jsx";
 import ColorSelect from "../components/ColorSelect.jsx";
+import SearchSelect from "../components/SearchSelect.jsx";
 import ColorSwatch from "../components/ColorSwatch.jsx";
 import InventarioTopbar from "../components/inventario/InventarioTopbar.jsx";
+import MobileCollapsible from "../components/inventario/MobileCollapsible.jsx";
 import CustomerCatalogModal from "../components/inventario/CustomerCatalogModal.jsx";
 import ConfirmDeleteDialog from "../components/inventario/ConfirmDeleteDialog.jsx";
 import InventoryHistoryModal from "../components/inventario/InventoryHistoryModal.jsx";
 import { useCachedQuery } from "../hooks/useCachedQuery.js";
 import api, { isApiConfigured } from "../lib/apiClient";
 import { invalidateInventarioCache } from "../lib/inventarioCache.js";
-import { getDeviceColorHex } from "../lib/deviceColorMap";
+import { locationPayload, municipalityLabel } from "../lib/daneLocations.js";
+import { getCanonicalColorName, getDeviceColorHex } from "../lib/deviceColorMap";
+import { catalogProductSelectOptions, supplierSelectOptions } from "../lib/inventarioSelectOptions.js";
 import { useInventarioPage } from "./inventario/useInventarioPage.js";
 import {
   CATEGORY_LABELS,
@@ -404,12 +409,19 @@ export default function InventarioAdmin() {
     if (!supplierForm.name.trim()) return;
     setCreatingSupplier(true);
     try {
+      const location = locationPayload({
+        department_code: supplierForm.department_code,
+        municipality_code: supplierForm.municipality_code,
+        city: supplierForm.city,
+      });
       const payload = {
         name: supplierForm.name.trim(),
         contact_name: supplierForm.contact_name.trim() || undefined,
         phone: supplierForm.phone.trim() || undefined,
         email: supplierForm.email.trim() || undefined,
-        city: supplierForm.city.trim() || undefined,
+        department_code: location.department_code || undefined,
+        municipality_code: location.municipality_code || undefined,
+        city: location.city || undefined,
         address: supplierForm.address.trim() || undefined,
         notes: supplierForm.notes.trim() || undefined,
       };
@@ -648,12 +660,21 @@ export default function InventarioAdmin() {
   const isInitialLoad = listLoading && items.length === 0;
   const isFilteredEmpty = !listLoading && items.length === 0 && hasActiveFilters;
   const equipoSuggestions = catalogProducts.map((p) => p.name);
+  const catalogProductOptions = useMemo(
+    () => catalogProductSelectOptions(catalogProducts),
+    [catalogProducts],
+  );
+  const supplierOptions = useMemo(
+    () => supplierSelectOptions(suppliers),
+    [suppliers],
+  );
 
   return (
     <div className="inv-dash">
       <InventarioTopbar current="inventario" user={user} onSignOut={signOut} />
 
       <main className="inv-main inv-main--sheet">
+        <MobileCollapsible summary="Resumen del inventario" className="inv-mobile-fold--inline">
         <div className="inv-stats inv-stats--5" aria-live="polite">
           {viewingArchived ? (
             <article className="inv-stat inv-stat--slate">
@@ -689,9 +710,11 @@ export default function InventarioAdmin() {
             </>
           )}
         </div>
+        </MobileCollapsible>
 
         <section className={`inv-panel inv-panel--sheet ${listLoading && items.length > 0 ? "is-refreshing" : ""}`}>
           <div className="inv-sheet-toolbar">
+            <MobileCollapsible summary="Buscar y filtrar" className="inv-mobile-fold--toolbar">
             <div className="inv-filters inv-filters--sheet">
               <form
                 className="inv-search"
@@ -732,6 +755,7 @@ export default function InventarioAdmin() {
                 </button>
               )}
             </div>
+            </MobileCollapsible>
             <div className="inv-sheet-actions">
               <button
                 type="button"
@@ -1044,17 +1068,14 @@ export default function InventarioAdmin() {
 
               {catalogProducts.length > 0 && (
                 <Field label="Cargar del catálogo (opcional)" className="inv-field--span-all">
-                  <select
-                    className="inv-field__input"
+                  <SearchSelect
                     value={form.inventory_product_id}
-                    onChange={(e) => pickEquipoFromCatalog(e.target.value)}
-                    aria-label="Elegir modelo del catálogo"
-                  >
-                    <option value="">Seleccionar modelo guardado…</option>
-                    {catalogProducts.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
+                    onChange={pickEquipoFromCatalog}
+                    options={catalogProductOptions}
+                    placeholder="Buscar modelo guardado…"
+                    searchPlaceholder="Marca, modelo, almacenamiento…"
+                    clearLabel="Sin modelo de catálogo"
+                  />
                 </Field>
               )}
 
@@ -1085,26 +1106,21 @@ export default function InventarioAdmin() {
               </Field>
 
               <Field label="Proveedor">
-                <select
-                  className="inv-field__input"
-                  value={form.supplier_id || form.supplier}
-                  onChange={(e) => {
-                    const supplier = suppliers.find((s) => s.id === e.target.value || s.name === e.target.value);
+                <SearchSelect
+                  value={form.supplier_id || ""}
+                  onChange={(id) => {
+                    const supplier = suppliers.find((s) => s.id === id);
                     setForm((s) => ({
                       ...s,
                       supplier_id: supplier?.id || "",
-                      supplier: supplier?.name || e.target.value,
+                      supplier: supplier?.name || "",
                     }));
                   }}
-                  aria-label="Seleccionar proveedor"
-                >
-                  <option value="">
-                    {suppliers.length === 0 ? "Crea proveedores con + Proveedor" : "Sin proveedor"}
-                  </option>
-                  {suppliers.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
+                  options={supplierOptions}
+                  placeholder={suppliers.length === 0 ? "Crea proveedores con + Proveedor" : "Buscar proveedor…"}
+                  searchPlaceholder="Nombre, teléfono, ciudad…"
+                  clearLabel="Sin proveedor"
+                />
               </Field>
 
               {showSensitive && (
@@ -1180,11 +1196,20 @@ export default function InventarioAdmin() {
               <Field label="Observaciones" className="inv-field--span-all">
                 <textarea
                   className="inv-field__input inv-field__textarea"
-                  placeholder="PANTALLA FANTASMA, BATERIA, SOLO SIM MOVISTAR…"
+                  placeholder={
+                    form.status === "separado"
+                      ? "Cliente, teléfono o condiciones del apartado…"
+                      : "PANTALLA FANTASMA, BATERIA, SOLO SIM MOVISTAR…"
+                  }
                   value={form.notes}
                   onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))}
                   rows={2}
                 />
+                {form.status === "separado" && (
+                  <p className="inv-dash__muted" style={{ margin: "0.35rem 0 0", fontSize: "0.85rem" }}>
+                    Al apartar, registra quién reservó el equipo. Ventas verá esta nota al cerrar la venta.
+                  </p>
+                )}
               </Field>
 
               <div className="inv-modal__actions inv-field--span-all">
@@ -1257,7 +1282,7 @@ export default function InventarioAdmin() {
                       >
                         <span className="inv-supplier-list__name">
                           <ColorSwatch name={c.name} size={14} />
-                          {c.name}
+                          {getCanonicalColorName(c.name)}
                         </span>
                       </button>
                       <button
@@ -1341,15 +1366,21 @@ export default function InventarioAdmin() {
                   autoComplete="off"
                 />
               </Field>
-              <Field label="Ciudad">
-                <input
-                  className="inv-field__input"
-                  placeholder="Bogotá"
-                  value={supplierForm.city}
-                  onChange={(e) => setSupplierForm((s) => ({ ...s, city: e.target.value }))}
-                  autoComplete="off"
-                />
-              </Field>
+              <DaneLocationFields
+                departmentCode={supplierForm.department_code}
+                municipalityCode={supplierForm.municipality_code}
+                onDepartmentChange={(department_code) =>
+                  setSupplierForm((s) => ({ ...s, department_code, municipality_code: "", city: "" }))
+                }
+                onMunicipalityChange={(municipality_code) =>
+                  setSupplierForm((s) => ({
+                    ...s,
+                    municipality_code,
+                    city: municipality_code ? municipalityLabel(municipality_code) : "",
+                  }))
+                }
+                disabled={creatingSupplier}
+              />
               <Field label="Dirección">
                 <input
                   className="inv-field__input"

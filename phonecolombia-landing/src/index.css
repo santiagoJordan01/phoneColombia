@@ -67,3 +67,11 @@ button:focus-visible {
   }
 }
 
+/* Inventario y panel admin: no aplicar el tema oscuro por defecto de Vite */
+body:has(.inv-dash),
+body:has(.inv-report-preview),
+body:has(.admin-dash) {
+  color: #1e293b;
+  background-color: #eef1f6;
+}
+

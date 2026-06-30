@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:all": "concurrently -k -n frontend,backend -c cyan,magenta \"npm run dev\" \"npm run serve --prefix backend\"",
     "build": "vite build",
+    "build:dane": "node scripts/build-dane-locations.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

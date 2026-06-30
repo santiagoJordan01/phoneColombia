@@ -315,13 +315,14 @@ class ServiceTicketController extends Controller
     private function releaseItemFromService(InventoryItem $item, ServiceTicket $ticket): void
     {
         $oldStatus = $item->status;
-        $item->update(['status' => InventoryStatus::DISPONIBLE]);
+        $restoreStatus = InventoryStatusGuard::statusAfterServiceRelease($item, $ticket->id);
+        $item->update(['status' => $restoreStatus]);
         $this->movements->record(
             $item,
             'status_change',
             'status',
             $oldStatus,
-            InventoryStatus::DISPONIBLE,
+            $restoreStatus,
             'Entrega de servicio técnico',
             [
                 'ticket_id' => $ticket->id,

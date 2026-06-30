@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import SearchSelect from "../SearchSelect.jsx";
 import api from "../../lib/apiClient";
+import { userSelectOptions } from "../../lib/inventarioSelectOptions.js";
 
 function emptyFilters() {
   return {
@@ -56,22 +58,20 @@ function SummaryCards({ summary }) {
 }
 
 function AuditFilters({ filters, options, users, loading, onChange, onApply, onReset }) {
+  const userOptions = useMemo(() => userSelectOptions(users), [users]);
+
   return (
     <div className="inv-audit-filters">
       <div className="inv-sheet-toolbar inv-audit-filters__grid">
         <AuditField label="Usuario">
-          <select
-            className="inv-field__input"
+          <SearchSelect
             value={filters.user_id}
-            onChange={(e) => onChange({ user_id: e.target.value })}
-          >
-            <option value="">Todos</option>
-            {(users || []).map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </select>
+            onChange={(id) => onChange({ user_id: id })}
+            options={userOptions}
+            placeholder="Todos los usuarios"
+            searchPlaceholder="Buscar usuario…"
+            clearLabel="Todos"
+          />
         </AuditField>
         <AuditField label="Acción">
           <select

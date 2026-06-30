@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\AuditLog;
+use App\Models\CreditPaymentMethod;
 use App\Models\InventoryItem;
+use Database\Seeders\CreditPaymentMethodSeeder;
 use App\Models\InventoryMovement;
 use App\Models\Sale;
 use App\Models\ServiceTicket;
@@ -18,6 +20,12 @@ use Tests\TestCase;
 class InventoryTraceabilityTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(CreditPaymentMethodSeeder::class);
+    }
 
     /** @return array{0: User, 1: string} */
     private function actingAsRole(string $role, array $extra = []): array
@@ -279,6 +287,8 @@ class InventoryTraceabilityTest extends TestCase
                 'inventory_item_id' => $item->id,
                 'sale_price' => '1000000',
                 'payment_method' => 'credito',
+                'credit_payment_method_id' => CreditPaymentMethod::query()->where('slug', 'addi')->value('id'),
+                'credit_term_type' => '8_days',
                 'payments' => [
                     ['method' => 'credito', 'amount' => 400000],
                 ],

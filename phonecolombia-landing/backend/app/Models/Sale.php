@@ -20,7 +20,11 @@ class Sale extends Model
         'user_id',
         'service_customer_id',
         'sale_price',
+        'purchase_price_at_sale',
         'payment_method',
+        'credit_payment_method_id',
+        'credit_term_type',
+        'credit_due_at',
         'credit_status',
         'amount_paid',
         'amount_due',
@@ -36,7 +40,13 @@ class Sale extends Model
             'amount_paid' => 'decimal:2',
             'amount_due' => 'decimal:2',
             'sold_at' => 'datetime',
+            'credit_due_at' => 'datetime',
         ];
+    }
+
+    public function creditPaymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(CreditPaymentMethod::class);
     }
 
     public function inventoryItem(): BelongsTo

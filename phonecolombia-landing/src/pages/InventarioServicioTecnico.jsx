@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, Navigate } from "react-router-dom";
 import InventarioTopbar from "../components/inventario/InventarioTopbar.jsx";
 import SearchSelect from "../components/SearchSelect.jsx";
+import InventoryItemSelect from "../components/InventoryItemSelect.jsx";
 import { useCachedQuery } from "../hooks/useCachedQuery.js";
 import api, { isApiConfigured } from "../lib/apiClient";
 import { invalidateInventarioCache } from "../lib/inventarioCache.js";
@@ -16,11 +17,13 @@ import {
   canEditServiceTicket,
   canManageInventory,
   canManageServiceTickets,
+  canViewSensitiveInventoryFields,
   canViewServiceTicket,
   formatPrice,
   isServiceTechnician,
   serviceTicketStatusLabel,
 } from "./inventario/shared.jsx";
+import { userSelectOptions } from "../lib/inventarioSelectOptions.js";
 import "../styles.css";
 
 function ReadOnlyField({ label, value, className = "" }) {
@@ -187,6 +190,13 @@ export default function InventarioServicioTecnico() {
     [serviceTechnicians],
   );
 
+  const storeUserOptions = useMemo(
+    () => userSelectOptions(technicians),
+    [technicians],
+  );
+
+  const showSensitive = canViewSensitiveInventoryFields(user);
+
   const onCustomerPick = (customerId) => {
     const customer = customers.find((c) => c.id === customerId);
     setForm((s) => ({
@@ -288,6 +298,10 @@ export default function InventarioServicioTecnico() {
 
   const createTicket = async (e) => {
     e.preventDefault();
+    if (form.ticket_type === "inventario" && !form.inventory_item_id) {
+      showToast("Selecciona un equipo del inventario", "error");
+      return;
+    }
     setSubmitting(true);
     try {
       const created = await api.createServiceTicket(buildPayload(form));
@@ -384,7 +398,6 @@ export default function InventarioServicioTecnico() {
         <section className="inv-panel inv-panel--sheet">
           <div className="inv-sheet-toolbar">
             <div className="inv-sheet-toolbar__main">
-              <h2 className="inv-panel__title" style={{ margin: 0 }}>Tickets</h2>
               <form
                 className="inv-search inv-search--compact"
                 onSubmit={(e) => {
@@ -459,22 +472,22 @@ export default function InventarioServicioTecnico() {
                   <tr><td colSpan={10} className="inv-sheet-empty">No hay tickets.</td></tr>
                 ) : (
                   (tickets || []).map((t) => (
-                    <tr key={t.id}>
-                      <td className="inv-cell-mono">{ticketReference(t)}</td>
-                      <td>
+                    <tr key={t.id} className="inv-sheet-row">
+                      <td data-label="Ref." className="inv-cell-mono">{ticketReference(t)}</td>
+                      <td data-label="Equipo">
                         {t.display_name || t.inventory_item?.name || t.device_name || "—"}
                         {t.is_warranty && <span className="inv-badge inv-badge--amber" style={{ marginLeft: "0.35rem" }}>Garantía</span>}
                       </td>
-                      <td>{SERVICE_TICKET_TYPES[t.ticket_type] || t.ticket_type}</td>
-                      <td>
+                      <td data-label="Tipo">{SERVICE_TICKET_TYPES[t.ticket_type] || t.ticket_type}</td>
+                      <td data-label="Servicio">
                         {t.category?.name || (t.service_category && meta.categories?.[t.service_category]) || ""}
                         {(t.category?.name || t.service_category) ? " · " : ""}
                         {t.issue_description}
                       </td>
-                      <td>{t.service_technician?.workshop || t.workshop || "—"}</td>
-                      <td>{t.repair_cost != null ? formatPrice(t.repair_cost) : "—"}</td>
-                      <td>{t.service_customer?.name || t.customer_name || "—"}</td>
-                      <td>
+                      <td data-label="Taller">{t.service_technician?.workshop || t.workshop || "—"}</td>
+                      <td data-label="Costo">{t.repair_cost != null ? formatPrice(t.repair_cost) : "—"}</td>
+                      <td data-label="Cliente">{t.service_customer?.name || t.customer_name || "—"}</td>
+                      <td data-label="Estado">
                         {canEditServiceTicket(user) ? (
                           <select
                             className="inv-filter-select inv-st-status-select"
@@ -492,8 +505,8 @@ export default function InventarioServicioTecnico() {
                           </span>
                         )}
                       </td>
-                      <td>{t.received_at ? new Date(t.received_at).toLocaleDateString("es-CO") : "—"}</td>
-                      <td>
+                      <td data-label="Ingreso">{t.received_at ? new Date(t.received_at).toLocaleDateString("es-CO") : "—"}</td>
+                      <td data-label="Acciones">
                         {canEditServiceTicket(user) && (
                           <button type="button" className="inv-btn inv-btn--compact inv-btn--ghost" onClick={() => setEditTicket({
                             ...t,
@@ -579,27 +592,22 @@ export default function InventarioServicioTecnico() {
 
               {(isInventoryType || isWarrantyType) && (
                 <Field label={`Equipo de inventario${isInventoryType ? " *" : ""}`} className="inv-field--span-all">
-                  <select
-                    className="inv-field__input"
+                  <InventoryItemSelect
                     value={form.inventory_item_id}
-                    onChange={(e) => {
-                      const item = items.find((i) => i.id === e.target.value);
+                    onChange={(id) => {
+                      const item = items.find((i) => i.id === id);
                       setForm((s) => ({
                         ...s,
-                        inventory_item_id: e.target.value,
+                        inventory_item_id: id,
                         device_reference: item?.imei || item?.barcode || s.device_reference,
                       }));
                     }}
-                    required={isInventoryType}
-                  >
-                    <option value="">Seleccionar…</option>
-                    {items.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name} — {STATUS_LABELS[item.status] || item.status}
-                        {item.imei ? ` · ${item.imei}` : ""}
-                      </option>
-                    ))}
-                  </select>
+                    items={items}
+                    showSensitive={showSensitive}
+                    placeholder="Buscar equipo en inventario…"
+                    allowClear={!isInventoryType}
+                    clearLabel="Seleccionar…"
+                  />
                 </Field>
               )}
 
@@ -634,16 +642,13 @@ export default function InventarioServicioTecnico() {
               </Field>
 
               <Field label="Responsable interno (tienda)">
-                <select
-                  className="inv-field__input"
+                <SearchSelect
                   value={form.assigned_user_id}
-                  onChange={(e) => setForm((s) => ({ ...s, assigned_user_id: e.target.value }))}
-                >
-                  <option value="">Sin asignar</option>
-                  {technicians.map((tech) => (
-                    <option key={tech.id} value={tech.id}>{tech.name}</option>
-                  ))}
-                </select>
+                  onChange={(id) => setForm((s) => ({ ...s, assigned_user_id: id }))}
+                  options={storeUserOptions}
+                  placeholder="Buscar responsable…"
+                  clearLabel="Sin asignar"
+                />
               </Field>
 
               <Field label="Servicio / falla *" className="inv-field--span-all">
@@ -793,16 +798,13 @@ export default function InventarioServicioTecnico() {
                 />
               </Field>
               <Field label="Responsable interno (tienda)">
-                <select
-                  className="inv-field__input"
-                  value={editTicket.assigned_user_id}
-                  onChange={(e) => setEditTicket((t) => ({ ...t, assigned_user_id: e.target.value }))}
-                >
-                  <option value="">Sin asignar</option>
-                  {technicians.map((tech) => (
-                    <option key={tech.id} value={tech.id}>{tech.name}</option>
-                  ))}
-                </select>
+                <SearchSelect
+                  value={editTicket.assigned_user_id || ""}
+                  onChange={(id) => setEditTicket((t) => ({ ...t, assigned_user_id: id }))}
+                  options={storeUserOptions}
+                  placeholder="Buscar responsable…"
+                  clearLabel="Sin asignar"
+                />
               </Field>
               <Field label="Referencia / IMEI">
                 <input

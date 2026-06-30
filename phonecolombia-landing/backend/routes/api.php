@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\PromocionController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SaleController;
+use App\Http\Controllers\Api\SaleReservationController;
 use App\Http\Controllers\Api\ServiceCategoryController;
 use App\Http\Controllers\Api\ServiceCustomerController;
 use App\Http\Controllers\Api\ServiceTechnicianController;
@@ -91,7 +92,8 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::get('/inventory/{inventoryItem}', [InventoryItemController::class, 'show']);
         Route::match(['put', 'post'], '/inventory/{inventoryItem}', [InventoryItemController::class, 'update']);
         Route::delete('/inventory/{inventoryItem}', [InventoryItemController::class, 'destroy']);
-        Route::post('/inventory/{inventoryItem}/retake', [InventoryItemController::class, 'retake']);
+        Route::post('/inventory/{inventoryItem}/reserve', [SaleReservationController::class, 'reserve']);
+        Route::post('/inventory/{inventoryItem}/cancel-reservation', [SaleReservationController::class, 'cancelByItem']);
 
         Route::get('/service/customers', [ServiceCustomerController::class, 'index']);
         Route::post('/service/customers', [ServiceCustomerController::class, 'store']);
@@ -119,6 +121,9 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::post('/sales', [SaleController::class, 'store']);
         Route::match(['put', 'patch'], '/sales/{sale}', [SaleController::class, 'update']);
         Route::post('/sales/{sale}/payments', [SaleController::class, 'addPayment']);
+        Route::get('/sales/{sale}/remission/pdf', [SaleController::class, 'exportRemissionPdf']);
+        Route::post('/sales/{sale}/complete-reservation', [SaleReservationController::class, 'complete']);
+        Route::post('/sales/{sale}/cancel-reservation', [SaleReservationController::class, 'cancel']);
         Route::get('/credit-config', [CreditConfigController::class, 'index']);
     });
 
@@ -130,7 +135,9 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::get('/reports/by-seller', [ReportController::class, 'bySeller']);
         Route::get('/reports/by-seller/export/pdf', [ReportController::class, 'exportBySellerPdf']);
         Route::get('/reports/by-seller/export/xlsx', [ReportController::class, 'exportBySellerExcel']);
+        Route::get('/reports/by-remission', [ReportController::class, 'byRemission']);
         Route::get('/reports/cash-register', [ReportController::class, 'cashRegister']);
+        Route::get('/reports/receivables', [ReportController::class, 'receivables']);
         Route::get('/reports/export/sales', [ReportController::class, 'exportSales']);
     });
 

@@ -45,6 +45,7 @@
             <thead>
                 <tr>
                     <th>{{ ($report['is_range'] ?? false) ? 'Fecha' : 'Hora' }}</th>
+                    <th>Remisión</th>
                     <th>Equipo</th>
                     <th>IMEI</th>
                     <th>Venta</th>
@@ -68,6 +69,7 @@
                     @endphp
                     <tr>
                         <td>{{ $time }}</td>
+                        <td>{{ $sale['remission_number'] ?? '—' }}</td>
                         <td>{{ $sale['item'] ?? '—' }}</td>
                         <td>{{ $sale['imei'] ?? '—' }}</td>
                         <td>${{ number_format((float) ($sale['sale_price_num'] ?? 0), 0, ',', '.') }}</td>

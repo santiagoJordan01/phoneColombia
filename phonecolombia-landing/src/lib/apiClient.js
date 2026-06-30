@@ -363,6 +363,22 @@ export const api = {
     return request(`/sales/${saleId}/payments`, { method: "POST", body: data });
   },
 
+  async reserveInventoryItem(id, data) {
+    return request(`/inventory/${id}/reserve`, { method: "POST", body: data });
+  },
+
+  async cancelInventoryReservation(id) {
+    return request(`/inventory/${id}/cancel-reservation`, { method: "POST" });
+  },
+
+  async completeReservation(saleId, data) {
+    return request(`/sales/${saleId}/complete-reservation`, { method: "POST", body: data });
+  },
+
+  async cancelReservation(saleId) {
+    return request(`/sales/${saleId}/cancel-reservation`, { method: "POST" });
+  },
+
   async getDailyReport(params = {}) {
     const qs = new URLSearchParams(
       Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
@@ -384,11 +400,25 @@ export const api = {
     return request(`/reports/cash-register${qs ? `?${qs}` : ""}`);
   },
 
+  async getReceivablesReport(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return request(`/reports/receivables${qs ? `?${qs}` : ""}`);
+  },
+
   async getBySellerReport(params = {}) {
     const qs = new URLSearchParams(
       Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
     ).toString();
     return request(`/reports/by-seller${qs ? `?${qs}` : ""}`);
+  },
+
+  async getByRemissionReport(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return request(`/reports/by-remission${qs ? `?${qs}` : ""}`);
   },
 
   async getCreditConfig() {
@@ -553,6 +583,10 @@ export const api = {
       Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
     ).toString();
     return `${rawUrl}/reports/by-seller/export/xlsx${qs ? `?${qs}` : ""}`;
+  },
+
+  exportRemissionPdfUrl(saleId) {
+    return `${rawUrl}/sales/${saleId}/remission/pdf`;
   },
 
   async downloadAuthenticated(url, filename) {

@@ -10,6 +10,7 @@ use App\Http\Controllers\Concerns\ScopesInventoryForUser;
 
 use App\Http\Controllers\Controller;
 
+use App\Http\Controllers\Api\SaleReservationController;
 use App\Models\CreditPaymentMethod;
 
 use App\Models\InventoryItem;
@@ -32,7 +33,11 @@ use App\Support\InventoryStatusGuard;
 
 use App\Support\MoneyFormatter;
 
+use App\Support\RemissionNumberGenerator;
+
 use Carbon\Carbon;
+
+use Barryvdh\DomPDF\Facade\Pdf;
 
 use Illuminate\Http\JsonResponse;
 
@@ -41,6 +46,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 use Illuminate\Validation\Rule;
+
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 
 
@@ -80,7 +87,7 @@ class SaleController extends Controller
 
             ->with(['inventoryItem', 'user', 'payments', 'serviceCustomer', 'creditPaymentMethod'])
 
-            ->orderByDesc('sold_at');
+            ->orderByRaw('COALESCE(sold_at, reserved_at, created_at) DESC');
 
 
 
@@ -105,6 +112,28 @@ class SaleController extends Controller
         if ($request->filled('payment_method')) {
 
             $query->where('payment_method', $request->string('payment_method'));
+
+        }
+
+        if ($request->filled('q')) {
+
+            $term = '%'.$request->string('q').'%';
+
+            $query->where(function ($q) use ($term) {
+
+                $q->where('remission_number', 'like', $term)
+
+                    ->orWhere('customer_name', 'like', $term)
+
+                    ->orWhereHas('inventoryItem', fn ($itemQuery) => $itemQuery
+
+                        ->where('name', 'like', $term)
+
+                        ->orWhere('imei', 'like', $term)
+
+                        ->orWhere('barcode', 'like', $term));
+
+            });
 
         }
 
@@ -148,7 +177,13 @@ class SaleController extends Controller
 
         InventoryStatusGuard::assertAvailableForSale($item);
 
-
+        $activeReservation = SaleReservationController::activeReservationForItem($item->id);
+        if ($activeReservation) {
+            return response()->json([
+                'message' => 'Este equipo tiene un apartado activo. Complétalo desde ventas.',
+                'reservation_sale_id' => $activeReservation->id,
+            ], 422);
+        }
 
         $salePrice = MoneyFormatter::parse($data['sale_price']);
 
@@ -193,6 +228,8 @@ class SaleController extends Controller
 
 
             $sale = Sale::create([
+
+                'remission_number' => RemissionNumberGenerator::next(),
 
                 'inventory_item_id' => $item->id,
 
@@ -482,6 +519,22 @@ class SaleController extends Controller
 
 
 
+        $amountDue = (float) $sale->amount_due;
+
+        if ((float) $data['amount'] > $amountDue + 0.009) {
+
+            return response()->json([
+
+                'message' => 'El abono no puede superar el saldo pendiente.',
+
+                'errors' => ['amount' => ['Saldo pendiente: '.MoneyFormatter::format($amountDue)]],
+
+            ], 422);
+
+        }
+
+
+
         DB::transaction(function () use ($sale, $data, $user) {
 
             SalePayment::create([
@@ -517,6 +570,144 @@ class SaleController extends Controller
 
 
         return response()->json($this->serializeSale($sale->fresh()->load(['inventoryItem', 'user', 'payments', 'creditPaymentMethod'])));
+
+    }
+
+
+
+    public function exportRemissionPdf(Request $request, Sale $sale): StreamedResponse
+
+    {
+
+        $user = $request->user();
+
+        if (! $user->canManageSales() && ! $user->isSuperAdmin()) {
+
+            abort(403, 'No tienes permiso para ver remisiones.');
+
+        }
+
+
+
+        if ($user->isSupplier() && $user->supplier_id) {
+
+            $sale->load('inventoryItem');
+
+            if ($sale->inventoryItem?->supplier_id !== $user->supplier_id) {
+
+                abort(403, 'No tienes acceso a esta venta.');
+
+            }
+
+        }
+
+
+
+        $sale->load(['inventoryItem', 'user', 'payments', 'creditPaymentMethod', 'serviceCustomer']);
+
+        $payload = $this->remissionDocumentPayload($sale);
+
+        $filename = 'remision_'.str_replace('/', '-', $sale->remission_number).'.pdf';
+
+
+
+        $pdf = Pdf::loadView('reports.remission-pdf', [
+
+            'sale' => $payload,
+
+            'generatedAt' => now()->timezone('America/Bogota')->format('d/m/Y H:i'),
+
+        ])->setPaper('letter', 'portrait');
+
+
+
+        return response()->streamDownload(
+
+            fn () => print ($pdf->output()),
+
+            $filename,
+
+            ['Content-Type' => 'application/pdf'],
+
+        );
+
+    }
+
+
+
+    /** @return array<string, mixed> */
+
+    private function remissionDocumentPayload(Sale $sale): array
+
+    {
+
+        $paymentLabels = [
+
+            'efectivo' => 'Efectivo',
+
+            'transferencia' => 'Transferencia',
+
+            'credito' => 'Crédito',
+
+            'mixto' => 'Mixto',
+
+        ];
+
+
+
+        $isApartado = $sale->reservation_status === \App\Support\SaleReservationStatus::ACTIVE;
+
+        $documentDate = $sale->sold_at ?? $sale->reserved_at ?? $sale->created_at;
+
+
+
+        return [
+
+            'remission_number' => $sale->remission_number,
+
+            'status_label' => $isApartado ? 'Apartado' : ($sale->sold_at ? 'Entregado' : 'Registrado'),
+
+            'status_class' => $isApartado ? 'badge--apartado' : ($sale->sold_at ? 'badge--entregado' : 'badge--registrado'),
+
+            'customer' => $sale->serviceCustomer?->name ?? $sale->customer_name,
+
+            'customer_phone' => $sale->customer_phone ?? $sale->serviceCustomer?->phone,
+
+            'seller' => $sale->user?->name,
+
+            'document_date' => $documentDate?->timezone('America/Bogota')->format('d/m/Y H:i') ?? '—',
+
+            'item' => $sale->inventoryItem?->name,
+
+            'imei' => $sale->inventoryItem?->imei ?? $sale->inventoryItem?->barcode,
+
+            'color' => $sale->inventoryItem?->color,
+
+            'sale_price' => MoneyFormatter::parse($sale->sale_price),
+
+            'amount_paid' => (float) $sale->amount_paid,
+
+            'amount_due' => (float) $sale->amount_due,
+
+            'payment_method_label' => $paymentLabels[$sale->payment_method] ?? $sale->payment_method,
+
+            'credit_payment_method' => $sale->creditPaymentMethod?->name,
+
+            'notes' => $sale->notes,
+
+            'payments' => $sale->payments->map(fn (SalePayment $payment) => [
+
+                'paid_at' => $payment->paid_at?->timezone('America/Bogota')->format('d/m/Y H:i') ?? '—',
+
+                'method' => $paymentLabels[$payment->method] ?? $payment->method,
+
+                'amount' => (float) $payment->amount,
+
+                'notes' => $payment->notes,
+
+            ])->values()->all(),
+
+        ];
 
     }
 
@@ -772,6 +963,8 @@ class SaleController extends Controller
 
             'id' => $sale->id,
 
+            'remission_number' => $sale->remission_number,
+
             'inventory_item_id' => $sale->inventory_item_id,
 
             'inventory_item' => $sale->inventoryItem,
@@ -823,6 +1016,10 @@ class SaleController extends Controller
             'notes' => $sale->notes,
 
             'sold_at' => $sale->sold_at,
+
+            'reserved_at' => $sale->reserved_at,
+
+            'reservation_status' => $sale->reservation_status,
 
             'payments' => $sale->payments,
 

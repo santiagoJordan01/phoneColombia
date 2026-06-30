@@ -5,6 +5,9 @@ export function inventoryItemSelectOptions(items, { showSensitive = true } = {})
   return (items || []).map((item) => {
     const meta = [];
     if (item.status === "separado") meta.push("Separado");
+    if (item.active_reservation?.amount_paid > 0) {
+      meta.push(`Abono ${formatPrice(item.active_reservation.amount_paid)}`);
+    }
     else if (item.status && item.status !== "disponible") {
       meta.push(STATUS_LABELS[item.status] || item.status);
     }
@@ -33,6 +36,7 @@ export function supplierSelectOptions(suppliers) {
 export function catalogProductSelectOptions(products) {
   return (products || []).map((product) => {
     const meta = [product.storage, product.color ? getCanonicalColorName(product.color) : ""].filter(Boolean);
+    if (product.reference_price) meta.push(formatPrice(product.reference_price));
     return {
       value: product.id,
       label: product.name,

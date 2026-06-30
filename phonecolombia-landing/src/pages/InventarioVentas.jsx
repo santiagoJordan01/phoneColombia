@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import InventarioTopbar from "../components/inventario/InventarioTopbar.jsx";
+import CurrencyInput from "../components/inventario/CurrencyInput.jsx";
 import CustomerCatalogModal from "../components/inventario/CustomerCatalogModal.jsx";
 import SearchSelect from "../components/SearchSelect.jsx";
 import InventoryItemSelect from "../components/InventoryItemSelect.jsx";
@@ -17,6 +18,7 @@ import {
   canViewSensitiveInventoryFields,
   creditTermLabel,
   formatPrice,
+  parseCop,
   isServiceTechnician,
   serviceCustomerSubtitle,
 } from "./inventario/shared.jsx";
@@ -42,8 +44,88 @@ function paymentLabel(method) {
   return PAYMENT_LABELS[method] ?? method ?? "—";
 }
 
-function parseSalePrice(value) {
-  return Number(String(value ?? "").replace(/[^\d.]/g, "")) || 0;
+const SALES_SORT_COLUMNS = [
+  {
+    id: "remission",
+    label: "Remisión",
+    getValue: (sale) => sale.remission_number || "",
+  },
+  {
+    id: "fecha",
+    label: "Fecha",
+    getValue: (sale) => new Date(sale.sold_at || sale.reserved_at || sale.created_at || 0).getTime(),
+  },
+  {
+    id: "equipo",
+    label: "Equipo",
+    getValue: (sale) => sale.inventory_item?.name || "",
+  },
+  {
+    id: "precio",
+    label: "Precio",
+    getValue: (sale) => Number(sale.sale_price) || 0,
+  },
+  {
+    id: "metodo",
+    label: "Método",
+    getValue: (sale) => paymentLabel(sale.payment_method),
+  },
+  {
+    id: "pagado",
+    label: "Pagado",
+    getValue: (sale) => Number(sale.amount_paid) || 0,
+  },
+  {
+    id: "pendiente",
+    label: "Pendiente",
+    getValue: (sale) => Number(sale.amount_due) || 0,
+  },
+  {
+    id: "cliente",
+    label: "Cliente",
+    getValue: (sale) => sale.customer_name || sale.service_customer?.name || "",
+  },
+  {
+    id: "vendedor",
+    label: "Vendedor",
+    getValue: (sale) => sale.user?.name || "",
+  },
+];
+
+function compareSaleValues(a, b, direction) {
+  const isEmpty = (v) => v == null || v === "" || (typeof v === "number" && Number.isNaN(v));
+  const aEmpty = isEmpty(a);
+  const bEmpty = isEmpty(b);
+  if (aEmpty && bEmpty) return 0;
+  if (aEmpty) return 1;
+  if (bEmpty) return -1;
+
+  let cmp = 0;
+  if (typeof a === "number" && typeof b === "number") {
+    cmp = a - b;
+  } else {
+    cmp = String(a).localeCompare(String(b), "es", { sensitivity: "base", numeric: true });
+  }
+  return direction === "asc" ? cmp : -cmp;
+}
+
+function SortableTh({ column, sortColumn, sortDirection, onSort }) {
+  const active = sortColumn === column.id;
+  const ariaSort = active ? (sortDirection === "asc" ? "ascending" : "descending") : "none";
+  return (
+    <th aria-sort={ariaSort}>
+      <button
+        type="button"
+        className={`inv-th-sort${active ? ` inv-th-sort--${sortDirection}` : ""}`}
+        onClick={() => onSort(column.id)}
+      >
+        <span>{column.label}</span>
+        <span className="inv-th-sort__icon" aria-hidden="true">
+          {active ? (sortDirection === "desc" ? "▼" : "▲") : "↕"}
+        </span>
+      </button>
+    </th>
+  );
 }
 
 export default function InventarioVentas() {
@@ -55,6 +137,7 @@ export default function InventarioVentas() {
   const [toast, setToast] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSale, setEditingSale] = useState(null);
+  const [completingReservationId, setCompletingReservationId] = useState(null);
   const [paymentModal, setPaymentModal] = useState(null);
   const [mixedPayments, setMixedPayments] = useState([
     { ...EMPTY_MIXED_PAYMENT },
@@ -73,6 +156,9 @@ export default function InventarioVentas() {
     notes: "",
   });
   const [paymentForm, setPaymentForm] = useState({ method: "efectivo", amount: "", notes: "" });
+  const [downloadingRemissionId, setDownloadingRemissionId] = useState(null);
+  const [sortColumn, setSortColumn] = useState("fecha");
+  const [sortDirection, setSortDirection] = useState("desc");
   const [barcodeScan, setBarcodeScan] = useState("");
   const [scanningBarcode, setScanningBarcode] = useState(false);
   const [scannedItem, setScannedItem] = useState(null);
@@ -82,9 +168,41 @@ export default function InventarioVentas() {
   const isMixto = form.payment_method === "mixto";
 
   const mixedTotal = useMemo(
-    () => mixedPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0),
+    () => mixedPayments.reduce((sum, p) => sum + parseCop(p.amount), 0),
     [mixedPayments],
   );
+
+  const applyItemToSaleForm = useCallback((item) => {
+    if (!item) return;
+    const reservation = item.active_reservation;
+    if (reservation) {
+      setCompletingReservationId(reservation.sale_id);
+      setEditingSale(null);
+      setForm({
+        inventory_item_id: item.id,
+        sale_price: reservation.sale_price || item.sale_price || "",
+        payment_method: "efectivo",
+        customer_name: reservation.customer_name || "",
+        customer_phone: reservation.customer_phone || "",
+        service_customer_id: reservation.service_customer_id || "",
+        credit_payment_method_id: "",
+        credit_term_type: "",
+        credit_due_at: "",
+        notes: reservation.notes || "",
+      });
+      setMixedPayments([
+        { ...EMPTY_MIXED_PAYMENT },
+        { method: "transferencia", amount: "" },
+      ]);
+      return;
+    }
+    setCompletingReservationId(null);
+    setForm((s) => ({
+      ...s,
+      inventory_item_id: item.id,
+      sale_price: item.sale_price || s.sale_price,
+    }));
+  }, []);
 
   const customerOptions = useMemo(
     () => customers
@@ -129,6 +247,12 @@ export default function InventarioVentas() {
   );
 
   const sales = salesBootstrap?.sales || [];
+  const sortedSales = useMemo(() => {
+    const column = SALES_SORT_COLUMNS.find((c) => c.id === sortColumn) || SALES_SORT_COLUMNS[1];
+    const rows = [...sales];
+    rows.sort((a, b) => compareSaleValues(column.getValue(a), column.getValue(b), sortDirection));
+    return rows;
+  }, [sales, sortColumn, sortDirection]);
   const availableItems = salesBootstrap?.available_items || [];
   const creditMethods = salesBootstrap?.credit_config?.methods || [];
   const creditSettings = salesBootstrap?.credit_config?.settings || { billing_day: 15 };
@@ -164,14 +288,10 @@ export default function InventarioVentas() {
     preselectHandled.current = true;
     addAvailableItem(item);
     setScannedItem(item);
-    setForm((s) => ({
-      ...s,
-      inventory_item_id: item.id,
-      sale_price: item.sale_price || s.sale_price,
-    }));
+    applyItemToSaleForm(item);
     setModalOpen(true);
     setSearchParams({}, { replace: true });
-  }, [addAvailableItem, setSearchParams]);
+  }, [addAvailableItem, applyItemToSaleForm, setSearchParams]);
 
   useEffect(() => {
     if (!preselectItemId || preselectHandled.current) return;
@@ -211,11 +331,7 @@ export default function InventarioVentas() {
     if (item && !availableItems.some((i) => i.id === item.id)) {
       addAvailableItem(item);
     }
-    setForm((s) => ({
-      ...s,
-      inventory_item_id: id,
-      sale_price: item?.sale_price || s.sale_price,
-    }));
+    applyItemToSaleForm(item);
     setScannedItem(item || null);
   };
 
@@ -239,11 +355,7 @@ export default function InventarioVentas() {
       }
       addAvailableItem(item);
       setScannedItem(item);
-      setForm((s) => ({
-        ...s,
-        inventory_item_id: item.id,
-        sale_price: item.sale_price || s.sale_price,
-      }));
+      applyItemToSaleForm(item);
       setBarcodeScan("");
       setEditingSale(null);
       setModalOpen(true);
@@ -253,7 +365,7 @@ export default function InventarioVentas() {
     } finally {
       setScanningBarcode(false);
     }
-  }, [addAvailableItem, showToast]);
+  }, [addAvailableItem, applyItemToSaleForm, showToast]);
 
   const handleBarcodeKeyDown = (e) => {
     if (e.key === "Enter") {
@@ -284,9 +396,11 @@ export default function InventarioVentas() {
     setBarcodeScan("");
     setScannedItem(null);
     setEditingSale(null);
+    setCompletingReservationId(null);
   };
 
   const openEditSale = (sale) => {
+    setCompletingReservationId(null);
     setEditingSale(sale);
     setScannedItem(sale.inventory_item || null);
     setForm({
@@ -304,18 +418,22 @@ export default function InventarioVentas() {
     setModalOpen(true);
   };
 
-  const needsCreditMeta = useMemo(() => {
-    const salePriceNum = parseSalePrice(form.sale_price);
-    if (form.payment_method === "credito") return true;
-    if (form.payment_method === "mixto" && mixedTotal < salePriceNum) return true;
-    return false;
-  }, [form.payment_method, form.sale_price, mixedTotal]);
-
   const selectedSaleItem = useMemo(() => {
     if (!form.inventory_item_id) return scannedItem;
     if (scannedItem?.id === form.inventory_item_id) return scannedItem;
     return availableItems.find((i) => i.id === form.inventory_item_id) || scannedItem;
   }, [form.inventory_item_id, scannedItem, availableItems]);
+
+  const activeReservation = selectedSaleItem?.active_reservation ?? null;
+  const reservationPending = activeReservation ? Number(activeReservation.amount_due) || 0 : 0;
+
+  const needsCreditMeta = useMemo(() => {
+    const salePriceNum = parseCop(form.sale_price);
+    const pendingTarget = completingReservationId ? reservationPending : salePriceNum;
+    if (form.payment_method === "credito") return true;
+    if (form.payment_method === "mixto" && mixedTotal < pendingTarget) return true;
+    return false;
+  }, [form.payment_method, form.sale_price, mixedTotal, completingReservationId, reservationPending]);
 
   const handleCreateSale = async (e) => {
     e.preventDefault();
@@ -330,25 +448,28 @@ export default function InventarioVentas() {
     if (!payload.credit_term_type) delete payload.credit_term_type;
     if (!payload.credit_due_at) delete payload.credit_due_at;
 
-    const salePriceNum = parseSalePrice(form.sale_price);
+    const salePriceNum = parseCop(form.sale_price);
+    const payTarget = completingReservationId ? reservationPending : salePriceNum;
     if (isMixto) {
       const validPayments = mixedPayments
-        .filter((p) => p.amount && Number(p.amount) > 0)
-        .map((p) => ({ method: p.method, amount: Number(p.amount) }));
+        .filter((p) => parseCop(p.amount) > 0)
+        .map((p) => ({ method: p.method, amount: parseCop(p.amount) }));
       if (validPayments.length < 2) {
         showToast("Agrega al menos dos pagos para venta mixta", "error");
         return;
       }
       const paidTotal = validPayments.reduce((sum, p) => sum + p.amount, 0);
-      if (paidTotal > salePriceNum) {
-        showToast("El total pagado no puede superar el precio de venta", "error");
+      if (paidTotal > payTarget) {
+        showToast(completingReservationId
+          ? "El total pagado no puede superar el saldo pendiente del apartado"
+          : "El total pagado no puede superar el precio de venta", "error");
         return;
       }
       payload.payments = validPayments;
     }
 
     const requiresCredit = form.payment_method === "credito"
-      || (isMixto && mixedTotal < salePriceNum);
+      || (isMixto && mixedTotal < payTarget);
     if (requiresCredit) {
       if (!form.credit_payment_method_id) {
         showToast("Selecciona el medio de pago de crédito (Addi, Sistecredito, etc.)", "error");
@@ -360,11 +481,11 @@ export default function InventarioVentas() {
       }
     }
 
-    if (!editingSale && selectedSaleItem?.status === "separado") {
+    if (!editingSale && !completingReservationId && selectedSaleItem?.status === "separado") {
       const apartadoNote = selectedSaleItem.notes?.trim();
       const confirmMsg = apartadoNote
-        ? `Este equipo está SEPARADO (apartado).\n\nApartado: ${apartadoNote}\n\n¿Confirmar venta?`
-        : "Este equipo está SEPARADO (apartado). ¿Confirmar que corresponde registrar la venta?";
+        ? `Este equipo está SEPARADO sin apartado formal.\n\n${apartadoNote}\n\n¿Confirmar venta?`
+        : "Este equipo está SEPARADO sin apartado formal. ¿Confirmar venta?";
       if (!window.confirm(confirmMsg)) return;
     }
 
@@ -379,6 +500,16 @@ export default function InventarioVentas() {
         patchSalesAfterMutation((prev) => ({
           ...prev,
           sales: (prev.sales || []).map((s) => (s.id === sale.id ? sale : s)),
+        }));
+      } else if (completingReservationId) {
+        const { inventory_item_id, ...completePayload } = payload;
+        const sale = await api.completeReservation(completingReservationId, completePayload);
+        showToast("Apartado completado — venta registrada");
+        setModalOpen(false);
+        resetSaleForm();
+        patchSalesAfterMutation((prev) => ({
+          sales: [sale, ...(prev.sales || []).filter((s) => s.id !== completingReservationId)],
+          available_items: (prev.available_items || []).filter((i) => i.id !== payload.inventory_item_id),
         }));
       } else {
         const sale = await api.createSale(payload);
@@ -404,7 +535,7 @@ export default function InventarioVentas() {
     try {
       const sale = await api.addSalePayment(paymentModal.id, {
         ...paymentForm,
-        amount: Number(paymentForm.amount),
+        amount: parseCop(paymentForm.amount),
       });
       showToast("Abono registrado");
       setPaymentModal(null);
@@ -417,6 +548,31 @@ export default function InventarioVentas() {
       showToast(err.message, "error");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSort = useCallback((columnId) => {
+    if (sortColumn === columnId) {
+      setSortDirection((dir) => (dir === "desc" ? "asc" : "desc"));
+      return;
+    }
+    setSortColumn(columnId);
+    setSortDirection("desc");
+  }, [sortColumn]);
+
+  const downloadRemission = async (sale) => {
+    if (!sale?.id || !sale?.remission_number) return;
+    setDownloadingRemissionId(sale.id);
+    try {
+      await api.downloadAuthenticated(
+        api.exportRemissionPdfUrl(sale.id),
+        `remision_${sale.remission_number}.pdf`,
+      );
+      showToast("Remisión descargada");
+    } catch (err) {
+      showToast(err.message, "error");
+    } finally {
+      setDownloadingRemissionId(null);
     }
   };
 
@@ -492,27 +648,42 @@ export default function InventarioVentas() {
             <table className="inv-table inv-table--sheet">
               <thead>
                 <tr>
-                  <th>Fecha</th>
-                  <th>Equipo</th>
-                  <th>Precio</th>
-                  <th>Método</th>
-                  <th>Pagado</th>
-                  <th>Pendiente</th>
-                  <th>Cliente</th>
-                  <th>Vendedor</th>
+                  {SALES_SORT_COLUMNS.map((column) => (
+                    <SortableTh
+                      key={column.id}
+                      column={column}
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                    />
+                  ))}
                   <th />
                 </tr>
               </thead>
               <tbody>
                 {loading && !salesBootstrap ? (
-                  <tr><td colSpan={9} className="inv-sheet-empty">Cargando…</td></tr>
+                  <tr><td colSpan={10} className="inv-sheet-empty">Cargando…</td></tr>
                 ) : sales.length === 0 ? (
-                  <tr><td colSpan={9} className="inv-sheet-empty">No hay ventas registradas.</td></tr>
+                  <tr><td colSpan={10} className="inv-sheet-empty">No hay ventas registradas.</td></tr>
                 ) : (
-                  sales.map((sale) => (
+                  sortedSales.map((sale) => (
                     <tr key={sale.id} className="inv-sheet-row">
-                      <td data-label="Fecha">{sale.sold_at ? new Date(sale.sold_at).toLocaleString("es-CO") : "—"}</td>
-                      <td data-label="Equipo">{sale.inventory_item?.name || "—"}</td>
+                      <td data-label="Remisión">
+                        <strong className="inv-cell-mono">{sale.remission_number || "—"}</strong>
+                      </td>
+                      <td data-label="Fecha">
+                        {sale.sold_at
+                          ? new Date(sale.sold_at).toLocaleString("es-CO")
+                          : sale.reserved_at
+                            ? `Apartado ${new Date(sale.reserved_at).toLocaleDateString("es-CO")}`
+                            : "—"}
+                      </td>
+                      <td data-label="Equipo">
+                        {sale.inventory_item?.name || "—"}
+                        {sale.reservation_status === "active" && (
+                          <span className="inv-badge inv-badge--separado" style={{ marginLeft: "0.35rem" }}>Apartado</span>
+                        )}
+                      </td>
                       <td data-label="Precio">{formatPrice(sale.sale_price)}</td>
                       <td data-label="Método">{paymentLabel(sale.payment_method)}</td>
                       <td data-label="Pagado">{formatPrice(sale.amount_paid)}</td>
@@ -521,6 +692,16 @@ export default function InventarioVentas() {
                       <td data-label="Vendedor">{sale.user?.name || "—"}</td>
                       <td data-label="Acciones">
                         <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                          {sale.remission_number && (
+                            <button
+                              type="button"
+                              className="inv-btn inv-btn--compact inv-btn--outline"
+                              onClick={() => downloadRemission(sale)}
+                              disabled={downloadingRemissionId === sale.id}
+                            >
+                              {downloadingRemissionId === sale.id ? "…" : "Remisión"}
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="inv-btn inv-btn--compact inv-btn--ghost"
@@ -528,7 +709,45 @@ export default function InventarioVentas() {
                           >
                             Editar
                           </button>
-                          {sale.credit_status === "pending" && (
+                          {sale.reservation_status === "active" && (
+                            <button
+                              type="button"
+                              className="inv-btn inv-btn--compact inv-btn--primary"
+                              onClick={() => {
+                                const item = sale.inventory_item;
+                                if (item) {
+                                  addAvailableItem({ ...item, active_reservation: {
+                                    sale_id: sale.id,
+                                    sale_price: sale.sale_price,
+                                    amount_paid: sale.amount_paid,
+                                    amount_due: sale.amount_due,
+                                    customer_name: sale.customer_name,
+                                    customer_phone: sale.customer_phone,
+                                    service_customer_id: sale.service_customer_id,
+                                    notes: sale.notes,
+                                  } });
+                                  applyItemToSaleForm({
+                                    ...item,
+                                    active_reservation: {
+                                      sale_id: sale.id,
+                                      sale_price: sale.sale_price,
+                                      amount_paid: sale.amount_paid,
+                                      amount_due: sale.amount_due,
+                                      customer_name: sale.customer_name,
+                                      customer_phone: sale.customer_phone,
+                                      service_customer_id: sale.service_customer_id,
+                                      notes: sale.notes,
+                                    },
+                                  });
+                                  setScannedItem(item);
+                                  setModalOpen(true);
+                                }
+                              }}
+                            >
+                              Completar
+                            </button>
+                          )}
+                          {(sale.credit_status === "pending" || sale.reservation_status === "active") && (
                             <button
                               type="button"
                               className="inv-btn inv-btn--compact inv-btn--outline"
@@ -551,7 +770,9 @@ export default function InventarioVentas() {
       {modalOpen && (
         <div className="inv-modal-overlay" onClick={() => !submitting && setModalOpen(false)}>
           <div className="inv-modal inv-modal--wide" onClick={(e) => e.stopPropagation()}>
-            <h3 className="inv-modal__title">{editingSale ? "Editar venta" : "Registrar venta"}</h3>
+            <h3 className="inv-modal__title">
+              {editingSale ? "Editar venta" : completingReservationId ? "Completar apartado" : "Registrar venta"}
+            </h3>
             <form onSubmit={handleCreateSale} className="inv-modal-form inv-modal-form--grid">
               {scannedItem && (
                 <p className="inv-audit-entity__summary inv-field--span-all" style={{ margin: 0 }}>
@@ -562,11 +783,22 @@ export default function InventarioVentas() {
                 </p>
               )}
 
-              {!editingSale && selectedSaleItem?.status === "separado" && (
+              {activeReservation && !editingSale && (
+                <div className="inv-separado-alert inv-field--span-all" role="status">
+                  <span className="inv-badge inv-badge--separado">APARTADO</span>
+                  <span>
+                    Abono registrado: <strong>{formatPrice(activeReservation.amount_paid)}</strong>
+                    {" · "}Saldo pendiente: <strong>{formatPrice(activeReservation.amount_due)}</strong>
+                    {activeReservation.customer_name ? ` · ${activeReservation.customer_name}` : ""}
+                  </span>
+                </div>
+              )}
+
+              {!editingSale && !activeReservation && selectedSaleItem?.status === "separado" && (
                 <div className="inv-separado-alert inv-field--span-all" role="status">
                   <span className="inv-badge inv-badge--separado">SEPARADO</span>
                   <span>
-                    Equipo apartado. Verifica que el cliente corresponde antes de registrar la venta.
+                    Equipo apartado sin abono formal. Verifica al cliente antes de vender.
                     {selectedSaleItem.notes?.trim() ? (
                       <> <strong>Notas:</strong> {selectedSaleItem.notes.trim()}</>
                     ) : null}
@@ -589,10 +821,9 @@ export default function InventarioVentas() {
               )}
 
               <Field label="Precio de venta *">
-                <input
-                  className="inv-field__input"
+                <CurrencyInput
                   value={form.sale_price}
-                  onChange={(e) => setForm((s) => ({ ...s, sale_price: e.target.value }))}
+                  onChange={(sale_price) => setForm((s) => ({ ...s, sale_price }))}
                   required
                 />
               </Field>
@@ -670,14 +901,10 @@ export default function InventarioVentas() {
                           <option key={m.value} value={m.value}>{m.label}</option>
                         ))}
                       </select>
-                      <input
-                        className="inv-field__input"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="Monto"
+                      <CurrencyInput
+                        placeholder="$ 0"
                         value={p.amount}
-                        onChange={(e) => setMixedPayments((rows) => rows.map((r, i) => (i === idx ? { ...r, amount: e.target.value } : r)))}
+                        onChange={(amount) => setMixedPayments((rows) => rows.map((r, i) => (i === idx ? { ...r, amount } : r)))}
                       />
                       {mixedPayments.length > 2 && (
                         <button
@@ -699,12 +926,19 @@ export default function InventarioVentas() {
                   </button>
                   <p className="inv-dash__muted" style={{ marginTop: "0.5rem" }}>
                     Total pagos: {formatPrice(mixedTotal)}
-                    {form.sale_price ? ` · Precio venta: ${formatPrice(form.sale_price)}` : ""}
-                    {form.sale_price && mixedTotal < parseSalePrice(form.sale_price) && mixedTotal > 0 && (
-                      <> · Pendiente: {formatPrice(parseSalePrice(form.sale_price) - mixedTotal)}</>
+                    {completingReservationId && activeReservation ? (
+                      <> · Saldo apartado: {formatPrice(reservationPending)}</>
+                    ) : form.sale_price ? (
+                      <> · Precio venta: {formatPrice(form.sale_price)}</>
+                    ) : null}
+                    {completingReservationId && reservationPending > 0 && mixedTotal < reservationPending && mixedTotal > 0 && (
+                      <> · Quedará pendiente: {formatPrice(reservationPending - mixedTotal)}</>
                     )}
-                    {form.sale_price && mixedTotal > parseSalePrice(form.sale_price) && (
-                      <span style={{ color: "var(--inv-danger, #f87171)" }}> · Supera el precio de venta</span>
+                    {!completingReservationId && form.sale_price && mixedTotal < parseCop(form.sale_price) && mixedTotal > 0 && (
+                      <> · Pendiente: {formatPrice(parseCop(form.sale_price) - mixedTotal)}</>
+                    )}
+                    {(completingReservationId ? mixedTotal > reservationPending : form.sale_price && mixedTotal > parseCop(form.sale_price)) && (
+                      <span style={{ color: "var(--inv-danger, #f87171)" }}> · Supera el monto permitido</span>
                     )}
                   </p>
                 </div>
@@ -759,7 +993,7 @@ export default function InventarioVentas() {
                   Cancelar
                 </button>
                 <button type="submit" className="inv-btn inv-btn--primary inv-btn--inline" disabled={submitting}>
-                  {submitting ? "Guardando…" : editingSale ? "Guardar cambios" : "Registrar venta"}
+                  {submitting ? "Guardando…" : editingSale ? "Guardar cambios" : completingReservationId ? "Completar apartado" : "Registrar venta"}
                 </button>
               </div>
             </form>
@@ -785,13 +1019,9 @@ export default function InventarioVentas() {
                 </select>
               </Field>
               <Field label="Monto *">
-                <input
-                  className="inv-field__input"
-                  type="number"
-                  min="0"
-                  step="0.01"
+                <CurrencyInput
                   value={paymentForm.amount}
-                  onChange={(e) => setPaymentForm((s) => ({ ...s, amount: e.target.value }))}
+                  onChange={(amount) => setPaymentForm((s) => ({ ...s, amount }))}
                   required
                 />
               </Field>

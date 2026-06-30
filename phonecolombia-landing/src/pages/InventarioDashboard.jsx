@@ -258,10 +258,10 @@ export default function InventarioDashboard() {
           <StatCard
             period="Hoy"
             label="Recaudado hoy"
-            value={formatPrice(sales.revenue_today ?? 0)}
+            value={formatPrice(sales.collected_today ?? sales.revenue_today ?? 0)}
             tone="green"
             loading={showSkeleton}
-            foot="últimos 7 días"
+            foot="cobros por fecha de pago"
             trendSeries={revenue7}
             chart={<Sparkline data={revenue7} color="green" />}
           />

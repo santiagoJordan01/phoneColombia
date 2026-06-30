@@ -8,6 +8,7 @@ import InventarioTopbar from "../components/inventario/InventarioTopbar.jsx";
 import MobileCollapsible from "../components/inventario/MobileCollapsible.jsx";
 import CustomerCatalogModal from "../components/inventario/CustomerCatalogModal.jsx";
 import ConfirmDeleteDialog from "../components/inventario/ConfirmDeleteDialog.jsx";
+import CurrencyInput from "../components/inventario/CurrencyInput.jsx";
 import InventoryHistoryModal from "../components/inventario/InventoryHistoryModal.jsx";
 import { useCachedQuery } from "../hooks/useCachedQuery.js";
 import api, { isApiConfigured } from "../lib/apiClient";
@@ -34,6 +35,7 @@ import {
   canViewSensitiveInventoryFields,
   formatPrice,
   isServiceTechnician,
+  parseCop,
   productToEquipoForm,
   supplierSubtitle,
   supplierToForm,
@@ -41,6 +43,13 @@ import {
 import "../styles.css";
 
 const SEARCH_DEBOUNCE_MS = 400;
+
+const EMPTY_RESERVE_META = {
+  customer_name: "",
+  customer_phone: "",
+  deposit_amount: "",
+  deposit_method: "efectivo",
+};
 
 function formatArchivedAt(iso) {
   if (!iso) return "—";
@@ -84,6 +93,8 @@ export default function InventarioAdmin() {
   const [suppliers, setSuppliers] = useState([]);
   const [deviceColors, setDeviceColors] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [reserveMeta, setReserveMeta] = useState(EMPTY_RESERVE_META);
+  const [editingOriginalStatus, setEditingOriginalStatus] = useState(null);
   const [equipoForm, setEquipoForm] = useState(EMPTY_EQUIPO_FORM);
   const [supplierForm, setSupplierForm] = useState(EMPTY_SUPPLIER_FORM);
   const [colorForm, setColorForm] = useState(EMPTY_COLOR_FORM);
@@ -269,7 +280,9 @@ export default function InventarioAdmin() {
 
   const openNewItemModal = () => {
     setEditingId(null);
+    setEditingOriginalStatus(null);
     setForm(EMPTY_FORM);
+    setReserveMeta(EMPTY_RESERVE_META);
     setItemModalOpen(true);
     requestAnimationFrame(() => barcodeInputRef.current?.focus());
   };
@@ -279,10 +292,13 @@ export default function InventarioAdmin() {
     setItemModalOpen(false);
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setReserveMeta(EMPTY_RESERVE_META);
+    setEditingOriginalStatus(null);
   };
 
   const startEdit = (item) => {
     setEditingId(item.id);
+    setEditingOriginalStatus(item.status || "disponible");
     setForm({
       imei: item.imei || "",
       barcode: item.barcode || "",
@@ -298,12 +314,22 @@ export default function InventarioAdmin() {
       inventory_product_id: item.inventory_product_id || "",
       acquired_at: item.acquired_at ? item.acquired_at.slice(0, 10) : "",
     });
+    setReserveMeta({
+      customer_name: item.active_reservation?.customer_name || "",
+      customer_phone: item.active_reservation?.customer_phone || "",
+      deposit_amount: item.active_reservation?.amount_paid
+        ? String(item.active_reservation.amount_paid)
+        : "",
+      deposit_method: item.active_reservation?.payments?.[0]?.method || "efectivo",
+    });
     setItemModalOpen(true);
   };
 
   const resetForm = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setReserveMeta(EMPTY_RESERVE_META);
+    setEditingOriginalStatus(null);
   };
 
   const handleSubmit = async (e) => {
@@ -316,7 +342,48 @@ export default function InventarioAdmin() {
         supplier_id: form.supplier_id || undefined,
         acquired_at: form.acquired_at || undefined,
       };
-      if (editingId) {
+
+      const becomingSeparado = form.status === "separado"
+        && (editingOriginalStatus === "disponible" || !editingId);
+
+      if (becomingSeparado) {
+        if (!form.sale_price) {
+          showToast("Indica el precio acordado del apartado", "error");
+          return;
+        }
+        const deposit = parseCop(reserveMeta.deposit_amount);
+        if (deposit > 0 && !reserveMeta.deposit_method) {
+          showToast("Indica el método de pago del abono", "error");
+          return;
+        }
+
+        let itemId = editingId;
+        if (!itemId) {
+          const created = await api.createInventoryItem({ ...payload, status: "disponible" });
+          itemId = created.id;
+        } else {
+          const { status, ...updatePayload } = payload;
+          await api.updateInventoryItem(itemId, updatePayload);
+        }
+
+        const reserveResponse = await api.reserveInventoryItem(itemId, {
+          sale_price: String(parseCop(form.sale_price) || form.sale_price),
+          deposit_amount: deposit || undefined,
+          deposit_method: deposit > 0 ? reserveMeta.deposit_method : undefined,
+          customer_name: reserveMeta.customer_name || undefined,
+          customer_phone: reserveMeta.customer_phone || undefined,
+          notes: form.notes || undefined,
+        });
+
+        showToast(deposit > 0 ? "Equipo apartado con abono registrado" : "Equipo apartado");
+        bumpInventoryCaches();
+        const updatedItem = reserveResponse.item || reserveResponse;
+        if (editingId) {
+          setCachedItems((prev) => (prev || []).map((item) => (item.id === itemId ? updatedItem : item)));
+        } else {
+          setCachedItems((prev) => [updatedItem, ...(prev || [])]);
+        }
+      } else if (editingId) {
         const updated = await api.updateInventoryItem(editingId, payload);
         showToast("Equipo actualizado");
         bumpInventoryCaches();
@@ -327,6 +394,7 @@ export default function InventarioAdmin() {
         bumpInventoryCaches();
         setCachedItems((prev) => [created, ...(prev || [])]);
       }
+
       resetForm();
       setItemModalOpen(false);
     } catch (err) {
@@ -1125,23 +1193,19 @@ export default function InventarioAdmin() {
 
               {showSensitive && (
               <Field label="Precio compra">
-                <input
-                  className="inv-field__input"
-                  inputMode="numeric"
-                  placeholder="$2,500,000"
+                <CurrencyInput
                   value={form.purchase_price}
-                  onChange={(e) => setForm((s) => ({ ...s, purchase_price: e.target.value }))}
+                  onChange={(purchase_price) => setForm((s) => ({ ...s, purchase_price }))}
+                  placeholder="$ 2.500.000"
                 />
               </Field>
               )}
 
               <Field label="Precio venta">
-                <input
-                  className="inv-field__input"
-                  inputMode="numeric"
-                  placeholder="$1,300,000"
+                <CurrencyInput
                   value={form.sale_price}
-                  onChange={(e) => setForm((s) => ({ ...s, sale_price: e.target.value }))}
+                  onChange={(sale_price) => setForm((s) => ({ ...s, sale_price }))}
+                  placeholder="$ 1.300.000"
                 />
               </Field>
 
@@ -1193,21 +1257,73 @@ export default function InventarioAdmin() {
                 )}
               </Field>
 
+              {form.status === "separado" && (
+                <div className="inv-field--span-all inv-separado-alert" role="status">
+                  <span className="inv-badge inv-badge--separado">APARTADO</span>
+                  {editingId && editingOriginalStatus === "separado" && cachedItems?.find((i) => i.id === editingId)?.active_reservation ? (
+                    <span>
+                      Apartado activo · Abonado {formatPrice(cachedItems.find((i) => i.id === editingId).active_reservation.amount_paid)}
+                      {" · "}Pendiente {formatPrice(cachedItems.find((i) => i.id === editingId).active_reservation.amount_due)}
+                    </span>
+                  ) : (
+                    <span>Registra cliente y abono inicial. El cobro del apartado quedará en caja/informes.</span>
+                  )}
+                </div>
+              )}
+
+              {form.status === "separado" && (editingOriginalStatus === "disponible" || !editingId) && (
+                <>
+                  <Field label="Cliente (apartado)">
+                    <input
+                      className="inv-field__input"
+                      value={reserveMeta.customer_name}
+                      onChange={(e) => setReserveMeta((s) => ({ ...s, customer_name: e.target.value }))}
+                      placeholder="Nombre del cliente"
+                    />
+                  </Field>
+                  <Field label="Teléfono cliente">
+                    <input
+                      className="inv-field__input"
+                      value={reserveMeta.customer_phone}
+                      onChange={(e) => setReserveMeta((s) => ({ ...s, customer_phone: e.target.value }))}
+                      placeholder="300 123 4567"
+                    />
+                  </Field>
+                  <Field label="Abono inicial (opcional)">
+                    <CurrencyInput
+                      value={reserveMeta.deposit_amount}
+                      onChange={(deposit_amount) => setReserveMeta((s) => ({ ...s, deposit_amount }))}
+                      placeholder="$ 0"
+                    />
+                  </Field>
+                  <Field label="Método abono">
+                    <select
+                      className="inv-field__input"
+                      value={reserveMeta.deposit_method}
+                      onChange={(e) => setReserveMeta((s) => ({ ...s, deposit_method: e.target.value }))}
+                    >
+                      <option value="efectivo">Efectivo</option>
+                      <option value="transferencia">Transferencia</option>
+                    </select>
+                  </Field>
+                </>
+              )}
+
               <Field label="Observaciones" className="inv-field--span-all">
                 <textarea
                   className="inv-field__input inv-field__textarea"
                   placeholder={
                     form.status === "separado"
-                      ? "Cliente, teléfono o condiciones del apartado…"
+                      ? "Condiciones del apartado, fecha límite, etc."
                       : "PANTALLA FANTASMA, BATERIA, SOLO SIM MOVISTAR…"
                   }
                   value={form.notes}
                   onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))}
                   rows={2}
                 />
-                {form.status === "separado" && (
+                {form.status === "separado" && (editingOriginalStatus === "disponible" || !editingId) && (
                   <p className="inv-dash__muted" style={{ margin: "0.35rem 0 0", fontSize: "0.85rem" }}>
-                    Al apartar, registra quién reservó el equipo. Ventas verá esta nota al cerrar la venta.
+                    El precio de venta acordado se usa como total del apartado. Ventas precargará el abono al cerrar.
                   </p>
                 )}
               </Field>
@@ -1524,12 +1640,10 @@ export default function InventarioAdmin() {
                 </select>
               </Field>
               <Field label="Precio referencia">
-                <input
-                  className="inv-field__input"
-                  inputMode="numeric"
-                  placeholder="$1,780,000"
+                <CurrencyInput
                   value={equipoForm.reference_price}
-                  onChange={(e) => setEquipoForm((s) => ({ ...s, reference_price: e.target.value }))}
+                  onChange={(reference_price) => setEquipoForm((s) => ({ ...s, reference_price }))}
+                  placeholder="$ 1.780.000"
                 />
               </Field>
               <Field label="Notas" className="inv-field--span-all">

@@ -113,19 +113,7 @@ export function supplierSubtitle(s) {
   return parts.join(" · ");
 }
 
-export function formatPrice(value) {
-  if (!value && value !== 0) return "";
-  const raw = String(value).trim();
-  if (raw.startsWith("$")) return raw;
-  const num = Number(raw.replace(/[^\d.]/g, ""));
-  if (Number.isNaN(num)) return raw;
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(num);
-}
+export { parseCop, formatCopInput, copToStorage, formatPrice } from "../../lib/currencyCop.js";
 
 export const CREDIT_TERM_OPTIONS = [
   { value: "8_days", label: "8 días" },

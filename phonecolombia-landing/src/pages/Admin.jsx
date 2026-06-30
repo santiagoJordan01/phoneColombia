@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+import CurrencyInput from "../components/inventario/CurrencyInput.jsx";
 import api, { isApiConfigured } from "../lib/apiClient";
+import { copToStorage, formatPrice } from "../lib/currencyCop.js";
 import { canAccessContent, canAccessInventory, getDefaultInventarioPath, isServiceTechnician } from "./inventario/shared.jsx";
 import "../styles.css";
 
@@ -148,7 +150,7 @@ export default function Admin() {
       if (editingProductId) {
         await api.updateProduct(editingProductId, {
           name: productForm.name,
-          price: productForm.price,
+          price: copToStorage(productForm.price),
           description: productForm.description,
           images: productFiles,
         });
@@ -161,6 +163,7 @@ export default function Admin() {
         }
         await api.createProduct({
           ...productForm,
+          price: copToStorage(productForm.price),
           images: productFiles,
         });
         setMessage("✅ Producto creado correctamente");
@@ -303,7 +306,11 @@ export default function Admin() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.createPromocion({ ...promoForm, imagen: promoFile });
+      await api.createPromocion({
+        ...promoForm,
+        precio: copToStorage(promoForm.precio),
+        imagen: promoFile,
+      });
       setMessage("Promoción creada");
       setPromoForm({ nombre: "", precio: "", bundle: "", alt: "" });
       setPromoFile(null);
@@ -452,7 +459,13 @@ export default function Admin() {
             )}
             <form onSubmit={handleProductSubmit} className="admin-form">
               <input className="admin-input" placeholder="Nombre" value={productForm.name} onChange={(e) => setProductForm((s) => ({ ...s, name: e.target.value }))} required />
-              <input className="admin-input" placeholder="Precio" value={productForm.price} onChange={(e) => setProductForm((s) => ({ ...s, price: e.target.value }))} required />
+              <CurrencyInput
+                className="admin-input admin-input--currency"
+                placeholder="$ 0"
+                value={productForm.price}
+                onChange={(price) => setProductForm((s) => ({ ...s, price }))}
+                required
+              />
               <textarea className="admin-input" placeholder="Descripción" value={productForm.description} onChange={(e) => setProductForm((s) => ({ ...s, description: e.target.value }))} rows={3} />
               <input className="admin-input" type="file" multiple accept="image/*" onChange={(e) => setProductFiles(e.target.files)} />
               {editingProductId && (
@@ -472,7 +485,13 @@ export default function Admin() {
 
                 <form onSubmit={handleProductSubmit} className="admin-form">
                   <input className="admin-input" placeholder="Nombre" value={productForm.name} onChange={(e) => setProductForm((s) => ({ ...s, name: e.target.value }))} required />
-                  <input className="admin-input" placeholder="Precio" value={productForm.price} onChange={(e) => setProductForm((s) => ({ ...s, price: e.target.value }))} required />
+                  <CurrencyInput
+                    className="admin-input admin-input--currency"
+                    placeholder="$ 0"
+                    value={productForm.price}
+                    onChange={(price) => setProductForm((s) => ({ ...s, price }))}
+                    required
+                  />
                   <textarea className="admin-input" placeholder="Descripción" value={productForm.description} onChange={(e) => setProductForm((s) => ({ ...s, description: e.target.value }))} rows={3} />
 
                   <div className="admin-image-preview-grid">
@@ -513,7 +532,7 @@ export default function Admin() {
                   <strong className="admin-card-title">{p.name}</strong>
                   <div style={{ marginTop: 8 }}>
                     <div className="admin-card-desc">{p.description}</div>
-                    <div className="admin-card-price">${p.price}</div>
+                    <div className="admin-card-price">{formatPrice(p.price)}</div>
                   </div>
                   <div className="admin-card-actions">
                     <button type="button" className="btn-secondary" onClick={() => deleteProduct(p.id)}>Eliminar</button>
@@ -532,7 +551,13 @@ export default function Admin() {
             <h3>Crear nueva promoción</h3>
             <form onSubmit={createPromocion} className="admin-form">
               <input className="admin-input" placeholder="Nombre (ej: SUPER PROMO)" value={promoForm.nombre} onChange={(e) => setPromoForm((s) => ({ ...s, nombre: e.target.value }))} required />
-              <input className="admin-input" placeholder="Precio (ej: 0.000.000)" value={promoForm.precio} onChange={(e) => setPromoForm((s) => ({ ...s, precio: e.target.value }))} required />
+              <CurrencyInput
+                className="admin-input admin-input--currency"
+                placeholder="$ 0"
+                value={promoForm.precio}
+                onChange={(precio) => setPromoForm((s) => ({ ...s, precio }))}
+                required
+              />
               <input className="admin-input" placeholder="Bundle (ej: CASE · CARGADOR · VIDRIO)" value={promoForm.bundle} onChange={(e) => setPromoForm((s) => ({ ...s, bundle: e.target.value }))} required />
               <input className="admin-input" placeholder="Texto alternativo (alt)" value={promoForm.alt} onChange={(e) => setPromoForm((s) => ({ ...s, alt: e.target.value }))} />
               <input className="admin-input" type="file" accept="image/*" onChange={(e) => setPromoFile(e.target.files[0])} required />
@@ -549,7 +574,7 @@ export default function Admin() {
                   <img src={promo.imagen_url} className="producto-imagen" alt={promo.alt || promo.nombre} />
                   <h4 className="admin-card-title" style={{ margin: "0.5rem 0" }}>{promo.nombre}</h4>
                   <p className="admin-dash__muted" style={{ fontSize: "0.9rem" }}>{promo.bundle}</p>
-                  <p className="admin-card-price">${promo.precio}</p>
+                  <p className="admin-card-price">{formatPrice(promo.precio)}</p>
                   <div className="admin-card-actions">
                     <button type="button" className="btn-secondary" onClick={() => deletePromocion(promo.id)}>Eliminar</button>
                   </div>

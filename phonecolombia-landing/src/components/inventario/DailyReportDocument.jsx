@@ -69,9 +69,15 @@ export default function DailyReportDocument({ report, date, from, to, generatedA
         {" · "}
         Margen: <strong>{formatMargin(totals.margin_percent)}</strong>
         {" · "}
-        Recaudado: <strong>{formatPrice(totals.collected ?? 0)}</strong>
+        Pagado (ventas): <strong>{formatPrice(totals.collected ?? 0)}</strong>
         {" · "}
         Pendiente: <strong>{formatPrice(totals.pending ?? 0)}</strong>
+        {(totals.collected_in_period ?? null) != null && (
+          <>
+            {" · "}
+            Cobros del período: <strong>{formatPrice(totals.collected_in_period)}</strong>
+          </>
+        )}
       </div>
 
       {report?.methodology && (
@@ -85,6 +91,7 @@ export default function DailyReportDocument({ report, date, from, to, generatedA
           <thead>
             <tr>
               <th>{isRange ? "Fecha" : "Hora"}</th>
+              <th>Remisión</th>
               <th>Equipo</th>
               <th>IMEI</th>
               <th>Venta</th>
@@ -100,6 +107,7 @@ export default function DailyReportDocument({ report, date, from, to, generatedA
             {sales.map((s) => (
               <tr key={s.id}>
                 <td>{saleWhen(s.sold_at)}</td>
+                <td className="inv-cell-mono">{s.remission_number || "—"}</td>
                 <td>{s.item || "—"}</td>
                 <td className="inv-cell-mono">{s.imei || s.barcode || "—"}</td>
                 <td>{formatPrice(s.sale_price_num ?? s.sale_price)}</td>
@@ -114,7 +122,7 @@ export default function DailyReportDocument({ report, date, from, to, generatedA
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={3}>Totales ({totals.count ?? sales.length})</td>
+              <td colSpan={4}>Totales ({totals.count ?? sales.length})</td>
               <td>{formatPrice(totals.revenue ?? 0)}</td>
               <td>{formatPrice(totals.cost ?? 0)}</td>
               <td>{formatPrice(totals.profit ?? 0)}</td>
@@ -128,7 +136,7 @@ export default function DailyReportDocument({ report, date, from, to, generatedA
 
       {methodEntries.length > 0 && (
         <section className="inv-report-doc__methods">
-          <h2>Cobros registrados por método de pago</h2>
+          <h2>Cobros del período por método (fecha de pago)</h2>
           <table className="inv-report-doc__table inv-report-doc__table--compact">
             <thead>
               <tr>
@@ -147,7 +155,7 @@ export default function DailyReportDocument({ report, date, from, to, generatedA
             <tfoot>
               <tr>
                 <td>Total cobrado</td>
-                <td>{formatPrice(totals.collected ?? methodEntries.reduce((s, [, a]) => s + Number(a), 0))}</td>
+                <td>{formatPrice(totals.collected_in_period ?? methodEntries.reduce((s, [, a]) => s + Number(a), 0))}</td>
               </tr>
             </tfoot>
           </table>

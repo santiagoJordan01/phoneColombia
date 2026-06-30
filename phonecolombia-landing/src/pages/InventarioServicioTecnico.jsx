@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import InventarioTopbar from "../components/inventario/InventarioTopbar.jsx";
+import CurrencyInput from "../components/inventario/CurrencyInput.jsx";
 import SearchSelect from "../components/SearchSelect.jsx";
 import InventoryItemSelect from "../components/InventoryItemSelect.jsx";
 import { useCachedQuery } from "../hooks/useCachedQuery.js";
@@ -21,6 +22,7 @@ import {
   canViewServiceTicket,
   formatPrice,
   isServiceTechnician,
+  parseCop,
   serviceTicketStatusLabel,
 } from "./inventario/shared.jsx";
 import { userSelectOptions } from "../lib/inventarioSelectOptions.js";
@@ -51,8 +53,8 @@ function buildPayload(form) {
     device_name: form.device_name || undefined,
     device_reference: form.device_reference || undefined,
     inventory_item_id: form.inventory_item_id || undefined,
-    repair_cost: form.repair_cost !== "" ? Number(form.repair_cost) : undefined,
-    customer_price: form.customer_price !== "" ? Number(form.customer_price) : undefined,
+    repair_cost: form.repair_cost !== "" ? parseCop(form.repair_cost) : undefined,
+    customer_price: form.customer_price !== "" ? parseCop(form.customer_price) : undefined,
   };
   if (form.ticket_type === "inventario") {
     delete payload.device_name;
@@ -331,8 +333,8 @@ export default function InventarioServicioTecnico() {
             service_technician_id: editTicket.service_technician_id || null,
             issue_description: editTicket.issue_description,
             repair_notes: editTicket.repair_notes || null,
-            repair_cost: editTicket.repair_cost !== "" && editTicket.repair_cost != null ? Number(editTicket.repair_cost) : null,
-            customer_price: editTicket.customer_price !== "" && editTicket.customer_price != null ? Number(editTicket.customer_price) : null,
+            repair_cost: editTicket.repair_cost !== "" && editTicket.repair_cost != null ? parseCop(editTicket.repair_cost) : null,
+            customer_price: editTicket.customer_price !== "" && editTicket.customer_price != null ? parseCop(editTicket.customer_price) : null,
             is_warranty: editTicket.is_warranty,
             customer_name: editTicket.customer_name || null,
             customer_phone: editTicket.customer_phone || null,
@@ -459,6 +461,7 @@ export default function InventarioServicioTecnico() {
                   <th>Servicio</th>
                   <th>Taller</th>
                   <th>Costo</th>
+                  <th>Precio cliente</th>
                   <th>Cliente</th>
                   <th>Estado</th>
                   <th>Ingreso</th>
@@ -467,9 +470,9 @@ export default function InventarioServicioTecnico() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={10} className="inv-sheet-empty">Cargando…</td></tr>
+                  <tr><td colSpan={11} className="inv-sheet-empty">Cargando…</td></tr>
                 ) : (tickets || []).length === 0 ? (
-                  <tr><td colSpan={10} className="inv-sheet-empty">No hay tickets.</td></tr>
+                  <tr><td colSpan={11} className="inv-sheet-empty">No hay tickets.</td></tr>
                 ) : (
                   (tickets || []).map((t) => (
                     <tr key={t.id} className="inv-sheet-row">
@@ -486,6 +489,7 @@ export default function InventarioServicioTecnico() {
                       </td>
                       <td data-label="Taller">{t.service_technician?.workshop || t.workshop || "—"}</td>
                       <td data-label="Costo">{t.repair_cost != null ? formatPrice(t.repair_cost) : "—"}</td>
+                      <td data-label="Precio cliente">{t.customer_price != null ? formatPrice(t.customer_price) : "—"}</td>
                       <td data-label="Cliente">{t.service_customer?.name || t.customer_name || "—"}</td>
                       <td data-label="Estado">
                         {canEditServiceTicket(user) ? (
@@ -663,24 +667,16 @@ export default function InventarioServicioTecnico() {
               </Field>
 
               <Field label="Costo reparación (taller)">
-                <input
-                  className="inv-field__input"
-                  type="number"
-                  min="0"
-                  step="1"
+                <CurrencyInput
                   value={form.repair_cost}
-                  onChange={(e) => setForm((s) => ({ ...s, repair_cost: e.target.value }))}
+                  onChange={(repair_cost) => setForm((s) => ({ ...s, repair_cost }))}
                 />
               </Field>
 
               <Field label="Precio al cliente">
-                <input
-                  className="inv-field__input"
-                  type="number"
-                  min="0"
-                  step="1"
+                <CurrencyInput
                   value={form.customer_price}
-                  onChange={(e) => setForm((s) => ({ ...s, customer_price: e.target.value }))}
+                  onChange={(customer_price) => setForm((s) => ({ ...s, customer_price }))}
                   disabled={form.is_warranty || isWarrantyType}
                 />
               </Field>
@@ -822,21 +818,15 @@ export default function InventarioServicioTecnico() {
                 />
               </Field>
               <Field label="Costo reparación">
-                <input
-                  className="inv-field__input"
-                  type="number"
-                  min="0"
+                <CurrencyInput
                   value={editTicket.repair_cost ?? ""}
-                  onChange={(e) => setEditTicket((t) => ({ ...t, repair_cost: e.target.value }))}
+                  onChange={(repair_cost) => setEditTicket((t) => ({ ...t, repair_cost }))}
                 />
               </Field>
               <Field label="Precio al cliente">
-                <input
-                  className="inv-field__input"
-                  type="number"
-                  min="0"
+                <CurrencyInput
                   value={editTicket.customer_price ?? ""}
-                  onChange={(e) => setEditTicket((t) => ({ ...t, customer_price: e.target.value }))}
+                  onChange={(customer_price) => setEditTicket((t) => ({ ...t, customer_price }))}
                   disabled={editTicket.is_warranty}
                 />
               </Field>

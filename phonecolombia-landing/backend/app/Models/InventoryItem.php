@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Support\SaleReservationStatus;
 
 class InventoryItem extends Model
 {
@@ -64,6 +66,12 @@ class InventoryItem extends Model
     public function sales(): HasMany
     {
         return $this->hasMany(Sale::class);
+    }
+
+    public function activeReservation(): HasOne
+    {
+        return $this->hasOne(Sale::class)
+            ->where('reservation_status', SaleReservationStatus::ACTIVE);
     }
 
     public function serviceTickets(): HasMany

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
 
 class Sale extends Model
 {
@@ -32,6 +33,9 @@ class Sale extends Model
         'customer_phone',
         'notes',
         'sold_at',
+        'reserved_at',
+        'reservation_status',
+        'remission_number',
     ];
 
     protected function casts(): array
@@ -40,8 +44,24 @@ class Sale extends Model
             'amount_paid' => 'decimal:2',
             'amount_due' => 'decimal:2',
             'sold_at' => 'datetime',
+            'reserved_at' => 'datetime',
             'credit_due_at' => 'datetime',
         ];
+    }
+
+    public function isActiveReservation(): bool
+    {
+        return $this->reservation_status === \App\Support\SaleReservationStatus::ACTIVE;
+    }
+
+    public function scopeRecognizedRevenue(Builder $query): Builder
+    {
+        return $query->whereNotNull('sold_at');
+    }
+
+    public function scopeActiveReservations(Builder $query): Builder
+    {
+        return $query->where('reservation_status', \App\Support\SaleReservationStatus::ACTIVE);
     }
 
     public function creditPaymentMethod(): BelongsTo

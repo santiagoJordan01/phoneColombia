@@ -7,7 +7,7 @@ use App\Http\Controllers\Concerns\ScopesInventoryForUser;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use App\Models\InventoryProduct;
-use App\Models\Sale;
+use App\Http\Controllers\Api\SaleReservationController;
 use App\Models\Supplier;
 use App\Services\AuditService;
 use App\Services\InventoryMovementService;
@@ -82,7 +82,7 @@ class InventoryItemController extends Controller
             });
         }
 
-        $items = $query->get()->map(fn (InventoryItem $item) => $this->serializeItem($item, $user));
+        $items = $query->with(['activeReservation.payments'])->get()->map(fn (InventoryItem $item) => $this->serializeItem($item, $user));
 
         return response()->json($items);
     }
@@ -216,6 +216,13 @@ class InventoryItemController extends Controller
 
         if (array_key_exists('status', $data)) {
             InventoryStatusGuard::assertManualTransition($inventoryItem, $data['status']);
+
+            if ($data['status'] === InventoryStatus::DISPONIBLE
+                && $inventoryItem->status === InventoryStatus::SEPARADO
+                && SaleReservationController::activeReservationForItem($inventoryItem->id)) {
+                app(SaleReservationController::class)->cancelByItem($request, $inventoryItem);
+                $inventoryItem->refresh();
+            }
         }
 
         $original = $inventoryItem->getOriginal();
@@ -240,6 +247,10 @@ class InventoryItemController extends Controller
 
         if (InventoryStatusGuard::hasOpenServiceTicket($inventoryItem)) {
             return response()->json(['message' => 'No se puede archivar un equipo con ticket de servicio técnico abierto.'], 422);
+        }
+
+        if (SaleReservationController::activeReservationForItem($inventoryItem->id)) {
+            return response()->json(['message' => 'Cancela el apartado activo antes de archivar el equipo.'], 422);
         }
 
         $this->movements->record($inventoryItem, 'archived', 'status', $inventoryItem->status, 'archived');
@@ -348,6 +359,11 @@ class InventoryItemController extends Controller
         return $request->validate($rules);
     }
 
+    public function serializeItemPublic(InventoryItem $item, $user, bool $includeMovements = false): array
+    {
+        return $this->serializeItem($item, $user, $includeMovements);
+    }
+
     private function serializeItem(InventoryItem $item, $user, bool $includeMovements = false): array
     {
         $data = [
@@ -374,6 +390,28 @@ class InventoryItemController extends Controller
         if ($item->trashed()) {
             $data['is_archived'] = true;
             $data['deleted_at'] = $item->deleted_at;
+        }
+
+        $reservation = $item->relationLoaded('activeReservation')
+            ? $item->activeReservation
+            : SaleReservationController::activeReservationForItem($item->id);
+
+        if ($reservation) {
+            $reservation->loadMissing('payments');
+            $data['active_reservation'] = [
+                'sale_id' => $reservation->id,
+                'sale_price' => $reservation->sale_price,
+                'amount_paid' => (float) $reservation->amount_paid,
+                'amount_due' => (float) $reservation->amount_due,
+                'customer_name' => $reservation->customer_name,
+                'customer_phone' => $reservation->customer_phone,
+                'service_customer_id' => $reservation->service_customer_id,
+                'reserved_at' => $reservation->reserved_at,
+                'notes' => $reservation->notes,
+                'payments' => $reservation->payments,
+            ];
+        } else {
+            $data['active_reservation'] = null;
         }
 
         if ($includeMovements) {

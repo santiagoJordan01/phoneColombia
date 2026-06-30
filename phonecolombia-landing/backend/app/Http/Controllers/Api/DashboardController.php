@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\ScopesInventoryForUser;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use App\Models\Sale;
+use App\Models\SalePayment;
 use App\Support\InventoryStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,20 +39,22 @@ class DashboardController extends Controller
             $salesQuery->whereHas('inventoryItem', fn ($q) => $q->where('supplier_id', $user->supplier_id));
         }
 
+        $scopedSaleIds = (clone $salesQuery)->pluck('id');
+        $paymentsQuery = SalePayment::query()->whereIn('sale_id', $scopedSaleIds);
+
         $salesToday = (clone $salesQuery)->whereDate('sold_at', $today)->count();
         $salesMonth = (clone $salesQuery)->whereDate('sold_at', '>=', $monthStart)->count();
-        $revenueToday = (clone $salesQuery)->whereDate('sold_at', $today)->sum('amount_paid');
-        $revenueMonth = (clone $salesQuery)->whereDate('sold_at', '>=', $monthStart)->sum('amount_paid');
+        $collectedToday = (clone $paymentsQuery)->whereDate('paid_at', $today)->sum('amount');
+        $collectedMonth = (clone $paymentsQuery)->whereDate('paid_at', '>=', $monthStart)->sum('amount');
         $pendingCredits = (clone $salesQuery)->where('credit_status', 'pending')->count();
         $pendingCreditAmount = (clone $salesQuery)->where('credit_status', 'pending')->sum('amount_due');
 
         $salesLast7 = [];
-        $revenueLast7 = [];
+        $collectedLast7 = [];
         for ($i = 6; $i >= 0; $i--) {
             $date = now()->subDays($i)->toDateString();
-            $dayQuery = (clone $salesQuery)->whereDate('sold_at', $date);
-            $salesLast7[] = (int) $dayQuery->count();
-            $revenueLast7[] = (float) $dayQuery->sum('amount_paid');
+            $salesLast7[] = (int) (clone $salesQuery)->whereDate('sold_at', $date)->count();
+            $collectedLast7[] = (float) (clone $paymentsQuery)->whereDate('paid_at', $date)->sum('amount');
         }
 
         $inventoryAddedLast7 = [];
@@ -72,14 +75,17 @@ class DashboardController extends Controller
             'sales' => [
                 'today_count' => $salesToday,
                 'month_count' => $salesMonth,
-                'revenue_today' => $revenueToday,
-                'revenue_month' => $revenueMonth,
+                'collected_today' => (float) $collectedToday,
+                'collected_month' => (float) $collectedMonth,
+                'revenue_today' => (float) $collectedToday,
+                'revenue_month' => (float) $collectedMonth,
                 'pending_credits' => $pendingCredits,
                 'pending_credit_amount' => $pendingCreditAmount,
             ],
             'trends' => [
                 'sales_count_7d' => $salesLast7,
-                'sales_revenue_7d' => $revenueLast7,
+                'collected_7d' => $collectedLast7,
+                'sales_revenue_7d' => $collectedLast7,
                 'inventory_added_7d' => $inventoryAddedLast7,
             ],
         ]);

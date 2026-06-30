@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Sale;
+use Carbon\CarbonInterface;
 
 final class SaleCostResolver
 {
@@ -38,6 +39,37 @@ final class SaleCostResolver
 
         if ((float) $sale->amount_paid > 0 && $sale->payment_method) {
             return [(string) $sale->payment_method => round((float) $sale->amount_paid, 2)];
+        }
+
+        return [];
+    }
+
+    /** @return array<string, float> */
+    public static function collectedByPaymentMethodInPeriod(
+        Sale $sale,
+        CarbonInterface $from,
+        CarbonInterface $to,
+    ): array {
+        $payments = $sale->relationLoaded('payments')
+            ? $sale->payments
+            : $sale->payments()->get();
+
+        $periodStart = $from->copy()->startOfDay();
+        $periodEnd = $to->copy()->endOfDay();
+
+        $inPeriod = $payments->filter(function ($payment) use ($periodStart, $periodEnd) {
+            if (! $payment->paid_at) {
+                return false;
+            }
+
+            return $payment->paid_at->betweenIncluded($periodStart, $periodEnd);
+        });
+
+        if ($inPeriod->isNotEmpty()) {
+            return $inPeriod
+                ->groupBy('method')
+                ->map(fn ($group) => round((float) $group->sum('amount'), 2))
+                ->all();
         }
 
         return [];

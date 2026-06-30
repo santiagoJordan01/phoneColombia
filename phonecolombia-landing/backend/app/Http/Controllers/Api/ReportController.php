@@ -12,6 +12,7 @@ use App\Services\DailySalesReportExporter;
 use App\Support\InventoryStatus;
 use App\Support\MoneyFormatter;
 use App\Support\SaleCostResolver;
+use App\Support\SaleReservationStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -79,7 +80,7 @@ class ReportController extends Controller
         $available = (clone $inventoryQuery)->where('status', InventoryStatus::DISPONIBLE)->count();
         $soldInMonth = $sales->count();
 
-        $report = $this->buildSalesReport($sales, $start->format('Y-m'), 'monthly');
+        $report = $this->buildSalesReport($sales, $start->format('Y-m'), 'monthly', $start, $end);
         $report['inventory_available'] = $available;
         $report['units_sold'] = $soldInMonth;
 
@@ -89,7 +90,7 @@ class ReportController extends Controller
             ->whereBetween('sold_at', [$prevStart, $prevEnd])
             ->with(['inventoryItem', 'user', 'payments', 'serviceCustomer', 'creditPaymentMethod'])
             ->get();
-        $prevTotals = $this->buildSalesReport($prevMonthSales, $prevStart->format('Y-m'), 'monthly')['totals'];
+        $prevTotals = $this->buildSalesReport($prevMonthSales, $prevStart->format('Y-m'), 'monthly', $prevStart, $prevEnd)['totals'];
         $currentRevenue = (float) ($report['totals']['revenue'] ?? 0);
         $previousRevenue = (float) ($prevTotals['revenue'] ?? 0);
         $report['comparison'] = [
@@ -123,17 +124,38 @@ class ReportController extends Controller
             ->whereBetween('sold_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
             ->get();
 
+        $periodSaleIds = $sales->pluck('id')->all();
         $scopedSaleIds = (clone $salesQuery)->pluck('id');
+        $periodStart = $from->copy()->startOfDay();
+        $periodEnd = $to->copy()->endOfDay();
+
         $paymentsInPeriod = SalePayment::query()
             ->whereIn('sale_id', $scopedSaleIds)
-            ->whereBetween('paid_at', [$from, $to])
+            ->whereBetween('paid_at', [$periodStart, $periodEnd])
+            ->with(['sale.inventoryItem', 'sale.user', 'sale.serviceCustomer', 'sale.creditPaymentMethod'])
+            ->orderBy('paid_at')
             ->get();
+
+        $paymentsOnPeriodSales = $paymentsInPeriod->whereIn('sale_id', $periodSaleIds);
+        $paymentsOnOtherSales = $paymentsInPeriod->whereNotIn('sale_id', $periodSaleIds);
+
+        $ledger = $paymentsInPeriod
+            ->map(fn (SalePayment $payment) => $this->mapLedgerPayment($payment, $periodSaleIds))
+            ->values();
+
+        $byType = [];
+        foreach ($ledger as $line) {
+            $type = $line['type'];
+            $byType[$type] = round(($byType[$type] ?? 0) + (float) $line['amount'], 2);
+        }
 
         $byMethod = $paymentsInPeriod
             ->groupBy('method')
             ->map(fn ($group) => round((float) $group->sum('amount'), 2))
             ->all();
         $cashCollected = round((float) $paymentsInPeriod->sum('amount'), 2);
+        $collectionsOnPeriodSales = round((float) $paymentsOnPeriodSales->sum('amount'), 2);
+        $collectionsOnOtherSales = round((float) $paymentsOnOtherSales->sum('amount'), 2);
 
         $expected = round($sales->sum(fn ($s) => MoneyFormatter::parse($s->sale_price)), 2);
         $salesCollected = round((float) $sales->sum('amount_paid'), 2);
@@ -143,12 +165,52 @@ class ReportController extends Controller
             'period' => ['from' => $from, 'to' => $to],
             'sales_count' => $sales->count(),
             'by_payment_method' => $byMethod,
+            'by_collection_type' => $byType,
+            'ledger' => $ledger,
             'total_collected' => $cashCollected,
             'cash_collected_in_period' => $cashCollected,
+            'collections_on_period_sales' => $collectionsOnPeriodSales,
+            'collections_on_other_sales' => $collectionsOnOtherSales,
             'total_expected' => $expected,
             'sales_collected_status' => $salesCollected,
             'pending_credits' => $pending,
             'difference' => round($expected - $salesCollected - $pending, 2),
+        ]);
+    }
+
+    public function receivables(Request $request): JsonResponse
+    {
+        $user = $this->authorizeReports($request);
+
+        $sales = $this->applySalesFilters($this->scopedSales($user), $request)
+            ->where('amount_due', '>', 0)
+            ->where(function ($query) {
+                $query->where('credit_status', 'pending')
+                    ->orWhere('reservation_status', SaleReservationStatus::ACTIVE);
+            })
+            ->with(['inventoryItem', 'user', 'serviceCustomer', 'creditPaymentMethod'])
+            ->orderByRaw('COALESCE(credit_due_at, reserved_at, created_at) ASC')
+            ->get();
+
+        $rows = $sales->map(fn (Sale $sale) => $this->mapReceivableRow($sale))->values();
+
+        $apartados = $rows->where('type', 'apartado');
+        $creditos = $rows->where('type', 'credito');
+
+        return response()->json([
+            'items' => $rows,
+            'totals' => [
+                'count' => $rows->count(),
+                'apartados_count' => $apartados->count(),
+                'creditos_count' => $creditos->count(),
+                'total_due' => round((float) $rows->sum('amount_due'), 2),
+                'total_paid' => round((float) $rows->sum('amount_paid'), 2),
+                'apartados_due' => round((float) $apartados->sum('amount_due'), 2),
+                'creditos_due' => round((float) $creditos->sum('amount_due'), 2),
+                'overdue_count' => $rows->where('is_overdue', true)->count(),
+                'overdue_amount' => round((float) $rows->where('is_overdue', true)->sum('amount_due'), 2),
+            ],
+            'methodology' => 'Saldo pendiente por cobrar en apartados activos y ventas a crédito. Vencido = fecha límite de crédito ya pasada.',
         ]);
     }
 
@@ -204,11 +266,12 @@ class ReportController extends Controller
 
         return response()->streamDownload(function () use ($sales) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Fecha', 'Equipo', 'IMEI', 'Precio venta', 'Costo', 'Utilidad', 'Método', 'Pagado', 'Pendiente', 'Cliente', 'Vendedor']);
+            fputcsv($out, ['Fecha', 'Remisión', 'Equipo', 'IMEI', 'Precio venta', 'Costo', 'Utilidad', 'Método', 'Pagado', 'Pendiente', 'Cliente', 'Vendedor']);
             foreach ($sales as $sale) {
                 $row = $this->mapSaleRow($sale);
                 fputcsv($out, [
                     $sale->sold_at?->toDateTimeString(),
+                    $sale->remission_number,
                     $sale->inventoryItem?->name,
                     $sale->inventoryItem?->imei,
                     MoneyFormatter::format($row['sale_price_num']),
@@ -264,10 +327,62 @@ class ReportController extends Controller
         }
         if ($request->filled('q')) {
             $term = '%'.$request->string('q').'%';
-            $query->whereHas('inventoryItem', fn ($q) => $q->where('name', 'like', $term)->orWhere('imei', 'like', $term));
+            $query->where(function ($q) use ($term) {
+                $q->where('remission_number', 'like', $term)
+                    ->orWhere('customer_name', 'like', $term)
+                    ->orWhereHas('inventoryItem', fn ($itemQuery) => $itemQuery
+                        ->where('name', 'like', $term)
+                        ->orWhere('imei', 'like', $term)
+                        ->orWhere('barcode', 'like', $term));
+            });
         }
 
         return $query;
+    }
+
+    public function byRemission(Request $request): JsonResponse
+    {
+        $user = $this->authorizeReports($request);
+        $to = $request->date('to') ?? $request->date('date') ?? now();
+        $from = $request->date('from') ?? $to->copy();
+
+        if ($from->gt($to)) {
+            [$from, $to] = [$to->copy(), $from->copy()];
+        }
+
+        $periodStart = $from->copy()->startOfDay();
+        $periodEnd = $to->copy()->endOfDay();
+
+        $sales = $this->applySalesFilters($this->scopedSales($user), $request)
+            ->whereNotNull('remission_number')
+            ->whereRaw('COALESCE(sold_at, reserved_at) BETWEEN ? AND ?', [$periodStart, $periodEnd])
+            ->with(['inventoryItem', 'user', 'payments', 'serviceCustomer', 'creditPaymentMethod'])
+            ->orderBy('remission_number')
+            ->get();
+
+        $remissions = $sales->map(fn (Sale $sale) => $this->mapRemissionDetail($sale))->values();
+
+        $revenue = round($remissions->sum('sale_price_num'), 2);
+        $collected = round($remissions->sum('amount_paid'), 2);
+        $pending = round($remissions->sum('amount_due'), 2);
+
+        return response()->json([
+            'type' => 'by_remission',
+            'period_from' => $from->toDateString(),
+            'period_to' => $to->toDateString(),
+            'is_range' => ! $from->isSameDay($to),
+            'remissions' => $remissions,
+            'totals' => [
+                'count' => $remissions->count(),
+                'revenue' => $revenue,
+                'collected' => $collected,
+                'pending' => $pending,
+                'apartados' => $remissions->where('status', 'apartado')->count(),
+                'entregados' => $remissions->where('status', 'entregado')->count(),
+                'payment_lines' => $remissions->sum('payment_count'),
+            ],
+            'methodology' => 'Detalle de ventas agrupado por número de remisión. Fecha del documento = venta cerrada (sold_at) o apartado (reserved_at). Cada remisión incluye el equipo y todos sus pagos.',
+        ]);
     }
 
     /** @return array{0: \App\Models\User, 1: \Illuminate\Support\Carbon, 2: \Illuminate\Support\Carbon, 3: \Illuminate\Support\Collection, 4: array<string, mixed>} */
@@ -291,7 +406,7 @@ class ReportController extends Controller
             ? $to->toDateString()
             : $from->toDateString().'/'.$to->toDateString();
 
-        $report = $this->buildSalesReport($sales, $period, 'daily');
+        $report = $this->buildSalesReport($sales, $period, 'daily', $from, $to);
         $report['period_from'] = $from->toDateString();
         $report['period_to'] = $to->toDateString();
         $report['is_range'] = ! $from->isSameDay($to);
@@ -383,13 +498,19 @@ class ReportController extends Controller
         return [$label, $report];
     }
 
-    private function buildSalesReport($sales, string $period, string $type): array
+    private function buildSalesReport($sales, string $period, string $type, $from = null, $to = null): array
     {
         $byMethod = [];
-        $rows = $sales->map(function ($s) use (&$byMethod) {
+        $collectedInPeriod = 0.0;
+        $rows = $sales->map(function ($s) use (&$byMethod, $from, $to, &$collectedInPeriod) {
             $row = $this->mapSaleRow($s);
-            foreach (SaleCostResolver::collectedByPaymentMethod($s) as $method => $amount) {
+            $methodAmounts = ($from && $to)
+                ? SaleCostResolver::collectedByPaymentMethodInPeriod($s, $from, $to)
+                : SaleCostResolver::collectedByPaymentMethod($s);
+
+            foreach ($methodAmounts as $method => $amount) {
                 $byMethod[$method] = round(($byMethod[$method] ?? 0) + $amount, 2);
+                $collectedInPeriod += $amount;
             }
 
             return $row;
@@ -406,6 +527,7 @@ class ReportController extends Controller
             'totals' => [
                 'count' => $sales->count(),
                 'collected' => round($rows->sum('amount_paid'), 2),
+                'collected_in_period' => round($collectedInPeriod, 2),
                 'pending' => round($rows->sum('amount_due'), 2),
                 'revenue' => $revenue,
                 'cost' => $cost,
@@ -413,8 +535,124 @@ class ReportController extends Controller
                 'margin_percent' => $revenue > 0 ? round(($profit / $revenue) * 100, 1) : null,
                 'by_method' => $byMethod,
             ],
-            'methodology' => 'Ingresos y utilidad por fecha de venta (devengo). Utilidad bruta = precio venta − costo al momento de la venta. Recaudado/Pendiente = estado de cobro de esas ventas.',
+            'methodology' => 'Ingresos y utilidad por fecha de venta (devengo). Recaudado/Pendiente = estado de cobro de esas ventas. Desglose por método = cobros con fecha de pago en el período.',
         ];
+    }
+
+    /** @param  array<int, string>  $periodSaleIds */
+    private function mapLedgerPayment(SalePayment $payment, array $periodSaleIds): array
+    {
+        $sale = $payment->sale;
+        $classification = $this->classifyCollectionType($sale, $payment);
+
+        return [
+            'id' => $payment->id,
+            'paid_at' => $payment->paid_at,
+            'amount' => (float) $payment->amount,
+            'method' => $payment->method,
+            'type' => $classification['type'],
+            'type_label' => $classification['label'],
+            'sale_id' => $payment->sale_id,
+            'remission_number' => $sale?->remission_number,
+            'item' => $sale?->inventoryItem?->name,
+            'customer' => $sale?->serviceCustomer?->name ?? $sale?->customer_name,
+            'seller' => $sale?->user?->name,
+            'notes' => $payment->notes,
+            'sale_sold_at' => $sale?->sold_at,
+            'on_period_sale' => in_array($payment->sale_id, $periodSaleIds, true),
+        ];
+    }
+
+    /** @return array{type: string, label: string} */
+    private function classifyCollectionType(?Sale $sale, SalePayment $payment): array
+    {
+        if (! $sale) {
+            return ['type' => 'otro', 'label' => 'Cobro'];
+        }
+
+        if ($sale->reservation_status === SaleReservationStatus::ACTIVE) {
+            return ['type' => 'apartado', 'label' => 'Abono apartado'];
+        }
+
+        if ($sale->sold_at && $payment->paid_at) {
+            $soldDay = $sale->sold_at->toDateString();
+            $paidDay = $payment->paid_at->toDateString();
+            if ($paidDay > $soldDay) {
+                return ['type' => 'abono', 'label' => 'Abono crédito'];
+            }
+        }
+
+        if ((float) $sale->amount_due > 0 && $payment->notes && str_contains(strtolower($payment->notes), 'abono')) {
+            return ['type' => 'abono', 'label' => 'Abono'];
+        }
+
+        return ['type' => 'venta', 'label' => 'Cobro venta'];
+    }
+
+    private function mapReceivableRow(Sale $sale): array
+    {
+        $isApartado = $sale->reservation_status === SaleReservationStatus::ACTIVE;
+        $dueAt = $sale->credit_due_at;
+        $isOverdue = ! $isApartado && $dueAt && $dueAt->isPast();
+
+        return [
+            'id' => $sale->id,
+            'remission_number' => $sale->remission_number,
+            'type' => $isApartado ? 'apartado' : 'credito',
+            'type_label' => $isApartado ? 'Apartado' : 'Crédito',
+            'item' => $sale->inventoryItem?->name,
+            'imei' => $sale->inventoryItem?->imei,
+            'customer' => $sale->serviceCustomer?->name ?? $sale->customer_name,
+            'customer_phone' => $sale->customer_phone,
+            'seller' => $sale->user?->name,
+            'sale_price' => MoneyFormatter::parse($sale->sale_price),
+            'amount_paid' => (float) $sale->amount_paid,
+            'amount_due' => (float) $sale->amount_due,
+            'payment_method' => $sale->payment_method,
+            'credit_payment_method' => $sale->creditPaymentMethod?->name,
+            'credit_term_type' => $sale->credit_term_type,
+            'due_at' => $isApartado ? $sale->reserved_at : $dueAt,
+            'sold_at' => $sale->sold_at,
+            'reserved_at' => $sale->reserved_at,
+            'is_overdue' => $isOverdue,
+            'days_overdue' => $isOverdue ? (int) $dueAt->diffInDays(now()) : 0,
+            'notes' => $sale->notes,
+        ];
+    }
+
+    private function mapRemissionDetail(Sale $sale): array
+    {
+        $row = $this->mapSaleRow($sale);
+        $isApartado = $sale->reservation_status === SaleReservationStatus::ACTIVE;
+        $paymentLabels = [
+            'efectivo' => 'Efectivo',
+            'transferencia' => 'Transferencia',
+            'credito' => 'Crédito',
+            'mixto' => 'Mixto',
+        ];
+
+        $payments = $sale->relationLoaded('payments')
+            ? $sale->payments->sortBy('paid_at')->values()
+            : $sale->payments()->orderBy('paid_at')->get();
+
+        return array_merge($row, [
+            'remission_number' => $sale->remission_number,
+            'sale_id' => $sale->id,
+            'status' => $isApartado ? 'apartado' : ($sale->sold_at ? 'entregado' : 'registrado'),
+            'status_label' => $isApartado ? 'Apartado' : ($sale->sold_at ? 'Entregado' : 'Registrado'),
+            'document_date' => $sale->sold_at ?? $sale->reserved_at,
+            'customer_phone' => $sale->customer_phone ?? $sale->serviceCustomer?->phone,
+            'credit_payment_method' => $sale->creditPaymentMethod?->name,
+            'payment_count' => $payments->count(),
+            'payments' => $payments->map(fn (SalePayment $payment) => [
+                'id' => $payment->id,
+                'paid_at' => $payment->paid_at,
+                'method' => $payment->method,
+                'method_label' => $paymentLabels[$payment->method] ?? $payment->method,
+                'amount' => (float) $payment->amount,
+                'notes' => $payment->notes,
+            ])->values()->all(),
+        ]);
     }
 
     private function mapSaleRow(Sale $s): array
@@ -425,6 +663,7 @@ class ReportController extends Controller
 
         return [
             'id' => $s->id,
+            'remission_number' => $s->remission_number,
             'sold_at' => $s->sold_at,
             'item' => $s->inventoryItem?->name,
             'imei' => $s->inventoryItem?->imei,

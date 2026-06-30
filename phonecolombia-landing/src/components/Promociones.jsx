@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import api from "../lib/apiClient";
+import { formatPrice } from "../lib/currencyCop.js";
 import "../styles.css";
 
 export default function Promociones() {
@@ -52,7 +53,8 @@ export default function Promociones() {
   const promocionActual = promociones[indice];
 
   const handleComprar = () => {
-    const mensaje = `Hola Phone Colombia, vengo de la página web y me interesa la promoción ${promocionActual.nombre} (precio publicado: $${promocionActual.precio}).`;
+    const precioLabel = formatPrice(promocionActual.precio);
+    const mensaje = `Hola Phone Colombia, vengo de la página web y me interesa la promoción ${promocionActual.nombre} (precio publicado: ${precioLabel}).`;
     const whatsappUrl = `https://wa.me/573007190977?text=${encodeURIComponent(mensaje)}`;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   };
@@ -166,7 +168,7 @@ export default function Promociones() {
           <div className="promocion-content" aria-live="polite">
             <p className="promocion-title">{promocionActual.nombre}</p>
             <p className="promocion-label">Llévalo por:</p>
-            <p className="promocion-price">${promocionActual.precio}</p>
+            <p className="promocion-price">{formatPrice(promocionActual.precio)}</p>
             <p className="promocion-bundle">{promocionActual.bundle}</p>
             <button type="button" className="promocion-cta" onClick={handleComprar}>
               Comprar

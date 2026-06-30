@@ -1,10 +1,12 @@
 import React from "react";
+import { formatPrice } from "../lib/currencyCop.js";
 
 export default function Producto({ imagen, nombre, descripcion, precio }) {
   const imagenUrl = Array.isArray(imagen) ? (imagen.length > 0 ? imagen[0] : "") : imagen || "";
+  const precioLabel = formatPrice(precio);
 
   const handleCotizar = () => {
-    const mensaje = `Hola Phone Colombia, vengo de la página web y me interesa cotizar el producto ${nombre} (precio publicado: $${precio}).`;
+    const mensaje = `Hola Phone Colombia, vengo de la página web y me interesa cotizar el producto ${nombre} (precio publicado: ${precioLabel}).`;
     const whatsappUrl = `https://wa.me/573007190977?text=${encodeURIComponent(mensaje)}`;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   };
@@ -26,7 +28,7 @@ export default function Producto({ imagen, nombre, descripcion, precio }) {
         <p className="producto-descripcion">{descripcion}</p>
       </div>
       <div className="producto-footer">
-        <span className="producto-precio">${precio}</span>
+        <span className="producto-precio">{precioLabel}</span>
         <button type="button" className="btn-primary" onClick={handleCotizar}>
           Cotizar
         </button>

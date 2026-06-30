@@ -25,6 +25,17 @@ const PAYMENT_LABELS = {
   mixto: "Mixto",
 };
 
+const COLLECTION_TYPE_LABELS = {
+  venta: "Cobro venta",
+  apartado: "Abono apartado",
+  abono: "Abono crédito",
+  otro: "Cobro",
+};
+
+function collectionTypeLabel(type) {
+  return COLLECTION_TYPE_LABELS[type] ?? type ?? "—";
+}
+
 function paymentLabel(method) {
   return PAYMENT_LABELS[method] ?? method ?? "—";
 }
@@ -97,8 +108,14 @@ function ReportTotalsSummary({ totals, methodology }) {
           <span className="inv-stat__label">Margen</span>
           <strong className="inv-stat__value">{formatMargin(totals.margin_percent)}</strong>
         </article>
+        {(totals.collected_in_period ?? null) != null && (
+          <article className="inv-stat inv-stat--green">
+            <span className="inv-stat__label">Cobros del período</span>
+            <strong className="inv-stat__value">{formatPrice(totals.collected_in_period)}</strong>
+          </article>
+        )}
         <article className="inv-stat inv-stat--green">
-          <span className="inv-stat__label">Recaudado</span>
+          <span className="inv-stat__label">Pagado (ventas)</span>
           <strong className="inv-stat__value">{formatPrice(totals.collected ?? 0)}</strong>
         </article>
         {(totals.pending ?? 0) > 0 && (
@@ -126,6 +143,7 @@ function SalesReportTable({ sales, showDate = false, emptyMessage = "No hay vent
         <thead>
           <tr>
             <th>{showDate ? "Fecha" : "Hora"}</th>
+            <th>Remisión</th>
             <th>Equipo</th>
             <th>IMEI</th>
             <th>Precio venta</th>
@@ -143,6 +161,7 @@ function SalesReportTable({ sales, showDate = false, emptyMessage = "No hay vent
           {sales.map((s) => (
             <tr key={s.id} className="inv-sheet-row">
               <td data-label={showDate ? "Fecha" : "Hora"}>{formatSoldAt(s.sold_at, { includeDate: showDate })}</td>
+              <td data-label="Remisión"><span className="inv-cell-mono">{s.remission_number || "—"}</span></td>
               <td data-label="Equipo">{s.item || "—"}</td>
               <td data-label="IMEI">{s.imei || s.barcode || "—"}</td>
               <td data-label="Precio venta">{formatPrice(s.sale_price_num ?? s.sale_price)}</td>
@@ -193,7 +212,321 @@ function PaymentMethodBreakdown({ byMethod, title = "Por método de pago" }) {
   );
 }
 
-function ReportFilters({ filters, onChange, users, suppliers, dateRange, monthRange }) {
+function CollectionTypeBreakdown({ byType }) {
+  const entries = byType && typeof byType === "object" ? Object.entries(byType) : [];
+  if (!entries.length) return null;
+
+  return (
+    <div className="inv-stats" style={{ marginTop: "1rem", marginBottom: "0.5rem" }}>
+      {entries.map(([type, amount]) => (
+        <article key={type} className="inv-stat inv-stat--slate">
+          <span className="inv-stat__label">{collectionTypeLabel(type)}</span>
+          <strong className="inv-stat__value">{formatPrice(amount)}</strong>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function CashLedgerTable({ ledger, showDate = false }) {
+  if (!ledger?.length) {
+    return <p className="inv-dash__muted inv-sheet-empty">No hay cobros registrados en este período.</p>;
+  }
+
+  return (
+    <div className="inv-table-wrap" style={{ marginTop: "1.5rem" }}>
+      <h3 className="inv-panel__subtitle">Libro de cobros</h3>
+      <table className="inv-table">
+        <thead>
+          <tr>
+            <th>{showDate ? "Fecha" : "Hora"}</th>
+            <th>Remisión</th>
+            <th>Tipo</th>
+            <th>Equipo</th>
+            <th>Cliente</th>
+            <th>Método</th>
+            <th>Monto</th>
+            <th>Vendedor</th>
+            <th>Notas</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ledger.map((line) => (
+            <tr key={line.id} className="inv-sheet-row">
+              <td data-label={showDate ? "Fecha" : "Hora"}>
+                {formatSoldAt(line.paid_at, { includeDate: showDate })}
+              </td>
+              <td data-label="Remisión"><span className="inv-cell-mono">{line.remission_number || "—"}</span></td>
+              <td data-label="Tipo">
+                <span className={`inv-badge inv-badge--${line.type === "apartado" ? "separado" : line.type === "abono" ? "amber" : "disponible"}`}>
+                  {line.type_label || collectionTypeLabel(line.type)}
+                </span>
+              </td>
+              <td data-label="Equipo">{line.item || "—"}</td>
+              <td data-label="Cliente">{line.customer || "—"}</td>
+              <td data-label="Método">{paymentLabel(line.method)}</td>
+              <td data-label="Monto">{formatPrice(line.amount)}</td>
+              <td data-label="Vendedor">{line.seller || "—"}</td>
+              <td data-label="Notas">{line.notes || "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ReceivablesTable({ items, emptyMessage = "No hay saldos pendientes por cobrar." }) {
+  if (!items?.length) {
+    return <p className="inv-dash__muted inv-sheet-empty">{emptyMessage}</p>;
+  }
+
+  return (
+    <div className="inv-table-wrap">
+      <table className="inv-table">
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Remisión</th>
+            <th>Equipo</th>
+            <th>Cliente</th>
+            <th>Total</th>
+            <th>Pagado</th>
+            <th>Pendiente</th>
+            <th>Vence</th>
+            <th>Vendedor</th>
+            <th>Financiera</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((row) => (
+            <tr key={row.id} className="inv-sheet-row">
+              <td data-label="Tipo">
+                <span className={`inv-badge inv-badge--${row.type === "apartado" ? "separado" : "amber"}`}>
+                  {row.type_label || row.type}
+                </span>
+                {row.is_overdue && (
+                  <span className="inv-badge inv-badge--vendido" style={{ marginLeft: "0.35rem" }}>
+                    Vencido
+                  </span>
+                )}
+              </td>
+              <td data-label="Remisión"><span className="inv-cell-mono">{row.remission_number || "—"}</span></td>
+              <td data-label="Equipo">{row.item || "—"}</td>
+              <td data-label="Cliente">
+                {row.customer || "—"}
+                {row.customer_phone ? ` · ${row.customer_phone}` : ""}
+              </td>
+              <td data-label="Total">{formatPrice(row.sale_price)}</td>
+              <td data-label="Pagado">{formatPrice(row.amount_paid)}</td>
+              <td data-label="Pendiente">{formatPrice(row.amount_due)}</td>
+              <td data-label="Vence">
+                {row.due_at
+                  ? new Date(row.due_at).toLocaleDateString("es-CO")
+                  : "—"}
+                {row.is_overdue && row.days_overdue > 0 ? ` (${row.days_overdue}d)` : ""}
+              </td>
+              <td data-label="Vendedor">{row.seller || "—"}</td>
+              <td data-label="Financiera">{row.credit_payment_method || "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ReceivablesSummary({ totals, methodology }) {
+  if (!totals) return null;
+
+  return (
+    <div style={{ marginBottom: "1rem" }}>
+      <div className="inv-stats" style={{ marginBottom: methodology ? "0.75rem" : 0 }}>
+        <article className="inv-stat inv-stat--amber">
+          <span className="inv-stat__label">Pendiente total</span>
+          <strong className="inv-stat__value">{formatPrice(totals.total_due ?? 0)}</strong>
+        </article>
+        <article className="inv-stat inv-stat--purple">
+          <span className="inv-stat__label">Apartados</span>
+          <strong className="inv-stat__value">{totals.apartados_count ?? 0}</strong>
+        </article>
+        <article className="inv-stat inv-stat--purple">
+          <span className="inv-stat__label">Saldo apartados</span>
+          <strong className="inv-stat__value">{formatPrice(totals.apartados_due ?? 0)}</strong>
+        </article>
+        <article className="inv-stat inv-stat--blue">
+          <span className="inv-stat__label">Créditos</span>
+          <strong className="inv-stat__value">{totals.creditos_count ?? 0}</strong>
+        </article>
+        <article className="inv-stat inv-stat--slate">
+          <span className="inv-stat__label">Saldo créditos</span>
+          <strong className="inv-stat__value">{formatPrice(totals.creditos_due ?? 0)}</strong>
+        </article>
+        {(totals.overdue_count ?? 0) > 0 && (
+          <article className="inv-stat inv-stat--amber">
+            <span className="inv-stat__label">Vencidos ({totals.overdue_count})</span>
+            <strong className="inv-stat__value">{formatPrice(totals.overdue_amount ?? 0)}</strong>
+          </article>
+        )}
+      </div>
+      {methodology && (
+        <p className="inv-dash__muted" style={{ margin: 0, fontSize: "0.82rem" }}>{methodology}</p>
+      )}
+    </div>
+  );
+}
+
+function RemissionReportSummary({ totals, methodology }) {
+  if (!totals) return null;
+
+  return (
+    <div style={{ marginBottom: "1rem" }}>
+      <div className="inv-stats" style={{ marginBottom: methodology ? "0.75rem" : 0 }}>
+        <article className="inv-stat inv-stat--blue">
+          <span className="inv-stat__label">Remisiones</span>
+          <strong className="inv-stat__value">{totals.count ?? 0}</strong>
+        </article>
+        <article className="inv-stat inv-stat--purple">
+          <span className="inv-stat__label">Ingresos</span>
+          <strong className="inv-stat__value">{formatPrice(totals.revenue ?? 0)}</strong>
+        </article>
+        <article className="inv-stat inv-stat--green">
+          <span className="inv-stat__label">Pagado</span>
+          <strong className="inv-stat__value">{formatPrice(totals.collected ?? 0)}</strong>
+        </article>
+        {(totals.pending ?? 0) > 0 && (
+          <article className="inv-stat inv-stat--amber">
+            <span className="inv-stat__label">Pendiente</span>
+            <strong className="inv-stat__value">{formatPrice(totals.pending)}</strong>
+          </article>
+        )}
+        <article className="inv-stat inv-stat--slate">
+          <span className="inv-stat__label">Entregadas</span>
+          <strong className="inv-stat__value">{totals.entregados ?? 0}</strong>
+        </article>
+        <article className="inv-stat inv-stat--purple">
+          <span className="inv-stat__label">Apartados</span>
+          <strong className="inv-stat__value">{totals.apartados ?? 0}</strong>
+        </article>
+      </div>
+      {methodology && (
+        <p className="inv-dash__muted" style={{ margin: 0, fontSize: "0.82rem" }}>{methodology}</p>
+      )}
+    </div>
+  );
+}
+
+function RemissionGroupedReport({ remissions, showDate = false, onDownloadPdf, downloadingId }) {
+  if (!remissions?.length) {
+    return <p className="inv-dash__muted inv-sheet-empty">No hay remisiones en este período con los filtros actuales.</p>;
+  }
+
+  return (
+    <div className="inv-remission-groups">
+      {remissions.map((rem) => (
+        <section key={rem.sale_id || rem.remission_number} className="inv-panel" style={{ marginTop: "1rem" }}>
+          <div className="inv-panel__body" style={{ paddingTop: "1rem" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+              <div>
+                <h3 className="inv-panel__subtitle" style={{ margin: 0 }}>
+                  <span className="inv-cell-mono">{rem.remission_number}</span>
+                  {" · "}
+                  <span className={`inv-badge inv-badge--${rem.status === "apartado" ? "separado" : rem.status === "entregado" ? "disponible" : "slate"}`}>
+                    {rem.status_label || rem.status}
+                  </span>
+                </h3>
+                <p className="inv-dash__muted" style={{ margin: "0.35rem 0 0", fontSize: "0.85rem" }}>
+                  {formatSoldAt(rem.document_date, { includeDate: true })}
+                  {rem.customer ? ` · ${rem.customer}` : ""}
+                  {rem.customer_phone ? ` · ${rem.customer_phone}` : ""}
+                  {rem.seller ? ` · ${rem.seller}` : ""}
+                </p>
+              </div>
+              {onDownloadPdf && rem.sale_id && (
+                <button
+                  type="button"
+                  className="inv-btn inv-btn--outline inv-btn--compact"
+                  onClick={() => onDownloadPdf(rem)}
+                  disabled={downloadingId === rem.sale_id}
+                >
+                  {downloadingId === rem.sale_id ? "Descargando…" : "PDF remisión"}
+                </button>
+              )}
+            </div>
+
+            <div className="inv-table-wrap">
+              <table className="inv-table">
+                <thead>
+                  <tr>
+                    <th>Equipo</th>
+                    <th>IMEI</th>
+                    <th>Precio venta</th>
+                    <th>Costo</th>
+                    <th>Utilidad</th>
+                    <th>Pagado</th>
+                    <th>Pendiente</th>
+                    <th>Método</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="inv-sheet-row">
+                    <td data-label="Equipo">{rem.item || "—"}</td>
+                    <td data-label="IMEI">{rem.imei || rem.barcode || "—"}</td>
+                    <td data-label="Precio venta">{formatPrice(rem.sale_price_num ?? rem.sale_price)}</td>
+                    <td data-label="Costo">{formatPrice(rem.purchase_price_num ?? 0)}</td>
+                    <td data-label="Utilidad">{formatPrice(rem.net_profit ?? 0)}</td>
+                    <td data-label="Pagado">{formatPrice(rem.amount_paid ?? 0)}</td>
+                    <td data-label="Pendiente">{formatPrice(rem.amount_due ?? 0)}</td>
+                    <td data-label="Método">
+                      {paymentLabel(rem.payment_method)}
+                      {rem.credit_payment_method ? ` · ${rem.credit_payment_method}` : ""}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {rem.payments?.length > 0 ? (
+              <div className="inv-table-wrap" style={{ marginTop: "0.75rem" }}>
+                <h4 className="inv-panel__subtitle" style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>Pagos de la remisión</h4>
+                <table className="inv-table">
+                  <thead>
+                    <tr>
+                      <th>{showDate ? "Fecha" : "Hora"}</th>
+                      <th>Método</th>
+                      <th>Monto</th>
+                      <th>Notas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rem.payments.map((payment) => (
+                      <tr key={payment.id} className="inv-sheet-row">
+                        <td data-label={showDate ? "Fecha" : "Hora"}>{formatSoldAt(payment.paid_at, { includeDate: showDate })}</td>
+                        <td data-label="Método">{payment.method_label || paymentLabel(payment.method)}</td>
+                        <td data-label="Monto">{formatPrice(payment.amount)}</td>
+                        <td data-label="Notas">{payment.notes || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="inv-dash__muted" style={{ marginTop: "0.75rem", fontSize: "0.85rem" }}>Sin pagos registrados.</p>
+            )}
+
+            {rem.notes?.trim() && (
+              <p className="inv-dash__muted" style={{ marginTop: "0.75rem", fontSize: "0.85rem" }}>
+                <strong>Notas:</strong> {rem.notes.trim()}
+              </p>
+            )}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function ReportFilters({ filters, onChange, users, suppliers, dateRange, monthRange, searchPlaceholder }) {
   const userOptions = useMemo(() => userSelectOptions(users), [users]);
   const supplierOptions = useMemo(() => supplierSelectOptions(suppliers), [suppliers]);
 
@@ -251,8 +584,8 @@ function ReportFilters({ filters, onChange, users, suppliers, dateRange, monthRa
             clearLabel="Todos"
           />
         </Field>
-        <Field label="Equipo / referencia">
-          <input className="inv-field__input" value={filters.q} onChange={(e) => onChange({ q: e.target.value })} placeholder="iPhone 13…" />
+        <Field label="Equipo / remisión">
+          <input className="inv-field__input" value={filters.q} onChange={(e) => onChange({ q: e.target.value })} placeholder={searchPlaceholder || "Equipo, IMEI o R-2026-000001…"} />
         </Field>
         <Field label="Método pago">
           <select className="inv-field__input" value={filters.payment_method} onChange={(e) => onChange({ payment_method: e.target.value })}>
@@ -299,6 +632,7 @@ export default function InventarioInformes() {
   const [toast, setToast] = useState(null);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [downloadingRemissionId, setDownloadingRemissionId] = useState(null);
 
   const year = monthPeriod.slice(0, 4);
   const month = monthPeriod.slice(5, 7);
@@ -341,11 +675,27 @@ export default function InventarioInformes() {
     { enabled: reportsEnabled && tab === "cash" },
   );
 
+  const { data: receivables, loading: receivablesLoading } = useCachedQuery(
+    ["reports", "receivables", filterKey],
+    () => api.getReceivablesReport(filterKey),
+    { enabled: reportsEnabled && tab === "receivables" },
+  );
+
+  const cashIsRange = from !== to;
+
   const { data: bySeller, loading: bySellerLoading } = useCachedQuery(
     ["reports", "bySeller", { from, to, ...filterKey }],
     () => api.getBySellerReport({ from, to, ...filterKey }),
     { enabled: reportsEnabled && tab === "sellers" },
   );
+
+  const { data: byRemission, loading: byRemissionLoading } = useCachedQuery(
+    ["reports", "byRemission", { from, to, ...filterKey }],
+    () => api.getByRemissionReport({ from, to, ...filterKey }),
+    { enabled: reportsEnabled && tab === "remissions" },
+  );
+
+  const remissionIsRange = from !== to;
 
   const showToast = useCallback((text, type = "success") => {
     setToast({ text, type });
@@ -439,6 +789,22 @@ export default function InventarioInformes() {
     }
   };
 
+  const downloadRemissionPdf = async (rem) => {
+    if (!rem?.sale_id || !rem?.remission_number) return;
+    setDownloadingRemissionId(rem.sale_id);
+    try {
+      await api.downloadAuthenticated(
+        api.exportRemissionPdfUrl(rem.sale_id),
+        `remision_${rem.remission_number}.pdf`,
+      );
+      showToast("Remisión descargada");
+    } catch (e) {
+      showToast(e.message, "error");
+    } finally {
+      setDownloadingRemissionId(null);
+    }
+  };
+
   const exportInventory = async () => {
     try {
       await api.downloadAuthenticated(api.exportInventoryUrl(), `inventario_${new Date().toISOString().slice(0, 10)}.csv`);
@@ -488,10 +854,10 @@ export default function InventarioInformes() {
 
   return (
     <div className="inv-dash">
-      <InventarioTopbar current="informes" title="Informes" subtitle="Diario, mensual y cuadre de caja" user={user} onSignOut={signOut} />
+      <InventarioTopbar current="informes" title="Informes" subtitle="Ventas, caja, cartera y respaldos" user={user} onSignOut={signOut} />
       <main className="inv-main">
         <div className="inv-sheet-actions inv-report-tabs">
-          {["daily", "monthly", "sellers", "cash", "export"].map((t) => (
+          {["daily", "monthly", "sellers", "remissions", "cash", "receivables", "export"].map((t) => (
             <button
               key={t}
               type="button"
@@ -501,7 +867,9 @@ export default function InventarioInformes() {
               {t === "daily" && "Diario"}
               {t === "monthly" && "Mensual"}
               {t === "sellers" && "Por vendedor"}
+              {t === "remissions" && "Por remisión"}
               {t === "cash" && "Cuadre de caja"}
+              {t === "receivables" && "Cartera"}
               {t === "export" && "Respaldo CSV"}
             </button>
           ))}
@@ -536,7 +904,10 @@ export default function InventarioInformes() {
                   showDate={dailyIsRange || daily.is_range}
                   emptyMessage="No hay ventas para este período con los filtros actuales."
                 />
-                <PaymentMethodBreakdown byMethod={daily.totals?.by_method} />
+                <PaymentMethodBreakdown
+                  byMethod={daily.totals?.by_method}
+                  title="Cobros del período por método (fecha de pago)"
+                />
               </div>
             )}
           </section>
@@ -579,7 +950,10 @@ export default function InventarioInformes() {
                   Vendidos: <strong>{monthly.units_sold ?? 0}</strong> · Disponibles en inventario: <strong>{monthly.inventory_available ?? 0}</strong>
                 </p>
                 <SalesReportTable sales={monthly.sales} showDate emptyMessage="No hubo ventas en este mes con los filtros actuales." />
-                <PaymentMethodBreakdown byMethod={monthly.totals?.by_method} />
+                <PaymentMethodBreakdown
+                  byMethod={monthly.totals?.by_method}
+                  title="Cobros del período por método (fecha de pago)"
+                />
               </div>
             )}
           </section>
@@ -627,6 +1001,31 @@ export default function InventarioInformes() {
           </section>
         )}
 
+        {tab === "remissions" && (
+          <section className="inv-panel">
+            <ReportFilters
+              filters={filters}
+              onChange={(p) => setFilters((s) => ({ ...s, ...p }))}
+              users={users}
+              suppliers={suppliers}
+              dateRange={{ from, to, onFromChange: setFrom, onToChange: setTo }}
+              searchPlaceholder="Remisión, equipo o IMEI…"
+            />
+            {byRemissionLoading && !byRemission ? <ReportLoader /> : null}
+            {byRemission && (
+              <div className="inv-panel__body">
+                <RemissionReportSummary totals={byRemission.totals} methodology={byRemission.methodology} />
+                <RemissionGroupedReport
+                  remissions={byRemission.remissions}
+                  showDate={remissionIsRange || byRemission.is_range}
+                  onDownloadPdf={downloadRemissionPdf}
+                  downloadingId={downloadingRemissionId}
+                />
+              </div>
+            )}
+          </section>
+        )}
+
         {tab === "cash" && (
           <section className="inv-panel">
             <ReportFilters
@@ -640,7 +1039,7 @@ export default function InventarioInformes() {
             {cash && (
               <div className="inv-panel__body">
                 <p className="inv-dash__muted" style={{ marginTop: 0 }}>
-                  Cobros según fecha de pago. Las ventas del período se concilian aparte (ingresos vs pagado vs pendiente).
+                  Cobros según fecha de pago. La conciliación de ventas aplica solo a ventas cerradas en el período (fecha de venta).
                 </p>
                 <MobileCollapsible summary="Resumen del cuadre de caja">
                 <div className="inv-stats inv-stats--5">
@@ -666,7 +1065,37 @@ export default function InventarioInformes() {
                   </article>
                 </div>
                 </MobileCollapsible>
+                <div className="inv-stats" style={{ marginTop: "1rem" }}>
+                  <article className="inv-stat inv-stat--green">
+                    <span className="inv-stat__label">Cobros ventas del período</span>
+                    <strong className="inv-stat__value">{formatPrice(cash.collections_on_period_sales ?? 0)}</strong>
+                  </article>
+                  <article className="inv-stat inv-stat--purple">
+                    <span className="inv-stat__label">Apartados y abonos previos</span>
+                    <strong className="inv-stat__value">{formatPrice(cash.collections_on_other_sales ?? 0)}</strong>
+                  </article>
+                </div>
+                <CollectionTypeBreakdown byType={cash.by_collection_type} />
                 <PaymentMethodBreakdown byMethod={cash.by_payment_method} title="Cobros del período por método" />
+                <CashLedgerTable ledger={cash.ledger} showDate={cashIsRange} />
+              </div>
+            )}
+          </section>
+        )}
+
+        {tab === "receivables" && (
+          <section className="inv-panel">
+            <ReportFilters
+              filters={filters}
+              onChange={(p) => setFilters((s) => ({ ...s, ...p }))}
+              users={users}
+              suppliers={suppliers}
+            />
+            {receivablesLoading && !receivables ? <ReportLoader /> : null}
+            {receivables && (
+              <div className="inv-panel__body">
+                <ReceivablesSummary totals={receivables.totals} methodology={receivables.methodology} />
+                <ReceivablesTable items={receivables.items} />
               </div>
             )}
           </section>

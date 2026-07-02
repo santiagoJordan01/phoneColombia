@@ -6,6 +6,7 @@ import InventarioDashboard from "../InventarioDashboard.jsx";
 import InventarioVentas from "../InventarioVentas.jsx";
 import InventarioInformes from "../InventarioInformes.jsx";
 import InventarioInformePreview from "../InventarioInformePreview.jsx";
+import InventarioRemisionPreview from "../InventarioRemisionPreview.jsx";
 import InventarioServicioTecnico from "../InventarioServicioTecnico.jsx";
 import InventarioServicioCatalogos from "../InventarioServicioCatalogos.jsx";
 
@@ -18,6 +19,7 @@ export default function InventarioLayout() {
         <Route path="ventas" element={<InventarioVentas />} />
         <Route path="informes" element={<InventarioInformes />} />
         <Route path="informes/vista-previa" element={<InventarioInformePreview />} />
+        <Route path="remision/vista-previa" element={<InventarioRemisionPreview />} />
         <Route path="servicio-tecnico" element={<InventarioServicioTecnico />} />
         <Route path="servicio-tecnico/catalogos" element={<InventarioServicioCatalogos />} />
         <Route path="ajustes" element={<InventarioAjustes />} />

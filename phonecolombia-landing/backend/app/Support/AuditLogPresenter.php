@@ -45,6 +45,7 @@ class AuditLogPresenter
         'deleted' => 'Eliminación',
         'soft_deleted' => 'Archivado',
         'retake' => 'Retoma',
+        'returned' => 'Devolución por retoma',
         'reingreso' => 'Reingreso',
         'payment_added' => 'Abono registrado',
         'import' => 'Importación',
@@ -91,6 +92,7 @@ class AuditLogPresenter
         'archived' => 'ARCHIVADO',
         'paid' => 'PAGADO',
         'pending' => 'PENDIENTE',
+        'returned' => 'DEVUELTO',
         'proceso_revision' => 'PROCESO DE REVISIÓN',
         'esperando_repuestos' => 'ESPERANDO REPUESTOS',
         'servicio_tecnico' => 'SERVICIO TÉCNICO',
@@ -109,6 +111,7 @@ class AuditLogPresenter
         User::ROLE_ASESOR => 'Asesor',
         User::ROLE_SERVICE_TECHNICIAN => 'Técnico ST',
         User::ROLE_SUPPLIER => 'Proveedor',
+        User::ROLE_ACCOUNTANT => 'Contador',
     ];
 
     /** @param Collection<int, AuditLog> $logs */

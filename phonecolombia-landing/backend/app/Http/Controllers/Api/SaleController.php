@@ -27,8 +27,8 @@ use App\Services\InventoryMovementService;
 
 use App\Support\CreditTermCalculator;
 
+use App\Support\BrandLogo;
 use App\Support\InventoryStatus;
-
 use App\Support\InventoryStatusGuard;
 
 use App\Support\MoneyFormatter;
@@ -331,6 +331,10 @@ class SaleController extends Controller
 
         }
 
+        if ($sale->isReturned()) {
+            return response()->json(['message' => 'No se puede editar una venta devuelta por retoma.'], 422);
+        }
+
 
 
         if ($user->isSupplier() && $user->supplier_id) {
@@ -511,10 +515,12 @@ class SaleController extends Controller
 
 
 
+        if ($sale->isReturned()) {
+            return response()->json(['message' => 'Esta venta fue devuelta por retoma.'], 422);
+        }
+
         if ($sale->credit_status === 'paid') {
-
             return response()->json(['message' => 'Esta venta ya está pagada en su totalidad.'], 422);
-
         }
 
 
@@ -575,68 +581,56 @@ class SaleController extends Controller
 
 
 
-    public function exportRemissionPdf(Request $request, Sale $sale): StreamedResponse
-
+    public function showRemission(Request $request, Sale $sale): JsonResponse
     {
+        $sale = $this->authorizeAndLoadRemissionSale($request, $sale);
+        $payload = $this->remissionDocumentPayload($sale);
 
+        return response()->json([
+            'sale_id' => $sale->id,
+            ...$payload,
+        ]);
+    }
+
+    public function exportRemissionPdf(Request $request, Sale $sale): StreamedResponse
+    {
+        $sale = $this->authorizeAndLoadRemissionSale($request, $sale);
+        $payload = $this->remissionDocumentPayload($sale);
+        $filename = 'remision_'.str_replace('/', '-', $sale->remission_number).'.pdf';
+
+        $pdf = Pdf::loadView('reports.remission-pdf', [
+            'sale' => $payload,
+            'generatedAt' => now()->timezone('America/Bogota')->format('d/m/Y H:i'),
+            'logoDataUri' => BrandLogo::remissionDataUri(),
+        ])->setPaper('letter', 'portrait');
+
+        return response()->streamDownload(
+            fn () => print ($pdf->output()),
+            $filename,
+            ['Content-Type' => 'application/pdf'],
+        );
+    }
+
+    private function authorizeAndLoadRemissionSale(Request $request, Sale $sale): Sale
+    {
         $user = $request->user();
-
-        if (! $user->canManageSales() && ! $user->isSuperAdmin()) {
-
+        if (! $user->canViewRemissions() && ! $user->isSuperAdmin()) {
             abort(403, 'No tienes permiso para ver remisiones.');
-
         }
-
-
 
         if ($user->isSupplier() && $user->supplier_id) {
-
             $sale->load('inventoryItem');
-
             if ($sale->inventoryItem?->supplier_id !== $user->supplier_id) {
-
                 abort(403, 'No tienes acceso a esta venta.');
-
             }
-
         }
-
-
 
         $sale->load(['inventoryItem', 'user', 'payments', 'creditPaymentMethod', 'serviceCustomer']);
 
-        $payload = $this->remissionDocumentPayload($sale);
-
-        $filename = 'remision_'.str_replace('/', '-', $sale->remission_number).'.pdf';
-
-
-
-        $pdf = Pdf::loadView('reports.remission-pdf', [
-
-            'sale' => $payload,
-
-            'generatedAt' => now()->timezone('America/Bogota')->format('d/m/Y H:i'),
-
-        ])->setPaper('letter', 'portrait');
-
-
-
-        return response()->streamDownload(
-
-            fn () => print ($pdf->output()),
-
-            $filename,
-
-            ['Content-Type' => 'application/pdf'],
-
-        );
-
+        return $sale;
     }
 
-
-
     /** @return array<string, mixed> */
-
     private function remissionDocumentPayload(Sale $sale): array
 
     {
@@ -1016,6 +1010,14 @@ class SaleController extends Controller
             'notes' => $sale->notes,
 
             'sold_at' => $sale->sold_at,
+
+            'returned_at' => $sale->returned_at,
+
+            'retake_price' => $sale->retake_price,
+
+            'retake_payment_method' => $sale->retake_payment_method,
+
+            'is_returned' => $sale->isReturned(),
 
             'reserved_at' => $sale->reserved_at,
 

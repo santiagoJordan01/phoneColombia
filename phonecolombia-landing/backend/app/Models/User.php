@@ -28,6 +28,8 @@ class User extends Authenticatable
 
     public const ROLE_SUPPLIER = 'supplier';
 
+    public const ROLE_ACCOUNTANT = 'accountant';
+
     public const ROLES = [
         self::ROLE_SUPER_ADMIN,
         self::ROLE_CONTENT,
@@ -36,6 +38,7 @@ class User extends Authenticatable
         self::ROLE_ASESOR,
         self::ROLE_SERVICE_TECHNICIAN,
         self::ROLE_SUPPLIER,
+        self::ROLE_ACCOUNTANT,
     ];
 
     protected $fillable = [
@@ -117,6 +120,11 @@ class User extends Authenticatable
         return $this->resolvedRole() === self::ROLE_SUPPLIER;
     }
 
+    public function isAccountant(): bool
+    {
+        return $this->resolvedRole() === self::ROLE_ACCOUNTANT;
+    }
+
     public function canAccessContent(): bool
     {
         return $this->isSuperAdmin();
@@ -160,7 +168,13 @@ class User extends Authenticatable
             self::ROLE_INVENTORY,
             self::ROLE_SELLER,
             self::ROLE_ASESOR,
+            self::ROLE_ACCOUNTANT,
         ], true);
+    }
+
+    public function canViewRemissions(): bool
+    {
+        return $this->canManageSales() || $this->isAccountant();
     }
 
     public function canManageServiceTickets(): bool

@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\AuditLog;
 use App\Models\CreditPaymentMethod;
 use App\Models\InventoryItem;
+use App\Models\Sale;
 use Database\Seeders\CreditPaymentMethodSeeder;
+use Database\Seeders\SupplierSeeder;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Support\InventoryStatus;
@@ -21,6 +23,7 @@ class InventoryOperationsApiTest extends TestCase
     {
         parent::setUp();
         $this->seed(CreditPaymentMethodSeeder::class);
+        $this->seed(SupplierSeeder::class);
     }
 
     private function creditMethodId(): string
@@ -47,6 +50,20 @@ class InventoryOperationsApiTest extends TestCase
             'sale_price' => '3200000',
             'status' => InventoryStatus::DISPONIBLE,
             'quantity' => 1,
+        ], $overrides));
+    }
+
+    private function attachPaidSale(InventoryItem $item, array $overrides = []): Sale
+    {
+        return Sale::create(array_merge([
+            'inventory_item_id' => $item->id,
+            'user_id' => User::factory()->create()->id,
+            'sale_price' => '3000000',
+            'payment_method' => 'efectivo',
+            'credit_status' => 'paid',
+            'amount_paid' => 3000000,
+            'amount_due' => 0,
+            'sold_at' => now(),
         ], $overrides));
     }
 
@@ -167,15 +184,62 @@ class InventoryOperationsApiTest extends TestCase
             ->assertJsonFragment(['id' => $item->id]);
     }
 
-    public function test_retake_flow_vendido_to_retomado_to_disponible(): void
+    public function test_retake_blocks_when_sale_has_pending_balance(): void
+    {
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+        $item = $this->createItem(['status' => InventoryStatus::VENDIDO]);
+
+        Sale::create([
+            'inventory_item_id' => $item->id,
+            'user_id' => User::factory()->create()->id,
+            'sale_price' => '3000000',
+            'payment_method' => 'credito',
+            'credit_status' => 'pending',
+            'amount_paid' => 1000000,
+            'amount_due' => 2000000,
+            'sold_at' => now(),
+        ]);
+
+        $this->withToken($token)
+            ->postJson("/api/inventory/{$item->id}/retake", [
+                'retake_price' => '1800000',
+                'retake_payment_method' => 'efectivo',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.amount_due.0', fn ($msg) => str_contains($msg, 'Saldo pendiente'));
+    }
+
+    public function test_retake_requires_price_when_vendido(): void
     {
         $token = $this->tokenFor(User::ROLE_INVENTORY);
         $item = $this->createItem(['status' => InventoryStatus::VENDIDO]);
 
         $this->withToken($token)
             ->postJson("/api/inventory/{$item->id}/retake")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['retake_price']);
+    }
+
+    public function test_retake_flow_vendido_to_retomado_to_disponible(): void
+    {
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+        $item = $this->createItem(['status' => InventoryStatus::VENDIDO]);
+        $sale = $this->attachPaidSale($item);
+
+        $this->withToken($token)
+            ->postJson("/api/inventory/{$item->id}/retake", [
+                'retake_price' => '1800000',
+                'retake_payment_method' => 'efectivo',
+            ])
             ->assertOk()
-            ->assertJsonPath('status', InventoryStatus::RETOMADO);
+            ->assertJsonPath('status', InventoryStatus::RETOMADO)
+            ->assertJsonPath('purchase_price', '1800000')
+            ->assertJsonPath('supplier', 'RETOMA');
+
+        $sale->refresh();
+        $this->assertNotNull($sale->returned_at);
+        $this->assertSame('1800000', $sale->retake_price);
+        $this->assertSame('returned', $sale->credit_status);
 
         $this->withToken($token)
             ->postJson("/api/inventory/{$item->id}/retake")

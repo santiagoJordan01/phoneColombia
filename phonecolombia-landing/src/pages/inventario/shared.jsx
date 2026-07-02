@@ -179,6 +179,7 @@ export const USER_ROLES = {
   asesor: "Asesor",
   service_technician: "Técnico de servicio técnico",
   supplier: "Proveedor / aliado",
+  accountant: "Contador",
 };
 
 export const USER_ROLE_HINTS = {
@@ -189,6 +190,7 @@ export const USER_ROLE_HINTS = {
   asesor: "Ventas, informes, consulta de inventario y gestión de tickets ST (sin CRUD inventario).",
   service_technician: "Solo consulta tickets ST asignados a su perfil de técnico (sin editar).",
   supplier: "Solo ve los equipos de su proveedor asignado.",
+  accountant: "Tablero de control, informes gerenciales, remisiones y exportaciones (solo lectura).",
 };
 
 export const EMPTY_USER_FORM = {
@@ -272,8 +274,12 @@ export function describeInventoryMovement(movement) {
     return price ? `Venta registrada · ${price}` : movement.notes || "Venta registrada";
   }
   if (type === "retoma") {
+    const retakePrice = movement.meta?.retake_price ? formatPrice(movement.meta.retake_price) : null;
+    const method = movement.meta?.retake_payment_method;
+    const methodPart = method ? ` · ${method === "transferencia" ? "Transferencia" : "Efectivo"}` : "";
+    const pricePart = retakePrice ? ` · valor retoma ${retakePrice}${methodPart}` : "";
     const saleRef = movement.meta?.sale_id ? ` · venta ${movement.meta.sale_id.slice(0, 8)}…` : "";
-    return (movement.notes || `Retoma · ${oldVal} → ${newVal}`) + saleRef;
+    return (movement.notes || `Retoma · ${oldVal} → ${newVal}`) + pricePart + saleRef;
   }
   if (type === "reingreso") return movement.notes || `Reingreso · ${oldVal} → ${newVal}`;
   if (type === "archived") return movement.notes || "Equipo archivado";
@@ -392,7 +398,12 @@ export function canViewServiceTicket(user, ticket) {
 
 export function getDefaultInventarioPath(user) {
   if (isServiceTechnician(user)) return "/admin/inventario/servicio-tecnico";
+  if (isAccountant(user)) return "/admin/inventario/dashboard";
   return "/admin/inventario";
+}
+
+export function isAccountant(user) {
+  return user?.role === "accountant";
 }
 
 export function canManageSales(user) {
@@ -411,7 +422,19 @@ export function canManageCustomers(user) {
 }
 
 export function canViewReports(user) {
-  return canManageSales(user);
+  const role = user?.role;
+  return (
+    role === "super_admin" ||
+    role === "inventory" ||
+    role === "seller" ||
+    role === "asesor" ||
+    role === "accountant" ||
+    Boolean(user?.is_admin)
+  );
+}
+
+export function canViewRemissions(user) {
+  return canManageSales(user) || isAccountant(user);
 }
 
 export function canManageInventory(user) {

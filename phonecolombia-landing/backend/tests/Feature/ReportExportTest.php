@@ -149,4 +149,68 @@ class ReportExportTest extends TestCase
         $this->assertSame('Detalle por vendedor', $spreadsheet->getSheet(1)->getTitle());
         $this->assertSame('Informe por vendedor', $spreadsheet->getSheet(0)->getCell('A2')->getValue());
     }
+
+    public function test_cash_register_report_pdf_export(): void
+    {
+        $this->createSale();
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+        $date = now()->toDateString();
+
+        $this->withToken($token)
+            ->get("/api/reports/cash-register/export/pdf?from={$date}&to={$date}")
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_cash_register_report_excel_export(): void
+    {
+        $this->createSale();
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+        $date = now()->toDateString();
+
+        $response = $this->withToken($token)
+            ->get("/api/reports/cash-register/export/xlsx?from={$date}&to={$date}")
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        $temp = tempnam(sys_get_temp_dir(), 'xlsx_').'.xlsx';
+        file_put_contents($temp, $response->streamedContent());
+
+        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($temp);
+        @unlink($temp);
+
+        $this->assertSame('Resumen', $spreadsheet->getSheet(0)->getTitle());
+        $this->assertSame('Libro de caja', $spreadsheet->getSheet(1)->getTitle());
+        $this->assertSame('Cuadre de caja', $spreadsheet->getSheet(0)->getCell('A2')->getValue());
+    }
+
+    public function test_receivables_report_pdf_export(): void
+    {
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+
+        $this->withToken($token)
+            ->get('/api/reports/receivables/export/pdf')
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_receivables_report_excel_export(): void
+    {
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+
+        $response = $this->withToken($token)
+            ->get('/api/reports/receivables/export/xlsx')
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        $temp = tempnam(sys_get_temp_dir(), 'xlsx_').'.xlsx';
+        file_put_contents($temp, $response->streamedContent());
+
+        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($temp);
+        @unlink($temp);
+
+        $this->assertSame('Resumen', $spreadsheet->getSheet(0)->getTitle());
+        $this->assertSame('Detalle cartera', $spreadsheet->getSheet(1)->getTitle());
+        $this->assertSame('Informe de cartera', $spreadsheet->getSheet(0)->getCell('A2')->getValue());
+    }
 }

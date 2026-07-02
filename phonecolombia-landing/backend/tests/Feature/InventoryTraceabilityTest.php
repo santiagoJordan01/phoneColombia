@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\CreditPaymentMethod;
 use App\Models\InventoryItem;
 use Database\Seeders\CreditPaymentMethodSeeder;
+use Database\Seeders\SupplierSeeder;
 use App\Models\InventoryMovement;
 use App\Models\Sale;
 use App\Models\ServiceTicket;
@@ -25,6 +26,7 @@ class InventoryTraceabilityTest extends TestCase
     {
         parent::setUp();
         $this->seed(CreditPaymentMethodSeeder::class);
+        $this->seed(SupplierSeeder::class);
     }
 
     /** @return array{0: User, 1: string} */
@@ -179,9 +181,22 @@ class InventoryTraceabilityTest extends TestCase
     {
         [$user, $token] = $this->actingAsRole(User::ROLE_INVENTORY);
         $item = $this->createItem(['status' => InventoryStatus::VENDIDO]);
+        Sale::create([
+            'inventory_item_id' => $item->id,
+            'user_id' => $user->id,
+            'sale_price' => '3000000',
+            'payment_method' => 'efectivo',
+            'credit_status' => 'paid',
+            'amount_paid' => 3000000,
+            'amount_due' => 0,
+            'sold_at' => now(),
+        ]);
 
         $this->withToken($token)
-            ->postJson("/api/inventory/{$item->id}/retake")
+            ->postJson("/api/inventory/{$item->id}/retake", [
+                'retake_price' => '1600000',
+                'retake_payment_method' => 'efectivo',
+            ])
             ->assertOk()
             ->assertJsonPath('status', InventoryStatus::RETOMADO);
 
@@ -549,7 +564,10 @@ class InventoryTraceabilityTest extends TestCase
             ->json('id');
 
         $this->withToken($token)
-            ->postJson("/api/inventory/{$itemId}/retake")
+            ->postJson("/api/inventory/{$itemId}/retake", [
+                'retake_price' => '1200000',
+                'retake_payment_method' => 'transferencia',
+            ])
             ->assertOk();
 
         $this->withToken($token)
@@ -563,7 +581,7 @@ class InventoryTraceabilityTest extends TestCase
             ->all();
 
         $this->assertSame(
-            ['ingreso', 'field_update', 'venta', 'retoma', 'reingreso'],
+            ['ingreso', 'field_update', 'venta', 'retoma', 'field_update', 'field_update', 'reingreso'],
             $movements
         );
 
@@ -579,6 +597,7 @@ class InventoryTraceabilityTest extends TestCase
         $this->assertContains('created', $auditActions);
         $this->assertContains('updated', $auditActions);
         $this->assertContains('retake', $auditActions);
+        $this->assertContains('returned', $auditActions);
         $this->assertContains('reingreso', $auditActions);
 
         $saleAuditCount = AuditLog::query()

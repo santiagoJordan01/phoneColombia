@@ -33,6 +33,9 @@ class Sale extends Model
         'customer_phone',
         'notes',
         'sold_at',
+        'returned_at',
+        'retake_price',
+        'retake_payment_method',
         'reserved_at',
         'reservation_status',
         'remission_number',
@@ -44,6 +47,7 @@ class Sale extends Model
             'amount_paid' => 'decimal:2',
             'amount_due' => 'decimal:2',
             'sold_at' => 'datetime',
+            'returned_at' => 'datetime',
             'reserved_at' => 'datetime',
             'credit_due_at' => 'datetime',
         ];
@@ -54,9 +58,19 @@ class Sale extends Model
         return $this->reservation_status === \App\Support\SaleReservationStatus::ACTIVE;
     }
 
+    public function isReturned(): bool
+    {
+        return $this->returned_at !== null;
+    }
+
     public function scopeRecognizedRevenue(Builder $query): Builder
     {
-        return $query->whereNotNull('sold_at');
+        return $query->whereNotNull('sold_at')->whereNull('returned_at');
+    }
+
+    public function scopeNotReturned(Builder $query): Builder
+    {
+        return $query->whereNull('returned_at');
     }
 
     public function scopeActiveReservations(Builder $query): Builder

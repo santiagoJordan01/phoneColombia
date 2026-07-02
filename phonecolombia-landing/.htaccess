@@ -1,6 +1,6 @@
 RewriteEngine On
 RewriteBase /
-ErrorDocument 404 /index.php
+ErrorDocument 404 /index.html
 # Force HTTPS to avoid insecure connection warnings on production.
 RewriteCond %{HTTPS} !=on
 RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]

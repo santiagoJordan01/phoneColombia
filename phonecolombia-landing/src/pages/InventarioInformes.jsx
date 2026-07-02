@@ -5,9 +5,10 @@ import MobileCollapsible from "../components/inventario/MobileCollapsible.jsx";
 import SearchSelect from "../components/SearchSelect.jsx";
 import { useCachedQuery } from "../hooks/useCachedQuery.js";
 import api, { isApiConfigured } from "../lib/apiClient";
+import RemissionActionMenu from "../components/inventario/RemissionActionMenu.jsx";
 import { useInventarioPage } from "./inventario/useInventarioPage.js";
 import { supplierSelectOptions, userSelectOptions } from "../lib/inventarioSelectOptions.js";
-import { Field, canManageInventory, canViewReports, formatPrice, isServiceTechnician } from "./inventario/shared.jsx";
+import { Field, canManageInventory, canViewReports, formatPrice, isAccountant, isServiceTechnician } from "./inventario/shared.jsx";
 import "../styles.css";
 
 const FILTER_DEFAULTS = {
@@ -29,8 +30,16 @@ const COLLECTION_TYPE_LABELS = {
   venta: "Cobro venta",
   apartado: "Abono apartado",
   abono: "Abono crédito",
+  retoma: "Pago retoma",
   otro: "Cobro",
 };
+
+function ledgerTypeBadgeClass(type) {
+  if (type === "apartado") return "separado";
+  if (type === "abono") return "amber";
+  if (type === "retoma") return "retomado";
+  return "disponible";
+}
 
 function collectionTypeLabel(type) {
   return COLLECTION_TYPE_LABELS[type] ?? type ?? "—";
@@ -85,9 +94,9 @@ function ReportLoader() {
 function ReportTotalsSummary({ totals, methodology }) {
   if (!totals) return null;
 
-  return (
-    <div style={{ marginBottom: "1rem" }}>
-      <div className="inv-stats" style={{ marginBottom: methodology ? "0.75rem" : 0 }}>
+  const content = (
+    <>
+      <div className="inv-stats inv-report-stats" style={{ marginBottom: methodology ? "0.75rem" : 0 }}>
         <article className="inv-stat inv-stat--blue">
           <span className="inv-stat__label">Ventas</span>
           <strong className="inv-stat__value">{totals.count ?? 0}</strong>
@@ -126,8 +135,16 @@ function ReportTotalsSummary({ totals, methodology }) {
         )}
       </div>
       {methodology && (
-        <p className="inv-dash__muted" style={{ margin: 0, fontSize: "0.82rem" }}>{methodology}</p>
+        <p className="inv-dash__muted inv-report-methodology">{methodology}</p>
       )}
+    </>
+  );
+
+  return (
+    <div className="inv-report-summary" style={{ marginBottom: "1rem" }}>
+      <MobileCollapsible summary="Resumen del período">
+        {content}
+      </MobileCollapsible>
     </div>
   );
 }
@@ -138,8 +155,8 @@ function SalesReportTable({ sales, showDate = false, emptyMessage = "No hay vent
   }
 
   return (
-    <div className="inv-table-wrap">
-      <table className="inv-table">
+    <div className="inv-table-wrap inv-table-wrap--sheet">
+      <table className="inv-table inv-table--sheet inv-table--report">
         <thead>
           <tr>
             <th>{showDate ? "Fecha" : "Hora"}</th>
@@ -181,7 +198,7 @@ function SalesReportTable({ sales, showDate = false, emptyMessage = "No hay vent
   );
 }
 
-function PaymentMethodBreakdown({ byMethod, title = "Por método de pago" }) {
+function PaymentMethodBreakdown({ byMethod, title = "Por método de pago", amountLabel = "Recaudado" }) {
   const entries = byMethod && typeof byMethod === "object" ? Object.entries(byMethod) : [];
   if (!entries.length) {
     return <p className="inv-dash__muted inv-sheet-empty">Sin movimientos por método de pago en este período.</p>;
@@ -190,19 +207,19 @@ function PaymentMethodBreakdown({ byMethod, title = "Por método de pago" }) {
   return (
     <div style={{ marginTop: "1.5rem" }}>
       <h3 className="inv-panel__subtitle">{title}</h3>
-      <div className="inv-table-wrap">
-        <table className="inv-table">
+      <div className="inv-table-wrap inv-table-wrap--sheet">
+        <table className="inv-table inv-table--sheet inv-table--report">
           <thead>
             <tr>
               <th>Método</th>
-              <th>Recaudado</th>
+              <th>{amountLabel}</th>
             </tr>
           </thead>
           <tbody>
             {entries.map(([method, amount]) => (
               <tr key={method} className="inv-sheet-row">
                 <td data-label="Método">{paymentLabel(method)}</td>
-                <td data-label="Recaudado">{formatPrice(amount)}</td>
+                <td data-label={amountLabel}>{formatPrice(amount)}</td>
               </tr>
             ))}
           </tbody>
@@ -230,13 +247,13 @@ function CollectionTypeBreakdown({ byType }) {
 
 function CashLedgerTable({ ledger, showDate = false }) {
   if (!ledger?.length) {
-    return <p className="inv-dash__muted inv-sheet-empty">No hay cobros registrados en este período.</p>;
+    return <p className="inv-dash__muted inv-sheet-empty">No hay movimientos de caja en este período.</p>;
   }
 
   return (
-    <div className="inv-table-wrap" style={{ marginTop: "1.5rem" }}>
-      <h3 className="inv-panel__subtitle">Libro de cobros</h3>
-      <table className="inv-table">
+    <div className="inv-table-wrap inv-table-wrap--sheet" style={{ marginTop: "1.5rem" }}>
+      <h3 className="inv-panel__subtitle">Libro de cobros y retomas</h3>
+      <table className="inv-table inv-table--sheet inv-table--report">
         <thead>
           <tr>
             <th>{showDate ? "Fecha" : "Hora"}</th>
@@ -258,14 +275,16 @@ function CashLedgerTable({ ledger, showDate = false }) {
               </td>
               <td data-label="Remisión"><span className="inv-cell-mono">{line.remission_number || "—"}</span></td>
               <td data-label="Tipo">
-                <span className={`inv-badge inv-badge--${line.type === "apartado" ? "separado" : line.type === "abono" ? "amber" : "disponible"}`}>
+                <span className={`inv-badge inv-badge--${ledgerTypeBadgeClass(line.type)}`}>
                   {line.type_label || collectionTypeLabel(line.type)}
                 </span>
               </td>
               <td data-label="Equipo">{line.item || "—"}</td>
               <td data-label="Cliente">{line.customer || "—"}</td>
               <td data-label="Método">{paymentLabel(line.method)}</td>
-              <td data-label="Monto">{formatPrice(line.amount)}</td>
+              <td data-label="Monto" className={line.amount < 0 ? "inv-amount--out" : "inv-amount--in"}>
+                {formatPrice(line.amount)}
+              </td>
               <td data-label="Vendedor">{line.seller || "—"}</td>
               <td data-label="Notas">{line.notes || "—"}</td>
             </tr>
@@ -282,8 +301,8 @@ function ReceivablesTable({ items, emptyMessage = "No hay saldos pendientes por 
   }
 
   return (
-    <div className="inv-table-wrap">
-      <table className="inv-table">
+    <div className="inv-table-wrap inv-table-wrap--sheet">
+      <table className="inv-table inv-table--sheet inv-table--report">
         <thead>
           <tr>
             <th>Tipo</th>
@@ -416,7 +435,7 @@ function RemissionReportSummary({ totals, methodology }) {
   );
 }
 
-function RemissionGroupedReport({ remissions, showDate = false, onDownloadPdf, downloadingId }) {
+function RemissionGroupedReport({ remissions, showDate = false, onNotify }) {
   if (!remissions?.length) {
     return <p className="inv-dash__muted inv-sheet-empty">No hay remisiones en este período con los filtros actuales.</p>;
   }
@@ -431,7 +450,7 @@ function RemissionGroupedReport({ remissions, showDate = false, onDownloadPdf, d
                 <h3 className="inv-panel__subtitle" style={{ margin: 0 }}>
                   <span className="inv-cell-mono">{rem.remission_number}</span>
                   {" · "}
-                  <span className={`inv-badge inv-badge--${rem.status === "apartado" ? "separado" : rem.status === "entregado" ? "disponible" : "slate"}`}>
+                  <span className={`inv-badge inv-badge--${rem.status === "apartado" ? "separado" : rem.status === "entregado" ? "disponible" : rem.status === "devuelto" ? "retomado" : "slate"}`}>
                     {rem.status_label || rem.status}
                   </span>
                 </h3>
@@ -442,15 +461,12 @@ function RemissionGroupedReport({ remissions, showDate = false, onDownloadPdf, d
                   {rem.seller ? ` · ${rem.seller}` : ""}
                 </p>
               </div>
-              {onDownloadPdf && rem.sale_id && (
-                <button
-                  type="button"
-                  className="inv-btn inv-btn--outline inv-btn--compact"
-                  onClick={() => onDownloadPdf(rem)}
-                  disabled={downloadingId === rem.sale_id}
-                >
-                  {downloadingId === rem.sale_id ? "Descargando…" : "PDF remisión"}
-                </button>
+              {rem.sale_id && rem.remission_number && (
+                <RemissionActionMenu
+                  saleId={rem.sale_id}
+                  remissionNumber={rem.remission_number}
+                  onNotify={onNotify}
+                />
               )}
             </div>
 
@@ -632,7 +648,6 @@ export default function InventarioInformes() {
   const [toast, setToast] = useState(null);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [downloadingRemissionId, setDownloadingRemissionId] = useState(null);
 
   const year = monthPeriod.slice(0, 4);
   const month = monthPeriod.slice(5, 7);
@@ -706,9 +721,14 @@ export default function InventarioInformes() {
   const dailyExportParams = () => ({ from: dailyFrom, to: dailyTo, ...filterParams() });
   const monthlyExportParams = () => ({ ...monthDateBounds(year, month), ...filterParams() });
   const sellersExportParams = () => ({ from, to, ...filterParams() });
+  const cashExportParams = () => ({ from, to, ...filterParams() });
+  const receivablesExportParams = () => ({ ...filterParams() });
 
   const openReportPreview = (params, type = "daily") => {
-    const query = buildExportQuery({ ...params, ...(type === "by_seller" ? { type: "by_seller" } : {}) });
+    const query = buildExportQuery({
+      ...params,
+      ...(type && type !== "daily" ? { type } : {}),
+    });
     const url = `/admin/inventario/informes/vista-previa?${query.toString()}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
@@ -789,19 +809,73 @@ export default function InventarioInformes() {
     }
   };
 
-  const downloadRemissionPdf = async (rem) => {
-    if (!rem?.sale_id || !rem?.remission_number) return;
-    setDownloadingRemissionId(rem.sale_id);
+  const openCashPreview = () => openReportPreview(cashExportParams(), "cash_register");
+
+  const exportCashPdf = async () => {
+    setExporting(true);
     try {
+      const params = cashExportParams();
+      const label = params.from === params.to ? params.to : `${params.from}_${params.to}`;
       await api.downloadAuthenticated(
-        api.exportRemissionPdfUrl(rem.sale_id),
-        `remision_${rem.remission_number}.pdf`,
+        api.exportCashRegisterReportPdfUrl(params),
+        `cuadre_caja_${label}.pdf`,
       );
-      showToast("Remisión descargada");
+      showToast("PDF descargado");
     } catch (e) {
       showToast(e.message, "error");
     } finally {
-      setDownloadingRemissionId(null);
+      setExporting(false);
+    }
+  };
+
+  const exportCashExcel = async () => {
+    setExporting(true);
+    try {
+      const params = cashExportParams();
+      const label = params.from === params.to ? params.to : `${params.from}_${params.to}`;
+      await api.downloadAuthenticated(
+        api.exportCashRegisterReportExcelUrl(params),
+        `cuadre_caja_${label}.xlsx`,
+      );
+      showToast("Excel descargado");
+    } catch (e) {
+      showToast(e.message, "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const openReceivablesPreview = () => openReportPreview(receivablesExportParams(), "receivables");
+
+  const exportReceivablesPdf = async () => {
+    setExporting(true);
+    try {
+      const label = new Date().toISOString().slice(0, 10);
+      await api.downloadAuthenticated(
+        api.exportReceivablesReportPdfUrl(receivablesExportParams()),
+        `cartera_${label}.pdf`,
+      );
+      showToast("PDF descargado");
+    } catch (e) {
+      showToast(e.message, "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportReceivablesExcel = async () => {
+    setExporting(true);
+    try {
+      const label = new Date().toISOString().slice(0, 10);
+      await api.downloadAuthenticated(
+        api.exportReceivablesReportExcelUrl(receivablesExportParams()),
+        `cartera_${label}.xlsx`,
+      );
+      showToast("Excel descargado");
+    } catch (e) {
+      showToast(e.message, "error");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -849,7 +923,7 @@ export default function InventarioInformes() {
   }
 
   if (!canViewReports(user)) {
-    return <Navigate to="/admin/inventario" replace />;
+    return <Navigate to={isAccountant(user) ? "/admin/inventario/dashboard" : "/admin/inventario"} replace />;
   }
 
   return (
@@ -1018,8 +1092,7 @@ export default function InventarioInformes() {
                 <RemissionGroupedReport
                   remissions={byRemission.remissions}
                   showDate={remissionIsRange || byRemission.is_range}
-                  onDownloadPdf={downloadRemissionPdf}
-                  downloadingId={downloadingRemissionId}
+                  onNotify={showToast}
                 />
               </div>
             )}
@@ -1035,14 +1108,25 @@ export default function InventarioInformes() {
               suppliers={suppliers}
               dateRange={{ from, to, onFromChange: setFrom, onToChange: setTo }}
             />
+            <ReportFilterActions>
+              <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openCashPreview} disabled={cashLoading || !cash}>
+                Vista previa
+              </button>
+              <button type="button" className="inv-btn inv-btn--outline" onClick={exportCashPdf} disabled={cashLoading || exporting || !cash}>
+                Exportar PDF
+              </button>
+              <button type="button" className="inv-btn inv-btn--outline" onClick={exportCashExcel} disabled={cashLoading || exporting || !cash}>
+                Exportar Excel
+              </button>
+            </ReportFilterActions>
             {cashLoading && !cash ? <ReportLoader /> : null}
             {cash && (
               <div className="inv-panel__body">
-                <p className="inv-dash__muted" style={{ marginTop: 0 }}>
-                  Cobros según fecha de pago. La conciliación de ventas aplica solo a ventas cerradas en el período (fecha de venta).
+                <p className="inv-dash__muted inv-report-methodology" style={{ marginTop: 0 }}>
+                  {cash.methodology || "Cobros según fecha de pago. Las retomas aparecen como egresos. Las ventas devueltas no entran en ingresos del período."}
                 </p>
                 <MobileCollapsible summary="Resumen del cuadre de caja">
-                <div className="inv-stats inv-stats--5">
+                <div className="inv-stats inv-stats--5 inv-report-stats">
                   <article className="inv-stat inv-stat--blue">
                     <span className="inv-stat__label">Ventas del período</span>
                     <strong className="inv-stat__value">{cash.sales_count}</strong>
@@ -1063,6 +1147,12 @@ export default function InventarioInformes() {
                     <span className="inv-stat__label">Conciliación ventas</span>
                     <strong className="inv-stat__value">{formatPrice(cash.difference)}</strong>
                   </article>
+                  {(cash.retake_outflows ?? 0) > 0 && (
+                    <article className="inv-stat inv-stat--amber">
+                      <span className="inv-stat__label">Pagos retoma</span>
+                      <strong className="inv-stat__value">{formatPrice(-Math.abs(cash.retake_outflows))}</strong>
+                    </article>
+                  )}
                 </div>
                 </MobileCollapsible>
                 <div className="inv-stats" style={{ marginTop: "1rem" }}>
@@ -1076,7 +1166,11 @@ export default function InventarioInformes() {
                   </article>
                 </div>
                 <CollectionTypeBreakdown byType={cash.by_collection_type} />
-                <PaymentMethodBreakdown byMethod={cash.by_payment_method} title="Cobros del período por método" />
+                <PaymentMethodBreakdown
+                  byMethod={cash.by_payment_method}
+                  title="Neto del período por método"
+                  amountLabel="Neto"
+                />
                 <CashLedgerTable ledger={cash.ledger} showDate={cashIsRange} />
               </div>
             )}
@@ -1091,6 +1185,17 @@ export default function InventarioInformes() {
               users={users}
               suppliers={suppliers}
             />
+            <ReportFilterActions>
+              <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openReceivablesPreview} disabled={receivablesLoading || !receivables}>
+                Vista previa
+              </button>
+              <button type="button" className="inv-btn inv-btn--outline" onClick={exportReceivablesPdf} disabled={receivablesLoading || exporting || !receivables}>
+                Exportar PDF
+              </button>
+              <button type="button" className="inv-btn inv-btn--outline" onClick={exportReceivablesExcel} disabled={receivablesLoading || exporting || !receivables}>
+                Exportar Excel
+              </button>
+            </ReportFilterActions>
             {receivablesLoading && !receivables ? <ReportLoader /> : null}
             {receivables && (
               <div className="inv-panel__body">

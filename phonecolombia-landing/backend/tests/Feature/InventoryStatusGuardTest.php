@@ -172,7 +172,10 @@ class InventoryStatusGuardTest extends TestCase
         ]);
 
         $this->withToken($token)
-            ->postJson("/api/inventory/{$item->id}/retake")
+            ->postJson("/api/inventory/{$item->id}/retake", [
+                'retake_price' => '1500000',
+                'retake_payment_method' => 'efectivo',
+            ])
             ->assertOk();
 
         $this->assertDatabaseHas('inventory_movements', [
@@ -182,5 +185,6 @@ class InventoryStatusGuardTest extends TestCase
 
         $movement = $item->movements()->where('type', 'retoma')->first();
         $this->assertSame($sale->id, $movement->meta['sale_id'] ?? null);
+        $this->assertSame('1500000', $movement->meta['retake_price'] ?? null);
     }
 }

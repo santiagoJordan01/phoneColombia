@@ -7,6 +7,7 @@ import SearchSelect from "../components/SearchSelect.jsx";
 import InventoryItemSelect from "../components/InventoryItemSelect.jsx";
 import { useCachedQuery } from "../hooks/useCachedQuery.js";
 import api, { isApiConfigured } from "../lib/apiClient";
+import RemissionActionMenu from "../components/inventario/RemissionActionMenu.jsx";
 import { invalidateInventarioCache } from "../lib/inventarioCache.js";
 import { useInventarioPage } from "./inventario/useInventarioPage.js";
 import {
@@ -156,7 +157,6 @@ export default function InventarioVentas() {
     notes: "",
   });
   const [paymentForm, setPaymentForm] = useState({ method: "efectivo", amount: "", notes: "" });
-  const [downloadingRemissionId, setDownloadingRemissionId] = useState(null);
   const [sortColumn, setSortColumn] = useState("fecha");
   const [sortDirection, setSortDirection] = useState("desc");
   const [barcodeScan, setBarcodeScan] = useState("");
@@ -560,22 +560,6 @@ export default function InventarioVentas() {
     setSortDirection("desc");
   }, [sortColumn]);
 
-  const downloadRemission = async (sale) => {
-    if (!sale?.id || !sale?.remission_number) return;
-    setDownloadingRemissionId(sale.id);
-    try {
-      await api.downloadAuthenticated(
-        api.exportRemissionPdfUrl(sale.id),
-        `remision_${sale.remission_number}.pdf`,
-      );
-      showToast("Remisión descargada");
-    } catch (err) {
-      showToast(err.message, "error");
-    } finally {
-      setDownloadingRemissionId(null);
-    }
-  };
-
   if (!isApiConfigured || !authChecked || !user) {
     return (
       <div className="inv-dash inv-dash--centered">
@@ -683,6 +667,9 @@ export default function InventarioVentas() {
                         {sale.reservation_status === "active" && (
                           <span className="inv-badge inv-badge--separado" style={{ marginLeft: "0.35rem" }}>Apartado</span>
                         )}
+                        {sale.is_returned && (
+                          <span className="inv-badge inv-badge--retomado" style={{ marginLeft: "0.35rem" }}>Devuelto</span>
+                        )}
                       </td>
                       <td data-label="Precio">{formatPrice(sale.sale_price)}</td>
                       <td data-label="Método">{paymentLabel(sale.payment_method)}</td>
@@ -693,19 +680,17 @@ export default function InventarioVentas() {
                       <td data-label="Acciones">
                         <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
                           {sale.remission_number && (
-                            <button
-                              type="button"
-                              className="inv-btn inv-btn--compact inv-btn--outline"
-                              onClick={() => downloadRemission(sale)}
-                              disabled={downloadingRemissionId === sale.id}
-                            >
-                              {downloadingRemissionId === sale.id ? "…" : "Remisión"}
-                            </button>
+                            <RemissionActionMenu
+                              saleId={sale.id}
+                              remissionNumber={sale.remission_number}
+                              onNotify={showToast}
+                            />
                           )}
                           <button
                             type="button"
                             className="inv-btn inv-btn--compact inv-btn--ghost"
                             onClick={() => openEditSale(sale)}
+                            disabled={sale.is_returned}
                           >
                             Editar
                           </button>
@@ -747,7 +732,7 @@ export default function InventarioVentas() {
                               Completar
                             </button>
                           )}
-                          {(sale.credit_status === "pending" || sale.reservation_status === "active") && (
+                          {!sale.is_returned && (sale.credit_status === "pending" || sale.reservation_status === "active") && (
                             <button
                               type="button"
                               className="inv-btn inv-btn--compact inv-btn--outline"

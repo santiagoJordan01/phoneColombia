@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import CashReportDocument from "../components/inventario/CashReportDocument.jsx";
 import DailyReportDocument from "../components/inventario/DailyReportDocument.jsx";
+import ReceivablesReportDocument from "../components/inventario/ReceivablesReportDocument.jsx";
 import SellerReportDocument from "../components/inventario/SellerReportDocument.jsx";
 import api, { isApiConfigured } from "../lib/apiClient";
 import { canViewReports } from "./inventario/shared.jsx";
@@ -21,6 +23,23 @@ function paramsFromSearch(searchParams) {
   return params;
 }
 
+function receivablesParamsFromSearch(searchParams) {
+  const params = {};
+  FILTER_KEYS.forEach((key) => {
+    const value = searchParams.get(key);
+    if (value) params[key] = value;
+  });
+  return params;
+}
+
+function resolveReportType(searchParams) {
+  const type = searchParams.get("type");
+  if (type === "by_seller") return "by_seller";
+  if (type === "cash_register") return "cash_register";
+  if (type === "receivables") return "receivables";
+  return "daily";
+}
+
 export default function InventarioInformePreview() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -30,33 +49,53 @@ export default function InventarioInformePreview() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
 
-  const reportType = searchParams.get("type") === "by_seller" ? "by_seller" : "daily";
+  const reportType = resolveReportType(searchParams);
   const isBySeller = reportType === "by_seller";
-  const queryParams = useMemo(() => paramsFromSearch(searchParams), [searchParams]);
+  const isCashRegister = reportType === "cash_register";
+  const isReceivables = reportType === "receivables";
+  const queryParams = useMemo(
+    () => (isReceivables ? receivablesParamsFromSearch(searchParams) : paramsFromSearch(searchParams)),
+    [isReceivables, searchParams],
+  );
   const periodLabel = queryParams.from === queryParams.to
     ? queryParams.to
     : `${queryParams.from}_${queryParams.to}`;
+  const exportFileLabel = isReceivables
+    ? new Date().toISOString().slice(0, 10)
+    : periodLabel;
 
   const generatedAt = useMemo(
     () => new Date().toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" }),
     [],
   );
 
+  const previewHint = isReceivables
+    ? "Vista previa del informe de cartera"
+    : isCashRegister
+      ? "Vista previa del cuadre de caja"
+      : isBySeller
+        ? "Vista previa del informe por vendedor"
+        : "Vista previa del informe diario";
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setReport(
-        isBySeller
-          ? await api.getBySellerReport(queryParams)
-          : await api.getDailyReport(queryParams),
-      );
+      if (isReceivables) {
+        setReport(await api.getReceivablesReport(queryParams));
+      } else if (isCashRegister) {
+        setReport(await api.getCashRegisterReport(queryParams));
+      } else if (isBySeller) {
+        setReport(await api.getBySellerReport(queryParams));
+      } else {
+        setReport(await api.getDailyReport(queryParams));
+      }
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [isBySeller, queryParams]);
+  }, [isBySeller, isCashRegister, isReceivables, queryParams]);
 
   useEffect(() => {
     if (!isApiConfigured) return;
@@ -79,11 +118,22 @@ export default function InventarioInformePreview() {
   const exportPdf = async () => {
     setExporting(true);
     try {
-      const url = isBySeller
-        ? api.exportBySellerReportPdfUrl(queryParams)
-        : api.exportDailyReportPdfUrl(queryParams);
-      const prefix = isBySeller ? "informe_por_vendedor" : "informe_diario";
-      await api.downloadAuthenticated(url, `${prefix}_${periodLabel}.pdf`);
+      let url;
+      let prefix;
+      if (isReceivables) {
+        url = api.exportReceivablesReportPdfUrl(queryParams);
+        prefix = "cartera";
+      } else if (isCashRegister) {
+        url = api.exportCashRegisterReportPdfUrl(queryParams);
+        prefix = "cuadre_caja";
+      } else if (isBySeller) {
+        url = api.exportBySellerReportPdfUrl(queryParams);
+        prefix = "informe_por_vendedor";
+      } else {
+        url = api.exportDailyReportPdfUrl(queryParams);
+        prefix = "informe_diario";
+      }
+      await api.downloadAuthenticated(url, `${prefix}_${exportFileLabel}.pdf`);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -94,11 +144,22 @@ export default function InventarioInformePreview() {
   const exportExcel = async () => {
     setExporting(true);
     try {
-      const url = isBySeller
-        ? api.exportBySellerReportExcelUrl(queryParams)
-        : api.exportDailyReportExcelUrl(queryParams);
-      const prefix = isBySeller ? "informe_por_vendedor" : "informe_diario";
-      await api.downloadAuthenticated(url, `${prefix}_${periodLabel}.xlsx`);
+      let url;
+      let prefix;
+      if (isReceivables) {
+        url = api.exportReceivablesReportExcelUrl(queryParams);
+        prefix = "cartera";
+      } else if (isCashRegister) {
+        url = api.exportCashRegisterReportExcelUrl(queryParams);
+        prefix = "cuadre_caja";
+      } else if (isBySeller) {
+        url = api.exportBySellerReportExcelUrl(queryParams);
+        prefix = "informe_por_vendedor";
+      } else {
+        url = api.exportDailyReportExcelUrl(queryParams);
+        prefix = "informe_diario";
+      }
+      await api.downloadAuthenticated(url, `${prefix}_${exportFileLabel}.xlsx`);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -133,9 +194,7 @@ export default function InventarioInformePreview() {
           <button type="button" className="inv-btn inv-btn--ghost" onClick={goBack}>
             ← Volver a informes
           </button>
-          <span className="inv-report-preview__hint">
-            {isBySeller ? "Vista previa del informe por vendedor" : "Vista previa del informe diario"}
-          </span>
+          <span className="inv-report-preview__hint">{previewHint}</span>
         </div>
         <div className="inv-report-preview__toolbar-actions">
           <button
@@ -179,7 +238,16 @@ export default function InventarioInformePreview() {
         )}
         {!loading && !error && report && (
           <article className="inv-report-preview__paper">
-            {isBySeller ? (
+            {isReceivables ? (
+              <ReceivablesReportDocument report={report} generatedAt={generatedAt} />
+            ) : isCashRegister ? (
+              <CashReportDocument
+                report={report}
+                from={queryParams.from}
+                to={queryParams.to}
+                generatedAt={generatedAt}
+              />
+            ) : isBySeller ? (
               <SellerReportDocument
                 report={report}
                 from={queryParams.from}

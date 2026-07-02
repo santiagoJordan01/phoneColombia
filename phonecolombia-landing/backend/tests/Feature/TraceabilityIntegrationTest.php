@@ -154,7 +154,10 @@ class TraceabilityIntegrationTest extends TestCase
 
         // 4. Retoma con sale_id
         $this->withToken($invToken)
-            ->postJson("/api/inventory/{$itemId}/retake")
+            ->postJson("/api/inventory/{$itemId}/retake", [
+                'retake_price' => '1400000',
+                'retake_payment_method' => 'efectivo',
+            ])
             ->assertOk()
             ->assertJsonPath('status', InventoryStatus::RETOMADO);
 
@@ -164,6 +167,7 @@ class TraceabilityIntegrationTest extends TestCase
             ->first();
 
         $this->assertSame($saleId, $retomaMovement->meta['sale_id'] ?? null);
+        $this->assertSame('1400000', $retomaMovement->meta['retake_price'] ?? null);
 
         // 5. Reingreso
         $this->withToken($invToken)

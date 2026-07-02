@@ -92,6 +92,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::get('/inventory/{inventoryItem}', [InventoryItemController::class, 'show']);
         Route::match(['put', 'post'], '/inventory/{inventoryItem}', [InventoryItemController::class, 'update']);
         Route::delete('/inventory/{inventoryItem}', [InventoryItemController::class, 'destroy']);
+        Route::post('/inventory/{inventoryItem}/retake', [InventoryItemController::class, 'retake']);
         Route::post('/inventory/{inventoryItem}/reserve', [SaleReservationController::class, 'reserve']);
         Route::post('/inventory/{inventoryItem}/cancel-reservation', [SaleReservationController::class, 'cancelByItem']);
 
@@ -121,13 +122,14 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::post('/sales', [SaleController::class, 'store']);
         Route::match(['put', 'patch'], '/sales/{sale}', [SaleController::class, 'update']);
         Route::post('/sales/{sale}/payments', [SaleController::class, 'addPayment']);
-        Route::get('/sales/{sale}/remission/pdf', [SaleController::class, 'exportRemissionPdf']);
         Route::post('/sales/{sale}/complete-reservation', [SaleReservationController::class, 'complete']);
         Route::post('/sales/{sale}/cancel-reservation', [SaleReservationController::class, 'cancel']);
         Route::get('/credit-config', [CreditConfigController::class, 'index']);
     });
 
     Route::middleware('reports')->group(function () {
+        Route::get('/sales/{sale}/remission', [SaleController::class, 'showRemission']);
+        Route::get('/sales/{sale}/remission/pdf', [SaleController::class, 'exportRemissionPdf']);
         Route::get('/reports/daily', [ReportController::class, 'daily']);
         Route::get('/reports/daily/export/pdf', [ReportController::class, 'exportDailyPdf']);
         Route::get('/reports/daily/export/xlsx', [ReportController::class, 'exportDailyExcel']);
@@ -137,7 +139,11 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::get('/reports/by-seller/export/xlsx', [ReportController::class, 'exportBySellerExcel']);
         Route::get('/reports/by-remission', [ReportController::class, 'byRemission']);
         Route::get('/reports/cash-register', [ReportController::class, 'cashRegister']);
+        Route::get('/reports/cash-register/export/pdf', [ReportController::class, 'exportCashRegisterPdf']);
+        Route::get('/reports/cash-register/export/xlsx', [ReportController::class, 'exportCashRegisterExcel']);
         Route::get('/reports/receivables', [ReportController::class, 'receivables']);
+        Route::get('/reports/receivables/export/pdf', [ReportController::class, 'exportReceivablesPdf']);
+        Route::get('/reports/receivables/export/xlsx', [ReportController::class, 'exportReceivablesExcel']);
         Route::get('/reports/export/sales', [ReportController::class, 'exportSales']);
     });
 

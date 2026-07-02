@@ -327,8 +327,8 @@ export const api = {
     return request(`/inventory/${id}`, { method: "DELETE" });
   },
 
-  async retakeInventoryItem(id) {
-    return request(`/inventory/${id}/retake`, { method: "POST" });
+  async retakeInventoryItem(id, data = {}) {
+    return request(`/inventory/${id}/retake`, { method: "POST", body: data });
   },
 
   async getInventoryItem(id) {
@@ -585,8 +585,40 @@ export const api = {
     return `${rawUrl}/reports/by-seller/export/xlsx${qs ? `?${qs}` : ""}`;
   },
 
+  exportCashRegisterReportPdfUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/cash-register/export/pdf${qs ? `?${qs}` : ""}`;
+  },
+
+  exportCashRegisterReportExcelUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/cash-register/export/xlsx${qs ? `?${qs}` : ""}`;
+  },
+
+  exportReceivablesReportPdfUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/receivables/export/pdf${qs ? `?${qs}` : ""}`;
+  },
+
+  exportReceivablesReportExcelUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/receivables/export/xlsx${qs ? `?${qs}` : ""}`;
+  },
+
   exportRemissionPdfUrl(saleId) {
     return `${rawUrl}/sales/${saleId}/remission/pdf`;
+  },
+
+  async getRemissionDocument(saleId) {
+    return request(`/sales/${saleId}/remission`);
   },
 
   async downloadAuthenticated(url, filename) {

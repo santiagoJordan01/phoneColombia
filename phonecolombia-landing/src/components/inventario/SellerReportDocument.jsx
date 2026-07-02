@@ -1,26 +1,17 @@
-import { formatPrice } from "../../pages/inventario/shared.jsx";
-
-function formatDateLabel(dateStr) {
-  if (!dateStr) return "—";
-  const [y, m, d] = dateStr.split("-").map(Number);
-  if (!y || !m || !d) return dateStr;
-  return new Date(y, m - 1, d).toLocaleDateString("es-CO", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
-
-function formatSoldAt(soldAt) {
-  if (!soldAt) return "—";
-  return new Date(soldAt).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" });
-}
-
-function formatMargin(value) {
-  if (value == null || Number.isNaN(Number(value))) return "—";
-  return `${Number(value).toLocaleString("es-CO", { maximumFractionDigits: 1 })}%`;
-}
+import {
+  ReportPreviewEmpty,
+  ReportPreviewFooter,
+  ReportPreviewHeader,
+  ReportPreviewKpis,
+  ReportPreviewMethodology,
+  ReportPreviewSection,
+  ReportPreviewSellerBlock,
+  formatDateLabel,
+  formatMargin,
+  formatSoldAt,
+  paymentLabel,
+  reportMoney,
+} from "./ReportPreviewParts.jsx";
 
 export default function SellerReportDocument({ report, from, to, generatedAt }) {
   const sellers = report?.sellers || [];
@@ -31,148 +22,142 @@ export default function SellerReportDocument({ report, from, to, generatedAt }) 
     ? `${formatDateLabel(periodFrom)} — ${formatDateLabel(periodTo)}`
     : formatDateLabel(periodTo || periodFrom);
 
+  const kpis = [
+    { label: "Ventas", value: totals.count ?? 0, tone: "blue" },
+    { label: "Ingresos", value: reportMoney(totals.revenue), tone: "purple" },
+    { label: "Costo total", value: reportMoney(totals.cost), tone: "slate" },
+    { label: "Utilidad bruta", value: reportMoney(totals.profit), tone: "green" },
+    { label: "Margen", value: formatMargin(totals.margin_percent), tone: "amber" },
+    { label: "Recaudado", value: reportMoney(totals.collected), tone: "green" },
+    ...(totals.pending > 0 ? [{ label: "Pendiente", value: reportMoney(totals.pending), tone: "orange" }] : []),
+  ];
+
   return (
     <div className="inv-report-doc">
-      <header className="inv-report-doc__header">
-        <h1 className="inv-report-doc__title">Phone Colombia — Informe por vendedor</h1>
-        <p className="inv-report-doc__meta">
-          Período: <strong>{periodLabel}</strong>
-          {generatedAt && <> · Generado: {generatedAt}</>}
-        </p>
-      </header>
+      <ReportPreviewHeader
+        docLabel="Informe por vendedor"
+        docSubtitle={`${sellers.length} vendedor${sellers.length === 1 ? "" : "es"} en el período`}
+        periodLabel={periodLabel}
+        generatedAt={generatedAt}
+      />
 
-      <div className="inv-report-doc__summary">
-        Ventas: <strong>{totals.count ?? 0}</strong>
-        {" · "}
-        Ingresos: <strong>{formatPrice(totals.revenue ?? 0)}</strong>
-        {" · "}
-        Costo: <strong>{formatPrice(totals.cost ?? 0)}</strong>
-        {" · "}
-        Utilidad bruta: <strong>{formatPrice(totals.profit ?? 0)}</strong>
-        {" · "}
-        Margen: <strong>{formatMargin(totals.margin_percent)}</strong>
-        {" · "}
-        Recaudado: <strong>{formatPrice(totals.collected ?? 0)}</strong>
-        {" · "}
-        Pendiente: <strong>{formatPrice(totals.pending ?? 0)}</strong>
-      </div>
-
-      {report?.methodology && (
-        <p className="inv-dash__muted" style={{ margin: "0 0 1rem", fontSize: "0.85rem" }}>{report.methodology}</p>
-      )}
+      <ReportPreviewKpis items={kpis} />
+      <ReportPreviewMethodology text={report?.methodology} />
 
       {sellers.length === 0 ? (
-        <p className="inv-report-doc__empty">No hay ventas por vendedor en este período con los filtros aplicados.</p>
+        <ReportPreviewEmpty>
+          No hay ventas por vendedor en este período con los filtros aplicados.
+        </ReportPreviewEmpty>
       ) : (
         <>
-          <section className="inv-report-doc__methods">
-            <h2>Resumen por vendedor</h2>
-            <table className="inv-report-doc__table inv-report-doc__table--compact">
-              <thead>
-                <tr>
-                  <th>Vendedor</th>
-                  <th>Ventas</th>
-                  <th>Ingresos</th>
-                  <th>Costo</th>
-                  <th>Utilidad</th>
-                  <th>Margen</th>
-                  <th>Recaudado</th>
-                  <th>Pendiente</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sellers.map((group) => (
-                  <tr key={group.seller_id || group.seller}>
-                    <td>{group.seller || "Sin vendedor"}</td>
-                    <td>{group.count ?? 0}</td>
-                    <td>{formatPrice(group.revenue ?? 0)}</td>
-                    <td>{formatPrice(group.cost ?? 0)}</td>
-                    <td>{formatPrice(group.profit ?? 0)}</td>
-                    <td>{formatMargin(group.margin_percent)}</td>
-                    <td>{formatPrice(group.collected ?? 0)}</td>
-                    <td>{formatPrice(group.pending ?? 0)}</td>
+          <ReportPreviewSection title="Resumen por vendedor">
+            <div className="inv-report-doc__table-wrap">
+              <table className="inv-report-doc__table">
+                <thead>
+                  <tr>
+                    <th>Vendedor</th>
+                    <th className="inv-report-doc__th-num">Ventas</th>
+                    <th className="inv-report-doc__th-num">Ingresos</th>
+                    <th className="inv-report-doc__th-num">Costo</th>
+                    <th className="inv-report-doc__th-num">Utilidad</th>
+                    <th className="inv-report-doc__th-num">Margen</th>
+                    <th className="inv-report-doc__th-num">Recaudado</th>
+                    <th className="inv-report-doc__th-num">Pendiente</th>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td>Total general</td>
-                  <td>{totals.count ?? 0}</td>
-                  <td>{formatPrice(totals.revenue ?? 0)}</td>
-                  <td>{formatPrice(totals.cost ?? 0)}</td>
-                  <td>{formatPrice(totals.profit ?? 0)}</td>
-                  <td>{formatMargin(totals.margin_percent)}</td>
-                  <td>{formatPrice(totals.collected ?? 0)}</td>
-                  <td>{formatPrice(totals.pending ?? 0)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </section>
+                </thead>
+                <tbody>
+                  {sellers.map((group) => (
+                    <tr key={group.seller_id || group.seller}>
+                      <td className="inv-report-doc__seller-cell">{group.seller || "Sin vendedor"}</td>
+                      <td className="inv-report-doc__num">{group.count ?? 0}</td>
+                      <td className="inv-report-doc__num">{reportMoney(group.revenue ?? 0)}</td>
+                      <td className="inv-report-doc__num">{reportMoney(group.cost ?? 0)}</td>
+                      <td className="inv-report-doc__num inv-report-doc__num--profit">{reportMoney(group.profit ?? 0)}</td>
+                      <td className="inv-report-doc__num">{formatMargin(group.margin_percent)}</td>
+                      <td className="inv-report-doc__num">{reportMoney(group.collected ?? 0)}</td>
+                      <td className="inv-report-doc__num">{reportMoney(group.pending ?? 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td>Total general</td>
+                    <td className="inv-report-doc__num">{totals.count ?? 0}</td>
+                    <td className="inv-report-doc__num">{reportMoney(totals.revenue ?? 0)}</td>
+                    <td className="inv-report-doc__num">{reportMoney(totals.cost ?? 0)}</td>
+                    <td className="inv-report-doc__num">{reportMoney(totals.profit ?? 0)}</td>
+                    <td className="inv-report-doc__num">{formatMargin(totals.margin_percent)}</td>
+                    <td className="inv-report-doc__num">{reportMoney(totals.collected ?? 0)}</td>
+                    <td className="inv-report-doc__num">{reportMoney(totals.pending ?? 0)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </ReportPreviewSection>
 
-          {sellers.map((group) => (
-            <section key={group.seller_id || group.seller} style={{ marginTop: "1.75rem" }}>
-              <h2 className="inv-panel__subtitle" style={{ marginBottom: "0.35rem" }}>
-                {group.seller || "Sin vendedor"}
-              </h2>
-              <p className="inv-dash__muted" style={{ margin: "0 0 0.75rem" }}>
-                {group.count ?? 0} ventas · Ingresos {formatPrice(group.revenue ?? 0)} · Utilidad {formatPrice(group.profit ?? 0)}
-                {group.margin_percent != null && ` · Margen ${formatMargin(group.margin_percent)}`}
-              </p>
-              {!group.sales?.length ? (
-                <p className="inv-report-doc__empty">Sin ventas.</p>
-              ) : (
-                <table className="inv-report-doc__table">
-                  <thead>
-                    <tr>
-                      <th>Fecha</th>
-                      <th>Equipo</th>
-                      <th>IMEI</th>
-                      <th>Precio venta</th>
-                      <th>Costo</th>
-                      <th>Utilidad</th>
-                      <th>Pagado</th>
-                      <th>Pendiente</th>
-                      <th>Método</th>
-                      <th>Cliente</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {group.sales.map((sale) => (
-                      <tr key={sale.id}>
-                        <td>{formatSoldAt(sale.sold_at)}</td>
-                        <td>{sale.item || "—"}</td>
-                        <td className="inv-cell-mono">{sale.imei || sale.barcode || "—"}</td>
-                        <td>{formatPrice(sale.sale_price_num ?? sale.sale_price)}</td>
-                        <td>{formatPrice(sale.purchase_price_num ?? 0)}</td>
-                        <td>{formatPrice(sale.net_profit ?? 0)}</td>
-                        <td>{formatPrice(sale.amount_paid ?? 0)}</td>
-                        <td>{formatPrice(sale.amount_due ?? 0)}</td>
-                        <td>{sale.payment_method || "—"}</td>
-                        <td>{sale.customer || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colSpan={3}>Subtotal ({group.count ?? group.sales.length})</td>
-                      <td>{formatPrice(group.revenue ?? 0)}</td>
-                      <td>{formatPrice(group.cost ?? 0)}</td>
-                      <td>{formatPrice(group.profit ?? 0)}</td>
-                      <td>{formatPrice(group.collected ?? 0)}</td>
-                      <td>{formatPrice(group.pending ?? 0)}</td>
-                      <td colSpan={2} />
-                    </tr>
-                  </tfoot>
-                </table>
-              )}
-            </section>
-          ))}
+          <ReportPreviewSection title="Detalle por vendedor" className="inv-report-doc__section--detail">
+            {sellers.map((group) => (
+              <ReportPreviewSellerBlock
+                key={group.seller_id || group.seller}
+                title={group.seller || "Sin vendedor"}
+                meta={`${group.count ?? 0} ventas · Ingresos ${reportMoney(group.revenue ?? 0)} · Utilidad ${reportMoney(group.profit ?? 0)}${group.margin_percent != null ? ` · Margen ${formatMargin(group.margin_percent)}` : ""}`}
+              >
+                {!group.sales?.length ? (
+                  <ReportPreviewEmpty>Sin ventas.</ReportPreviewEmpty>
+                ) : (
+                  <div className="inv-report-doc__table-wrap">
+                    <table className="inv-report-doc__table">
+                      <thead>
+                        <tr>
+                          <th>Fecha</th>
+                          <th>Equipo</th>
+                          <th>IMEI</th>
+                          <th className="inv-report-doc__th-num">Precio venta</th>
+                          <th className="inv-report-doc__th-num">Costo</th>
+                          <th className="inv-report-doc__th-num">Utilidad</th>
+                          <th className="inv-report-doc__th-num">Pagado</th>
+                          <th className="inv-report-doc__th-num">Pendiente</th>
+                          <th>Método</th>
+                          <th>Cliente</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.sales.map((sale) => (
+                          <tr key={sale.id}>
+                            <td>{formatSoldAt(sale.sold_at)}</td>
+                            <td>{sale.item || "—"}</td>
+                            <td className="inv-cell-mono">{sale.imei || sale.barcode || "—"}</td>
+                            <td className="inv-report-doc__num">{reportMoney(sale.sale_price_num ?? sale.sale_price)}</td>
+                            <td className="inv-report-doc__num">{reportMoney(sale.purchase_price_num ?? 0)}</td>
+                            <td className="inv-report-doc__num inv-report-doc__num--profit">{reportMoney(sale.net_profit ?? 0)}</td>
+                            <td className="inv-report-doc__num">{reportMoney(sale.amount_paid ?? 0)}</td>
+                            <td className="inv-report-doc__num">{reportMoney(sale.amount_due ?? 0)}</td>
+                            <td>{paymentLabel(sale.payment_method)}</td>
+                            <td>{sale.customer || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td colSpan={3}>Subtotal ({group.count ?? group.sales.length})</td>
+                          <td className="inv-report-doc__num">{reportMoney(group.revenue ?? 0)}</td>
+                          <td className="inv-report-doc__num">{reportMoney(group.cost ?? 0)}</td>
+                          <td className="inv-report-doc__num">{reportMoney(group.profit ?? 0)}</td>
+                          <td className="inv-report-doc__num">{reportMoney(group.collected ?? 0)}</td>
+                          <td className="inv-report-doc__num">{reportMoney(group.pending ?? 0)}</td>
+                          <td colSpan={2} />
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </ReportPreviewSellerBlock>
+            ))}
+          </ReportPreviewSection>
         </>
       )}
 
-      <footer className="inv-report-doc__footer">
-        Documento gerencial. No incluye impuestos ni gastos operativos.
-      </footer>
+      <ReportPreviewFooter />
     </div>
   );
 }

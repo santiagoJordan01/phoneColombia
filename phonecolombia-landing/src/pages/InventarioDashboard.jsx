@@ -5,7 +5,7 @@ import MobileCollapsible from "../components/inventario/MobileCollapsible.jsx";
 import { useCachedQuery } from "../hooks/useCachedQuery.js";
 import api, { isApiConfigured } from "../lib/apiClient";
 import { useInventarioPage } from "./inventario/useInventarioPage.js";
-import { canAccessInventory, canManageSales, formatPrice, isServiceTechnician } from "./inventario/shared.jsx";
+import { canAccessInventory, canManageSales, canViewReports, formatPrice, isAccountant, isServiceTechnician } from "./inventario/shared.jsx";
 import "../styles.css";
 
 const SPARKLINE_COLORS = {
@@ -137,7 +137,7 @@ export default function InventarioDashboard() {
     return <Navigate to="/admin/inventario/servicio-tecnico" replace />;
   }
 
-  if (!canAccessInventory(user) && !canManageSales(user)) {
+  if (!canAccessInventory(user) && !canManageSales(user) && !canViewReports(user)) {
     return <Navigate to="/admin" replace />;
   }
 
@@ -145,7 +145,7 @@ export default function InventarioDashboard() {
     <div className="inv-dash">
       <InventarioTopbar
         current="dashboard"
-        title="Dashboard"
+        title="Tablero de control"
         subtitle="Resumen operativo · Phone Colombia"
         user={user}
         onSignOut={signOut}
@@ -157,7 +157,7 @@ export default function InventarioDashboard() {
           </p>
         )}
 
-        <MobileCollapsible summary="Indicadores del dashboard" className="inv-mobile-fold--inline">
+        <MobileCollapsible summary="Indicadores del tablero" className="inv-mobile-fold--inline">
         <div className="inv-stats inv-stats--5">
           <StatCard
             period="Inventario"
@@ -271,22 +271,26 @@ export default function InventarioDashboard() {
         <section className="inv-panel" style={{ marginTop: "1.5rem" }}>
           <h2 className="inv-panel__title">Accesos rápidos</h2>
           <div className="inv-sheet-actions" style={{ flexWrap: "wrap", gap: "0.75rem" }}>
-            <Link to="/admin/inventario" className="inv-btn inv-btn--outline">
-              Ver inventario
-            </Link>
+            {canAccessInventory(user) && (
+              <Link to="/admin/inventario" className="inv-btn inv-btn--outline">
+                Ver inventario
+              </Link>
+            )}
             {canManageSales(user) && (
               <Link to="/admin/inventario/ventas" className="inv-btn inv-btn--primary inv-btn--inline">
                 Registrar venta
               </Link>
             )}
-            {canManageSales(user) && (
+            {canViewReports(user) && (
               <Link to="/admin/inventario/informes" className="inv-btn inv-btn--outline">
                 Informes y caja
               </Link>
             )}
-            <Link to="/admin/inventario/servicio-tecnico" className="inv-btn inv-btn--outline">
-              Servicio técnico
-            </Link>
+            {!isAccountant(user) && (
+              <Link to="/admin/inventario/servicio-tecnico" className="inv-btn inv-btn--outline">
+                Servicio técnico
+              </Link>
+            )}
             <button type="button" className="inv-btn inv-btn--ghost" onClick={refetch} disabled={loading || refreshing}>
               Actualizar
             </button>

@@ -1,18 +1,20 @@
 import { Link } from "react-router-dom";
 import {
   canAccessContent,
+  canAccessInventory,
   canManageSales,
   canViewReports,
+  isAccountant,
   isServiceTechnician,
   isSuperAdmin,
 } from "../../pages/inventario/shared.jsx";
 
 const NAV = [
-  { id: "dashboard", path: "/admin/inventario/dashboard", label: "Dashboard" },
-  { id: "inventario", path: "/admin/inventario", label: "Inventario" },
+  { id: "dashboard", path: "/admin/inventario/dashboard", label: "Tablero de control" },
+  { id: "inventario", path: "/admin/inventario", label: "Inventario", requiresInventory: true },
   { id: "ventas", path: "/admin/inventario/ventas", label: "Ventas", requiresSales: true },
   { id: "informes", path: "/admin/inventario/informes", label: "Informes", requiresReports: true },
-  { id: "servicio", path: "/admin/inventario/servicio-tecnico", label: "Servicio técnico" },
+  { id: "servicio", path: "/admin/inventario/servicio-tecnico", label: "Servicio técnico", requiresService: true },
 ];
 
 export default function InventarioTopbar({
@@ -43,8 +45,10 @@ export default function InventarioTopbar({
       <nav className="inv-topbar__nav" aria-label="Secciones del inventario">
         {NAV.map((item) => {
           if (isServiceTechnician(user) && item.id !== "servicio") return null;
+          if (item.requiresInventory && user && !canAccessInventory(user)) return null;
           if (item.requiresSales && user && !canManageSales(user)) return null;
           if (item.requiresReports && user && !canViewReports(user)) return null;
+          if (item.requiresService && user && isAccountant(user)) return null;
           return (
             <Link
               key={item.id}

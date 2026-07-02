@@ -323,4 +323,42 @@ class ReportAccountingTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('message', 'El abono no puede superar el saldo pendiente.');
     }
+
+    public function test_returned_sales_excluded_from_daily_and_retake_shown_in_cash_register(): void
+    {
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+        $item = $this->createItem(['status' => InventoryStatus::VENDIDO]);
+        $date = now()->toDateString();
+
+        $sale = Sale::create([
+            'inventory_item_id' => $item->id,
+            'user_id' => User::factory()->create(['role' => User::ROLE_SELLER])->id,
+            'remission_number' => 'R-2026-000099',
+            'sale_price' => '2800000',
+            'purchase_price_at_sale' => '2000000',
+            'payment_method' => 'efectivo',
+            'credit_status' => 'paid',
+            'amount_paid' => 2800000,
+            'amount_due' => 0,
+            'sold_at' => now(),
+            'returned_at' => now(),
+            'retake_price' => '1500000',
+            'retake_payment_method' => 'efectivo',
+        ]);
+
+        $this->withToken($token)
+            ->getJson("/api/reports/daily?date={$date}")
+            ->assertOk()
+            ->assertJsonPath('totals.count', 0)
+            ->assertJsonPath('totals.revenue', 0);
+
+        $this->withToken($token)
+            ->getJson("/api/reports/cash-register?from={$date}&to={$date}")
+            ->assertOk()
+            ->assertJsonPath('retake_outflows', 1500000)
+            ->assertJsonFragment([
+                'type' => 'retoma',
+                'remission_number' => $sale->remission_number,
+            ]);
+    }
 }

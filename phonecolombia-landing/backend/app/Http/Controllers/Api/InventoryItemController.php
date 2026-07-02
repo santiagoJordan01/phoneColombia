@@ -8,7 +8,9 @@ use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use App\Models\InventoryProduct;
 use App\Http\Controllers\Api\SaleReservationController;
+use App\Models\Sale;
 use App\Models\Supplier;
+use App\Support\MoneyFormatter;
 use App\Services\AuditService;
 use App\Services\InventoryMovementService;
 use App\Support\InventoryFieldGuard;
@@ -266,16 +268,101 @@ class InventoryItemController extends Controller
         $this->denyIfReadOnlyInventoryRole($request->user(), 'retomar equipos');
 
         if ($inventoryItem->status === InventoryStatus::VENDIDO) {
-            $oldStatus = $inventoryItem->status;
+            $data = $request->validate([
+                'retake_price' => ['required', 'string', 'max:50'],
+                'retake_payment_method' => ['required', Rule::in(['efectivo', 'transferencia'])],
+            ]);
+
+            $retakePrice = (string) (int) MoneyFormatter::parse($data['retake_price']);
+            if ($retakePrice === '0') {
+                return response()->json([
+                    'message' => 'El valor de retoma debe ser mayor a cero.',
+                    'errors' => ['retake_price' => ['El valor de retoma debe ser mayor a cero.']],
+                ], 422);
+            }
+
             $sale = Sale::query()
                 ->where('inventory_item_id', $inventoryItem->id)
+                ->whereNotNull('sold_at')
+                ->whereNull('returned_at')
                 ->orderByDesc('sold_at')
                 ->first();
-            $meta = $sale ? ['sale_id' => $sale->id] : null;
 
-            $inventoryItem->update(['status' => InventoryStatus::RETOMADO]);
-            $this->movements->record($inventoryItem, 'retoma', 'status', $oldStatus, InventoryStatus::RETOMADO, 'Equipo retomado', $meta);
-            $this->audit->log($inventoryItem, 'retake', 'status', $oldStatus, InventoryStatus::RETOMADO, $meta);
+            if (! $sale) {
+                return response()->json(['message' => 'No hay una venta activa asociada a este equipo.'], 422);
+            }
+
+            if ((float) $sale->amount_due > 0) {
+                return response()->json([
+                    'message' => 'Esta venta tiene saldo pendiente. Registra los abonos o ajusta la venta antes de retomar.',
+                    'errors' => [
+                        'amount_due' => ['Saldo pendiente: '.MoneyFormatter::format($sale->amount_due)],
+                    ],
+                ], 422);
+            }
+
+            $retomaSupplier = Supplier::query()->where('name', 'RETOMA')->first();
+            $oldSupplier = $inventoryItem->supplier;
+            $oldSupplierId = $inventoryItem->supplier_id;
+
+            DB::transaction(function () use ($inventoryItem, $sale, $retakePrice, $data, $request, $retomaSupplier, $oldSupplier, $oldSupplierId) {
+                $oldStatus = $inventoryItem->status;
+                $oldPurchasePrice = $inventoryItem->purchase_price;
+
+                $sale->update([
+                    'returned_at' => now(),
+                    'retake_price' => $retakePrice,
+                    'retake_payment_method' => $data['retake_payment_method'],
+                    'amount_due' => 0,
+                    'credit_status' => 'returned',
+                ]);
+
+                $itemUpdates = [
+                    'status' => InventoryStatus::RETOMADO,
+                    'purchase_price' => $retakePrice,
+                    'supplier' => 'RETOMA',
+                ];
+                if ($retomaSupplier) {
+                    $itemUpdates['supplier_id'] = $retomaSupplier->id;
+                }
+                $inventoryItem->update($itemUpdates);
+
+                $meta = [
+                    'sale_id' => $sale->id,
+                    'retake_price' => $retakePrice,
+                    'retake_payment_method' => $data['retake_payment_method'],
+                    'previous_purchase_price' => $oldPurchasePrice,
+                    'sale_price' => $sale->sale_price,
+                    'amount_paid' => (float) $sale->amount_paid,
+                ];
+
+                $notes = 'Equipo retomado · pago '.MoneyFormatter::format($retakePrice);
+                $this->movements->record($inventoryItem, 'retoma', 'status', $oldStatus, InventoryStatus::RETOMADO, $notes, $meta);
+                if ((string) $oldPurchasePrice !== $retakePrice) {
+                    $this->movements->record(
+                        $inventoryItem,
+                        'field_update',
+                        'purchase_price',
+                        $oldPurchasePrice,
+                        $retakePrice,
+                        'Precio compra actualizado por retoma',
+                        null,
+                    );
+                }
+                if ($retomaSupplier && (string) $oldSupplierId !== (string) $retomaSupplier->id) {
+                    $this->movements->record(
+                        $inventoryItem,
+                        'field_update',
+                        'supplier',
+                        $oldSupplier,
+                        'RETOMA',
+                        'Proveedor actualizado por retoma',
+                        ['supplier_id' => $retomaSupplier->id],
+                    );
+                }
+                $this->audit->log($inventoryItem, 'retake', 'status', $oldStatus, InventoryStatus::RETOMADO, $meta);
+                $this->audit->log($sale, 'returned', 'returned_at', null, now()->toIso8601String(), $meta);
+            });
 
             return response()->json($this->serializeItem($inventoryItem->fresh()->load(['inventoryProduct', 'supplierRelation']), $request->user()));
         }
@@ -412,6 +499,28 @@ class InventoryItemController extends Controller
             ];
         } else {
             $data['active_reservation'] = null;
+        }
+
+        if ($item->status === InventoryStatus::VENDIDO) {
+            $latestSale = Sale::query()
+                ->where('inventory_item_id', $item->id)
+                ->whereNotNull('sold_at')
+                ->whereNull('returned_at')
+                ->orderByDesc('sold_at')
+                ->first(['id', 'remission_number', 'sale_price', 'amount_paid', 'amount_due', 'customer_name', 'sold_at', 'payment_method']);
+
+            $data['latest_sale'] = $latestSale ? [
+                'id' => $latestSale->id,
+                'remission_number' => $latestSale->remission_number,
+                'sale_price' => $latestSale->sale_price,
+                'amount_paid' => (float) $latestSale->amount_paid,
+                'amount_due' => (float) $latestSale->amount_due,
+                'customer_name' => $latestSale->customer_name,
+                'sold_at' => $latestSale->sold_at,
+                'payment_method' => $latestSale->payment_method,
+            ] : null;
+        } else {
+            $data['latest_sale'] = null;
         }
 
         if ($includeMovements) {

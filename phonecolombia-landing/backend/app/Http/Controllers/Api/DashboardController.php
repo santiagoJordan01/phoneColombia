@@ -19,7 +19,7 @@ class DashboardController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (! $user->canAccessInventory() && ! $user->canManageSales()) {
+        if (! $user->canAccessInventory() && ! $user->canManageSales() && ! $user->canViewReports()) {
             return response()->json(['message' => 'Acceso no autorizado.'], 403);
         }
 

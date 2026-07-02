@@ -32,6 +32,7 @@ import {
   canManageInventory,
   canManageCustomers,
   canManageSales,
+  isAccountant,
   canViewSensitiveInventoryFields,
   formatPrice,
   isServiceTechnician,
@@ -125,6 +126,9 @@ export default function InventarioAdmin() {
   const [historyItem, setHistoryItem] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [retakingId, setRetakingId] = useState(null);
+  const [retakeTarget, setRetakeTarget] = useState(null);
+  const [retakePrice, setRetakePrice] = useState("");
+  const [retakePaymentMethod, setRetakePaymentMethod] = useState("efectivo");
 
   const viewingArchived = listScope === "archived";
 
@@ -641,14 +645,63 @@ export default function InventarioAdmin() {
     }
   };
 
+  const openRetakeModal = (item) => {
+    setRetakeTarget(item);
+    setRetakePrice("");
+    setRetakePaymentMethod("efectivo");
+  };
+
+  const closeRetakeModal = () => {
+    if (retakingId) return;
+    setRetakeTarget(null);
+    setRetakePrice("");
+    setRetakePaymentMethod("efectivo");
+  };
+
+  const confirmRetake = async (e) => {
+    e.preventDefault();
+    if (!retakeTarget) return;
+
+    const latestSale = retakeTarget.latest_sale;
+    if (latestSale?.amount_due > 0) {
+      showToast("Esta venta tiene saldo pendiente. Registra los abonos antes de retomar.", "error");
+      return;
+    }
+
+    const price = parseCop(retakePrice);
+    if (price <= 0) {
+      showToast("Ingresa el valor de retoma", "error");
+      return;
+    }
+
+    setRetakingId(retakeTarget.id);
+    try {
+      await api.retakeInventoryItem(retakeTarget.id, {
+        retake_price: price,
+        retake_payment_method: retakePaymentMethod,
+      });
+      showToast(`"${retakeTarget.name}" marcado como retomado`);
+      setRetakeTarget(null);
+      setRetakePrice("");
+      fetchItems();
+      if (viewMode === "grouped") fetchGroupedSummary();
+    } catch (err) {
+      showToast(err.message, "error");
+    } finally {
+      setRetakingId(null);
+    }
+  };
+
   const handleRetake = async (item) => {
+    if (item.status === "vendido") {
+      openRetakeModal(item);
+      return;
+    }
+
     setRetakingId(item.id);
     try {
       await api.retakeInventoryItem(item.id);
-      const msg = item.status === "vendido"
-        ? `"${item.name}" marcado como retomado`
-        : `"${item.name}" reingresado al inventario`;
-      showToast(msg);
+      showToast(`"${item.name}" reingresado al inventario`);
       fetchItems();
       if (viewMode === "grouped") fetchGroupedSummary();
     } catch (e) {
@@ -708,6 +761,10 @@ export default function InventarioAdmin() {
 
   if (isServiceTechnician(user)) {
     return <Navigate to="/admin/inventario/servicio-tecnico" replace />;
+  }
+
+  if (isAccountant(user)) {
+    return <Navigate to="/admin/inventario/dashboard" replace />;
   }
 
   if (!canAccessInventory(user)) {
@@ -1730,6 +1787,66 @@ export default function InventarioAdmin() {
             setHistoryLoading(false);
           }}
         />
+      )}
+
+      {retakeTarget && (
+        <div className="inv-modal-overlay" onClick={closeRetakeModal}>
+          <div className="inv-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="inv-modal__title">Retomar equipo</h3>
+            <p className="inv-dash__muted" style={{ marginTop: 0 }}>
+              <strong>{retakeTarget.name}</strong>
+              {retakeTarget.imei && showSensitive ? ` · IMEI ${retakeTarget.imei}` : ""}
+            </p>
+            {retakeTarget.latest_sale && (
+              <div className="inv-separado-alert" role="status" style={{ marginBottom: "0.75rem" }}>
+                <span>Venta {retakeTarget.latest_sale.remission_number || "—"}</span>
+                {" · "}Precio vendido: <strong>{formatPrice(retakeTarget.latest_sale.sale_price)}</strong>
+                {retakeTarget.latest_sale.customer_name ? ` · ${retakeTarget.latest_sale.customer_name}` : ""}
+                {retakeTarget.latest_sale.amount_due > 0 && (
+                  <span style={{ color: "var(--inv-danger, #f87171)" }}>
+                    {" · "}Saldo pendiente: {formatPrice(retakeTarget.latest_sale.amount_due)}
+                  </span>
+                )}
+              </div>
+            )}
+            <form onSubmit={confirmRetake} className="inv-modal-form">
+              <Field label="Valor de retoma *">
+                <CurrencyInput
+                  value={retakePrice}
+                  onChange={setRetakePrice}
+                  required
+                  autoFocus
+                />
+                <p className="inv-field__hint">
+                  Monto que pagas al cliente por el equipo. Actualiza el costo en inventario y registra la salida de caja.
+                </p>
+              </Field>
+              <Field label="Método de pago retoma *">
+                <select
+                  className="inv-field__input"
+                  value={retakePaymentMethod}
+                  onChange={(e) => setRetakePaymentMethod(e.target.value)}
+                  required
+                >
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                </select>
+              </Field>
+              <div className="inv-modal__actions">
+                <button type="button" className="inv-btn inv-btn--outline" onClick={closeRetakeModal} disabled={Boolean(retakingId)}>
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="inv-btn inv-btn--primary inv-btn--inline"
+                  disabled={Boolean(retakingId) || (retakeTarget.latest_sale?.amount_due > 0)}
+                >
+                  {retakingId ? "Guardando…" : "Confirmar retoma"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {deleteTarget && (

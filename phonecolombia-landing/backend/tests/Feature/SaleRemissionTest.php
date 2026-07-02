@@ -102,6 +102,39 @@ class SaleRemissionTest extends TestCase
             ->assertHeader('content-type', 'application/pdf');
     }
 
+    public function test_remission_json_preview(): void
+    {
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+        $item = $this->createItem(['imei' => '352099001761506']);
+
+        $saleId = $this->withToken($token)
+            ->postJson("/api/inventory/{$item->id}/reserve", [
+                'sale_price' => '2000000',
+                'deposit_amount' => 500000,
+                'deposit_method' => 'efectivo',
+                'customer_name' => 'Cliente Vista Previa',
+            ])
+            ->assertCreated()
+            ->json('reservation.id');
+
+        $this->withToken($token)
+            ->getJson("/api/sales/{$saleId}/remission")
+            ->assertOk()
+            ->assertJsonPath('customer', 'Cliente Vista Previa')
+            ->assertJsonPath('status_label', 'Apartado')
+            ->assertJsonStructure([
+                'sale_id',
+                'remission_number',
+                'status_label',
+                'customer',
+                'item',
+                'sale_price',
+                'amount_paid',
+                'amount_due',
+                'payments',
+            ]);
+    }
+
     public function test_by_remission_report_groups_sales_with_payments(): void
     {
         $token = $this->tokenFor(User::ROLE_INVENTORY);

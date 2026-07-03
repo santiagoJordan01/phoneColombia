@@ -305,7 +305,7 @@ class InventoryTraceabilityTest extends TestCase
                 'credit_payment_method_id' => CreditPaymentMethod::query()->where('slug', 'addi')->value('id'),
                 'credit_term_type' => '8_days',
                 'payments' => [
-                    ['method' => 'credito', 'amount' => 400000],
+                    ['method' => 'efectivo', 'amount' => 400000],
                 ],
             ])
             ->assertCreated();
@@ -326,8 +326,20 @@ class InventoryTraceabilityTest extends TestCase
             'auditable_id' => $saleId,
             'action' => 'payment_added',
             'field' => 'amount_paid',
-            'new_value' => '1000000.00',
+            'old_value' => '400000',
+            'new_value' => '1000000',
         ]);
+
+        $paymentAudit = AuditLog::query()
+            ->where('auditable_type', Sale::class)
+            ->where('auditable_id', $saleId)
+            ->where('action', 'payment_added')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($paymentAudit);
+        $this->assertSame('efectivo', $paymentAudit->meta['payments'][0]['method'] ?? null);
+        $this->assertSame(600000.0, (float) ($paymentAudit->meta['payments'][0]['amount'] ?? 0));
     }
 
     public function test_import_records_ingreso_per_item_and_system_audit(): void

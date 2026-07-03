@@ -6,7 +6,6 @@ use App\Http\Controllers\Concerns\DeniesReadOnlyInventoryRoles;
 use App\Http\Controllers\Controller;
 use App\Models\DeviceColor;
 use App\Models\InventoryItem;
-use App\Models\InventoryProduct;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -56,15 +55,6 @@ class DeviceColorController extends Controller
             InventoryItem::query()
                 ->where('color', $oldName)
                 ->update(['color' => $newName]);
-
-            InventoryProduct::query()
-                ->where('color', $oldName)
-                ->get()
-                ->each(function (InventoryProduct $product) use ($newName) {
-                    $product->color = $newName;
-                    $product->name = $this->composeProductName($product);
-                    $product->save();
-                });
         }
 
         return response()->json($deviceColor->fresh());
@@ -77,17 +67,5 @@ class DeviceColorController extends Controller
         $deviceColor->delete();
 
         return response()->json(['message' => 'Color eliminado']);
-    }
-
-    private function composeProductName(InventoryProduct $product): string
-    {
-        $parts = array_filter([
-            $product->brand,
-            $product->model,
-            $product->storage,
-            $product->color,
-        ]);
-
-        return strtoupper(implode(' ', $parts));
     }
 }

@@ -6,10 +6,30 @@ import SearchSelect from "../components/SearchSelect.jsx";
 import { useCachedQuery } from "../hooks/useCachedQuery.js";
 import api, { isApiConfigured } from "../lib/apiClient";
 import RemissionActionMenu from "../components/inventario/RemissionActionMenu.jsx";
+import {
+  PaymentMethodBadge,
+  SalePaidCell,
+  SalePendingCell,
+} from "../components/inventario/TableValueDisplay.jsx";
+import { ReportExcelButton, ReportPdfButton, ReportPreviewButton } from "../components/inventario/ReportExportButtons.jsx";
+import InvIcon from "../components/inventario/InvIcon.jsx";
 import { useInventarioPage } from "./inventario/useInventarioPage.js";
 import { supplierSelectOptions, userSelectOptions } from "../lib/inventarioSelectOptions.js";
 import { Field, canManageInventory, canViewReports, formatPrice, isAccountant, isServiceTechnician } from "./inventario/shared.jsx";
+import { SALE_PAYMENT_METHODS, paymentLabel } from "../lib/paymentMethods.js";
 import "../styles.css";
+
+const REPORT_TABS = [
+  { id: "daily", label: "Diario", icon: "calendar" },
+  { id: "monthly", label: "Mensual", icon: "calendar" },
+  { id: "sellers", label: "Por vendedor", icon: "users" },
+  { id: "remissions", label: "Por remisión", icon: "file-text" },
+  { id: "cash", label: "Cuadre de caja", icon: "cash-register" },
+  { id: "receivables", label: "Cartera", icon: "wallet" },
+  { id: "intake", label: "Ingresos", icon: "package" },
+  { id: "service", label: "Servicio técnico", icon: "servicio" },
+  { id: "export", label: "Respaldo CSV", icon: "download" },
+];
 
 const FILTER_DEFAULTS = {
   user_id: "",
@@ -17,13 +37,8 @@ const FILTER_DEFAULTS = {
   q: "",
   payment_method: "",
   credit_status: "",
-};
-
-const PAYMENT_LABELS = {
-  efectivo: "Efectivo",
-  transferencia: "Transferencia",
-  credito: "Crédito",
-  mixto: "Mixto",
+  service_status: "",
+  workshop: "",
 };
 
 const COLLECTION_TYPE_LABELS = {
@@ -43,10 +58,6 @@ function ledgerTypeBadgeClass(type) {
 
 function collectionTypeLabel(type) {
   return COLLECTION_TYPE_LABELS[type] ?? type ?? "—";
-}
-
-function paymentLabel(method) {
-  return PAYMENT_LABELS[method] ?? method ?? "—";
 }
 
 function formatMargin(value) {
@@ -181,13 +192,18 @@ function SalesReportTable({ sales, showDate = false, emptyMessage = "No hay vent
               <td data-label="Remisión"><span className="inv-cell-mono">{s.remission_number || "—"}</span></td>
               <td data-label="Equipo">{s.item || "—"}</td>
               <td data-label="IMEI">{s.imei || s.barcode || "—"}</td>
-              <td data-label="Precio venta">{formatPrice(s.sale_price_num ?? s.sale_price)}</td>
+              <td data-label="Precio venta"><span className="inv-cell-mono">{formatPrice(s.sale_price_num ?? s.sale_price)}</span></td>
               <td data-label="Costo">{formatPrice(s.purchase_price_num ?? s.purchase_price ?? 0)}</td>
               <td data-label="Utilidad" className="inv-price">{formatPrice(s.net_profit ?? 0)}</td>
               <td data-label="Margen">{formatMargin(s.margin_percent)}</td>
-              <td data-label="Pagado">{formatPrice(s.amount_paid ?? 0)}</td>
-              <td data-label="Pendiente">{formatPrice(s.amount_due ?? 0)}</td>
-              <td data-label="Método">{paymentLabel(s.payment_method)}{s.credit_payment_method ? ` · ${s.credit_payment_method}` : ""}</td>
+              <td data-label="Pagado"><SalePaidCell amountPaid={s.amount_paid} salePrice={s.sale_price_num ?? s.sale_price} /></td>
+              <td data-label="Pendiente"><SalePendingCell amountDue={s.amount_due} /></td>
+              <td data-label="Método">
+                <PaymentMethodBadge
+                  method={s.payment_method}
+                  suffix={s.credit_payment_method ? ` · ${s.credit_payment_method}` : null}
+                />
+              </td>
               <td data-label="Cliente">{s.customer || "—"}</td>
               <td data-label="Vendedor">{s.seller || "—"}</td>
             </tr>
@@ -218,7 +234,7 @@ function PaymentMethodBreakdown({ byMethod, title = "Por método de pago", amoun
           <tbody>
             {entries.map(([method, amount]) => (
               <tr key={method} className="inv-sheet-row">
-                <td data-label="Método">{paymentLabel(method)}</td>
+                <td data-label="Método"><PaymentMethodBadge method={method} /></td>
                 <td data-label={amountLabel}>{formatPrice(amount)}</td>
               </tr>
             ))}
@@ -281,7 +297,7 @@ function CashLedgerTable({ ledger, showDate = false }) {
               </td>
               <td data-label="Equipo">{line.item || "—"}</td>
               <td data-label="Cliente">{line.customer || "—"}</td>
-              <td data-label="Método">{paymentLabel(line.method)}</td>
+              <td data-label="Método"><PaymentMethodBadge method={line.method} /></td>
               <td data-label="Monto" className={line.amount < 0 ? "inv-amount--out" : "inv-amount--in"}>
                 {formatPrice(line.amount)}
               </td>
@@ -337,8 +353,8 @@ function ReceivablesTable({ items, emptyMessage = "No hay saldos pendientes por 
                 {row.customer_phone ? ` · ${row.customer_phone}` : ""}
               </td>
               <td data-label="Total">{formatPrice(row.sale_price)}</td>
-              <td data-label="Pagado">{formatPrice(row.amount_paid)}</td>
-              <td data-label="Pendiente">{formatPrice(row.amount_due)}</td>
+              <td data-label="Pagado"><SalePaidCell amountPaid={row.amount_paid} salePrice={row.sale_price} /></td>
+              <td data-label="Pendiente"><SalePendingCell amountDue={row.amount_due} /></td>
               <td data-label="Vence">
                 {row.due_at
                   ? new Date(row.due_at).toLocaleDateString("es-CO")
@@ -387,6 +403,22 @@ function ReceivablesSummary({ totals, methodology }) {
             <strong className="inv-stat__value">{formatPrice(totals.overdue_amount ?? 0)}</strong>
           </article>
         )}
+        <article className="inv-stat inv-stat--purple">
+          <span className="inv-stat__label">Valor ventas</span>
+          <strong className="inv-stat__value">{formatPrice(totals.revenue ?? 0)}</strong>
+        </article>
+        <article className="inv-stat inv-stat--slate">
+          <span className="inv-stat__label">Costo total</span>
+          <strong className="inv-stat__value">{formatPrice(totals.total_cost ?? 0)}</strong>
+        </article>
+        <article className="inv-stat inv-stat--green">
+          <span className="inv-stat__label">Utilidad bruta</span>
+          <strong className="inv-stat__value">{formatPrice(totals.total_profit ?? 0)}</strong>
+        </article>
+        <article className="inv-stat inv-stat--amber">
+          <span className="inv-stat__label">Margen</span>
+          <strong className="inv-stat__value">{formatMargin(totals.margin_percent)}</strong>
+        </article>
       </div>
       {methodology && (
         <p className="inv-dash__muted" style={{ margin: 0, fontSize: "0.82rem" }}>{methodology}</p>
@@ -420,6 +452,18 @@ function RemissionReportSummary({ totals, methodology }) {
           </article>
         )}
         <article className="inv-stat inv-stat--slate">
+          <span className="inv-stat__label">Costo total</span>
+          <strong className="inv-stat__value">{formatPrice(totals.cost ?? 0)}</strong>
+        </article>
+        <article className="inv-stat inv-stat--green">
+          <span className="inv-stat__label">Utilidad bruta</span>
+          <strong className="inv-stat__value">{formatPrice(totals.profit ?? 0)}</strong>
+        </article>
+        <article className="inv-stat inv-stat--amber">
+          <span className="inv-stat__label">Margen</span>
+          <strong className="inv-stat__value">{formatMargin(totals.margin_percent)}</strong>
+        </article>
+        <article className="inv-stat inv-stat--slate">
           <span className="inv-stat__label">Entregadas</span>
           <strong className="inv-stat__value">{totals.entregados ?? 0}</strong>
         </article>
@@ -431,6 +475,175 @@ function RemissionReportSummary({ totals, methodology }) {
       {methodology && (
         <p className="inv-dash__muted" style={{ margin: 0, fontSize: "0.82rem" }}>{methodology}</p>
       )}
+    </div>
+  );
+}
+
+function IntakeReportSummary({ totals, methodology }) {
+  if (!totals) return null;
+
+  return (
+    <div>
+      <div className="inv-stats inv-report-stats" style={{ marginBottom: methodology ? "0.75rem" : 0 }}>
+        <article className="inv-stat inv-stat--blue">
+          <span className="inv-stat__label">Equipos ingresados</span>
+          <strong className="inv-stat__value">{totals.count ?? 0}</strong>
+        </article>
+        <article className="inv-stat inv-stat--slate">
+          <span className="inv-stat__label">Costo total compra</span>
+          <strong className="inv-stat__value">{formatPrice(totals.purchase_total ?? 0)}</strong>
+        </article>
+        <article className="inv-stat inv-stat--purple">
+          <span className="inv-stat__label">Valor venta referencia</span>
+          <strong className="inv-stat__value">{formatPrice(totals.sale_value_total ?? 0)}</strong>
+        </article>
+        <article className="inv-stat inv-stat--green">
+          <span className="inv-stat__label">Proveedores</span>
+          <strong className="inv-stat__value">{totals.supplier_count ?? 0}</strong>
+        </article>
+      </div>
+      {methodology && (
+        <p className="inv-dash__muted" style={{ margin: 0, fontSize: "0.82rem" }}>{methodology}</p>
+      )}
+    </div>
+  );
+}
+
+function IntakeGroupedReport({ groups, showDate = false }) {
+  if (!groups?.length) {
+    return <p className="inv-dash__muted inv-sheet-empty">No hay equipos ingresados en este período con los filtros actuales.</p>;
+  }
+
+  return (
+    <div className="inv-remission-groups">
+      {groups.map((group) => (
+        <section key={group.supplier_key || group.supplier_name} className="inv-panel" style={{ marginTop: "1rem" }}>
+          <div className="inv-panel__body" style={{ paddingTop: "1rem" }}>
+            <h3 className="inv-panel__subtitle" style={{ margin: "0 0 0.75rem" }}>
+              {group.supplier_name || "Sin proveedor"}
+              {" · "}
+              <span className="inv-dash__muted" style={{ fontWeight: 500 }}>
+                {group.count ?? 0} equipo{(group.count ?? 0) === 1 ? "" : "s"}
+                {" · "}
+                Compra {formatPrice(group.purchase_total ?? 0)}
+                {" · "}
+                Venta ref. {formatPrice(group.sale_value_total ?? 0)}
+              </span>
+            </h3>
+            <div className="inv-table-wrap">
+              <table className="inv-table">
+                <thead>
+                  <tr>
+                    <th>{showDate ? "Fecha ingreso" : "Hora"}</th>
+                    <th>Equipo</th>
+                    <th>IMEI</th>
+                    <th>Color</th>
+                    <th>Costo</th>
+                    <th>Precio venta</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(group.items || []).map((item) => (
+                    <tr key={item.id} className="inv-sheet-row">
+                      <td data-label={showDate ? "Fecha ingreso" : "Hora"}>{formatSoldAt(item.acquired_at, { includeDate: showDate })}</td>
+                      <td data-label="Equipo">{item.name || "—"}</td>
+                      <td data-label="IMEI">{item.imei || item.barcode || "—"}</td>
+                      <td data-label="Color">{item.color || "—"}</td>
+                      <td data-label="Costo">{formatPrice(item.purchase_price ?? 0)}</td>
+                      <td data-label="Precio venta">{formatPrice(item.sale_price ?? 0)}</td>
+                      <td data-label="Estado">{item.status_label || item.status || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function ServiceTicketsReportSummary({ totals, methodology }) {
+  if (!totals) return null;
+
+  return (
+    <div>
+      <div className="inv-stats inv-report-stats" style={{ marginBottom: methodology ? "0.75rem" : 0 }}>
+        <article className="inv-stat inv-stat--blue">
+          <span className="inv-stat__label">Tickets</span>
+          <strong className="inv-stat__value">{totals.count ?? 0}</strong>
+        </article>
+        <article className="inv-stat inv-stat--amber">
+          <span className="inv-stat__label">Abiertos</span>
+          <strong className="inv-stat__value">{totals.open_count ?? 0}</strong>
+        </article>
+        <article className="inv-stat inv-stat--green">
+          <span className="inv-stat__label">Cerrados</span>
+          <strong className="inv-stat__value">{totals.closed_count ?? 0}</strong>
+        </article>
+        <article className="inv-stat inv-stat--slate">
+          <span className="inv-stat__label">Costo reparación</span>
+          <strong className="inv-stat__value">{formatPrice(totals.repair_cost ?? 0)}</strong>
+        </article>
+        <article className="inv-stat inv-stat--purple">
+          <span className="inv-stat__label">Precio al cliente</span>
+          <strong className="inv-stat__value">{formatPrice(totals.customer_price ?? 0)}</strong>
+        </article>
+        <article className="inv-stat inv-stat--green">
+          <span className="inv-stat__label">Margen</span>
+          <strong className="inv-stat__value">{formatPrice(totals.margin ?? 0)}</strong>
+        </article>
+      </div>
+      {methodology && (
+        <p className="inv-dash__muted" style={{ margin: 0, fontSize: "0.82rem" }}>{methodology}</p>
+      )}
+    </div>
+  );
+}
+
+function ServiceTicketsReportTable({ tickets, showDate = false }) {
+  if (!tickets?.length) {
+    return <p className="inv-dash__muted inv-sheet-empty">No hay tickets en este período con los filtros actuales.</p>;
+  }
+
+  return (
+    <div className="inv-table-wrap inv-table-wrap--sheet">
+      <table className="inv-table inv-table--sheet inv-table--report">
+        <thead>
+          <tr>
+            <th>{showDate ? "Recibido" : "Hora"}</th>
+            <th>Equipo</th>
+            <th>Referencia</th>
+            <th>Tipo</th>
+            <th>Cliente</th>
+            <th>Estado</th>
+            <th>Técnico</th>
+            <th>Taller</th>
+            <th>Costo</th>
+            <th>Precio</th>
+            <th>Margen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tickets.map((ticket) => (
+            <tr key={ticket.id} className="inv-sheet-row">
+              <td data-label={showDate ? "Recibido" : "Hora"}>{formatSoldAt(ticket.received_at, { includeDate: showDate })}</td>
+              <td data-label="Equipo">{ticket.display_name || "—"}</td>
+              <td data-label="Referencia">{ticket.device_reference || ticket.imei || "—"}</td>
+              <td data-label="Tipo">{ticket.ticket_type_label || ticket.ticket_type || "—"}</td>
+              <td data-label="Cliente">{ticket.customer_name || "—"}</td>
+              <td data-label="Estado">{ticket.status_label || ticket.status || "—"}</td>
+              <td data-label="Técnico">{ticket.technician || "—"}</td>
+              <td data-label="Taller">{ticket.workshop || "—"}</td>
+              <td data-label="Costo">{formatPrice(ticket.repair_cost ?? 0)}</td>
+              <td data-label="Precio">{formatPrice(ticket.customer_price ?? 0)}</td>
+              <td data-label="Margen">{formatPrice(ticket.margin ?? 0)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -488,14 +701,16 @@ function RemissionGroupedReport({ remissions, showDate = false, onNotify }) {
                   <tr className="inv-sheet-row">
                     <td data-label="Equipo">{rem.item || "—"}</td>
                     <td data-label="IMEI">{rem.imei || rem.barcode || "—"}</td>
-                    <td data-label="Precio venta">{formatPrice(rem.sale_price_num ?? rem.sale_price)}</td>
+                    <td data-label="Precio venta"><span className="inv-cell-mono">{formatPrice(rem.sale_price_num ?? rem.sale_price)}</span></td>
                     <td data-label="Costo">{formatPrice(rem.purchase_price_num ?? 0)}</td>
                     <td data-label="Utilidad">{formatPrice(rem.net_profit ?? 0)}</td>
-                    <td data-label="Pagado">{formatPrice(rem.amount_paid ?? 0)}</td>
-                    <td data-label="Pendiente">{formatPrice(rem.amount_due ?? 0)}</td>
+                    <td data-label="Pagado"><SalePaidCell amountPaid={rem.amount_paid} salePrice={rem.sale_price_num ?? rem.sale_price} /></td>
+                    <td data-label="Pendiente"><SalePendingCell amountDue={rem.amount_due} /></td>
                     <td data-label="Método">
-                      {paymentLabel(rem.payment_method)}
-                      {rem.credit_payment_method ? ` · ${rem.credit_payment_method}` : ""}
+                      <PaymentMethodBadge
+                        method={rem.payment_method}
+                        suffix={rem.credit_payment_method ? ` · ${rem.credit_payment_method}` : null}
+                      />
                     </td>
                   </tr>
                 </tbody>
@@ -518,7 +733,7 @@ function RemissionGroupedReport({ remissions, showDate = false, onNotify }) {
                     {rem.payments.map((payment) => (
                       <tr key={payment.id} className="inv-sheet-row">
                         <td data-label={showDate ? "Fecha" : "Hora"}>{formatSoldAt(payment.paid_at, { includeDate: showDate })}</td>
-                        <td data-label="Método">{payment.method_label || paymentLabel(payment.method)}</td>
+                        <td data-label="Método"><PaymentMethodBadge method={payment.method} /></td>
                         <td data-label="Monto">{formatPrice(payment.amount)}</td>
                         <td data-label="Notas">{payment.notes || "—"}</td>
                       </tr>
@@ -542,9 +757,23 @@ function RemissionGroupedReport({ remissions, showDate = false, onNotify }) {
   );
 }
 
-function ReportFilters({ filters, onChange, users, suppliers, dateRange, monthRange, searchPlaceholder }) {
+function ReportFilters({
+  filters,
+  onChange,
+  users,
+  suppliers,
+  serviceStates = [],
+  workshops = [],
+  dateRange,
+  monthRange,
+  searchPlaceholder,
+  mode = "sales",
+}) {
   const userOptions = useMemo(() => userSelectOptions(users), [users]);
   const supplierOptions = useMemo(() => supplierSelectOptions(suppliers), [suppliers]);
+  const showSalesFilters = mode === "sales";
+  const showIntakeFilters = mode === "intake";
+  const showServiceFilters = mode === "service";
 
   return (
     <MobileCollapsible summary="Filtros del informe" className="inv-mobile-fold--inline">
@@ -580,45 +809,72 @@ function ReportFilters({ filters, onChange, users, suppliers, dateRange, monthRa
             />
           </Field>
         )}
-        <Field label="Vendedor">
-          <SearchSelect
-            value={filters.user_id}
-            onChange={(id) => onChange({ user_id: id })}
-            options={userOptions}
-            placeholder="Todos los vendedores"
-            searchPlaceholder="Buscar vendedor…"
-            clearLabel="Todos"
-          />
-        </Field>
-        <Field label="Proveedor">
-          <SearchSelect
-            value={filters.supplier_id}
-            onChange={(id) => onChange({ supplier_id: id })}
-            options={supplierOptions}
-            placeholder="Todos los proveedores"
-            searchPlaceholder="Buscar proveedor…"
-            clearLabel="Todos"
-          />
-        </Field>
-        <Field label="Equipo / remisión">
+        {showSalesFilters && (
+          <Field label="Vendedor">
+            <SearchSelect
+              value={filters.user_id}
+              onChange={(id) => onChange({ user_id: id })}
+              options={userOptions}
+              placeholder="Todos los vendedores"
+              searchPlaceholder="Buscar vendedor…"
+              clearLabel="Todos"
+            />
+          </Field>
+        )}
+        {(showSalesFilters || showIntakeFilters) && (
+          <Field label="Proveedor">
+            <SearchSelect
+              value={filters.supplier_id}
+              onChange={(id) => onChange({ supplier_id: id })}
+              options={supplierOptions}
+              placeholder="Todos los proveedores"
+              searchPlaceholder="Buscar proveedor…"
+              clearLabel="Todos"
+            />
+          </Field>
+        )}
+        <Field label={showServiceFilters ? "Equipo / cliente" : showIntakeFilters ? "Equipo / proveedor" : "Equipo / remisión"}>
           <input className="inv-field__input" value={filters.q} onChange={(e) => onChange({ q: e.target.value })} placeholder={searchPlaceholder || "Equipo, IMEI o R-2026-000001…"} />
         </Field>
-        <Field label="Método pago">
-          <select className="inv-field__input" value={filters.payment_method} onChange={(e) => onChange({ payment_method: e.target.value })}>
-            <option value="">Todos</option>
-            <option value="efectivo">Efectivo</option>
-            <option value="transferencia">Transferencia</option>
-            <option value="credito">Crédito</option>
-            <option value="mixto">Mixto</option>
-          </select>
-        </Field>
-        <Field label="Estado crédito">
-          <select className="inv-field__input" value={filters.credit_status} onChange={(e) => onChange({ credit_status: e.target.value })}>
-            <option value="">Todos</option>
-            <option value="paid">Pagado</option>
-            <option value="pending">Pendiente</option>
-          </select>
-        </Field>
+        {showSalesFilters && (
+          <>
+            <Field label="Método pago">
+              <select className="inv-field__input" value={filters.payment_method} onChange={(e) => onChange({ payment_method: e.target.value })}>
+                <option value="">Todos</option>
+                {SALE_PAYMENT_METHODS.map((method) => (
+                  <option key={method.value} value={method.value}>{method.label}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Estado crédito">
+              <select className="inv-field__input" value={filters.credit_status} onChange={(e) => onChange({ credit_status: e.target.value })}>
+                <option value="">Todos</option>
+                <option value="paid">Pagado</option>
+                <option value="pending">Pendiente</option>
+              </select>
+            </Field>
+          </>
+        )}
+        {showServiceFilters && (
+          <>
+            <Field label="Estado ST">
+              <select className="inv-field__input" value={filters.service_status} onChange={(e) => onChange({ service_status: e.target.value })}>
+                <option value="">Todos</option>
+                {serviceStates.map((state) => (
+                  <option key={state.slug} value={state.slug}>{state.name}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Taller">
+              <select className="inv-field__input" value={filters.workshop} onChange={(e) => onChange({ workshop: e.target.value })}>
+                <option value="">Todos</option>
+                {workshops.map((workshop) => (
+                  <option key={workshop} value={workshop}>{workshop}</option>
+                ))}
+              </select>
+            </Field>
+          </>
+        )}
       </div>
     </div>
     </MobileCollapsible>
@@ -662,6 +918,8 @@ export default function InventarioInformes() {
       return {
         suppliers: data.suppliers || [],
         filter_users: data.filter_users || [],
+        service_ticket_states: data.service_ticket_states || [],
+        workshops: data.workshops || [],
       };
     },
     { enabled: reportsEnabled },
@@ -669,6 +927,8 @@ export default function InventarioInformes() {
 
   const suppliers = catalogs?.suppliers || [];
   const users = catalogs?.filter_users || [];
+  const serviceStates = catalogs?.service_ticket_states || [];
+  const workshops = catalogs?.workshops || [];
 
   const { data: daily, loading: dailyLoading, refreshing: dailyRefreshing } = useCachedQuery(
     ["reports", "daily", { from: dailyFrom, to: dailyTo, ...filterKey }],
@@ -710,7 +970,21 @@ export default function InventarioInformes() {
     { enabled: reportsEnabled && tab === "remissions" },
   );
 
+  const { data: intake, loading: intakeLoading } = useCachedQuery(
+    ["reports", "intake", { from, to, ...filterKey }],
+    () => api.getInventoryIntakeReport({ from, to, ...filterKey }),
+    { enabled: reportsEnabled && tab === "intake" },
+  );
+
+  const { data: serviceReport, loading: serviceReportLoading } = useCachedQuery(
+    ["reports", "service", { from, to, ...filterKey }],
+    () => api.getServiceTicketsReport({ from, to, ...filterKey }),
+    { enabled: reportsEnabled && tab === "service" },
+  );
+
   const remissionIsRange = from !== to;
+  const intakeIsRange = from !== to;
+  const serviceIsRange = from !== to;
 
   const showToast = useCallback((text, type = "success") => {
     setToast({ text, type });
@@ -721,6 +995,9 @@ export default function InventarioInformes() {
   const dailyExportParams = () => ({ from: dailyFrom, to: dailyTo, ...filterParams() });
   const monthlyExportParams = () => ({ ...monthDateBounds(year, month), ...filterParams() });
   const sellersExportParams = () => ({ from, to, ...filterParams() });
+  const remissionExportParams = () => ({ from, to, ...filterParams() });
+  const intakeExportParams = () => ({ from, to, ...filterParams() });
+  const serviceExportParams = () => ({ from, to, ...filterParams() });
   const cashExportParams = () => ({ from, to, ...filterParams() });
   const receivablesExportParams = () => ({ ...filterParams() });
 
@@ -774,6 +1051,9 @@ export default function InventarioInformes() {
   const exportMonthlyExcel = () => exportReportExcel(monthlyExportParams(), "informe_mensual");
 
   const openSellersPreview = () => openReportPreview(sellersExportParams(), "by_seller");
+  const openRemissionPreview = () => openReportPreview(remissionExportParams(), "by_remission");
+  const openIntakePreview = () => openReportPreview(intakeExportParams(), "inventory_intake");
+  const openServicePreview = () => openReportPreview(serviceExportParams(), "service_tickets");
 
   const exportSellersPdf = async () => {
     setExporting(true);
@@ -800,6 +1080,108 @@ export default function InventarioInformes() {
       await api.downloadAuthenticated(
         api.exportBySellerReportExcelUrl(params),
         `informe_por_vendedor_${label}.xlsx`,
+      );
+      showToast("Excel descargado");
+    } catch (e) {
+      showToast(e.message, "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportRemissionsXls = async () => {
+    setExporting(true);
+    try {
+      const params = remissionExportParams();
+      const label = params.from === params.to ? params.to : `${params.from}_${params.to}`;
+      await api.downloadAuthenticated(
+        api.exportByRemissionReportXlsUrl(params),
+        `Reporte de remisiones de venta ${label}.xls`,
+      );
+      showToast("Informe de remisiones descargado");
+    } catch (e) {
+      showToast(e.message, "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportRemissionsPdf = async () => {
+    setExporting(true);
+    try {
+      const params = remissionExportParams();
+      const label = params.from === params.to ? params.to : `${params.from}_${params.to}`;
+      await api.downloadAuthenticated(
+        api.exportByRemissionReportPdfUrl(params),
+        `informe_por_remision_${label}.pdf`,
+      );
+      showToast("PDF descargado");
+    } catch (e) {
+      showToast(e.message, "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportIntakePdf = async () => {
+    setExporting(true);
+    try {
+      const params = intakeExportParams();
+      const label = params.from === params.to ? params.to : `${params.from}_${params.to}`;
+      await api.downloadAuthenticated(
+        api.exportInventoryIntakeReportPdfUrl(params),
+        `ingresos_inventario_${label}.pdf`,
+      );
+      showToast("PDF descargado");
+    } catch (e) {
+      showToast(e.message, "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportIntakeExcel = async () => {
+    setExporting(true);
+    try {
+      const params = intakeExportParams();
+      const label = params.from === params.to ? params.to : `${params.from}_${params.to}`;
+      await api.downloadAuthenticated(
+        api.exportInventoryIntakeReportExcelUrl(params),
+        `ingresos_inventario_${label}.xlsx`,
+      );
+      showToast("Excel descargado");
+    } catch (e) {
+      showToast(e.message, "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportServicePdf = async () => {
+    setExporting(true);
+    try {
+      const params = serviceExportParams();
+      const label = params.from === params.to ? params.to : `${params.from}_${params.to}`;
+      await api.downloadAuthenticated(
+        api.exportServiceTicketsReportPdfUrl(params),
+        `servicio_tecnico_${label}.pdf`,
+      );
+      showToast("PDF descargado");
+    } catch (e) {
+      showToast(e.message, "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportServiceExcel = async () => {
+    setExporting(true);
+    try {
+      const params = serviceExportParams();
+      const label = params.from === params.to ? params.to : `${params.from}_${params.to}`;
+      await api.downloadAuthenticated(
+        api.exportServiceTicketsReportExcelUrl(params),
+        `servicio_tecnico_${label}.xlsx`,
       );
       showToast("Excel descargado");
     } catch (e) {
@@ -928,23 +1310,18 @@ export default function InventarioInformes() {
 
   return (
     <div className="inv-dash">
-      <InventarioTopbar current="informes" title="Informes" subtitle="Ventas, caja, cartera y respaldos" user={user} onSignOut={signOut} />
+      <InventarioTopbar current="informes" title="Informes" subtitle="Ventas, ingresos, ST, caja y respaldos" user={user} onSignOut={signOut} />
       <main className="inv-main">
         <div className="inv-sheet-actions inv-report-tabs">
-          {["daily", "monthly", "sellers", "remissions", "cash", "receivables", "export"].map((t) => (
+          {REPORT_TABS.map((item) => (
             <button
-              key={t}
+              key={item.id}
               type="button"
-              className={`inv-btn inv-btn--ghost${tab === t ? " is-active" : ""}`}
-              onClick={() => setTab(t)}
+              className={`inv-btn inv-btn--ghost${tab === item.id ? " is-active" : ""}`}
+              onClick={() => setTab(item.id)}
             >
-              {t === "daily" && "Diario"}
-              {t === "monthly" && "Mensual"}
-              {t === "sellers" && "Por vendedor"}
-              {t === "remissions" && "Por remisión"}
-              {t === "cash" && "Cuadre de caja"}
-              {t === "receivables" && "Cartera"}
-              {t === "export" && "Respaldo CSV"}
+              <InvIcon name={item.icon} />
+              {item.label}
             </button>
           ))}
         </div>
@@ -959,15 +1336,9 @@ export default function InventarioInformes() {
               dateRange={{ from: dailyFrom, to: dailyTo, onFromChange: setDailyFrom, onToChange: setDailyTo }}
             />
             <ReportFilterActions>
-              <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openDailyPreview} disabled={dailyLoading || !daily}>
-                Vista previa
-              </button>
-              <button type="button" className="inv-btn inv-btn--outline" onClick={exportDailyPdf} disabled={dailyLoading || exporting || !daily}>
-                Exportar PDF
-              </button>
-              <button type="button" className="inv-btn inv-btn--outline" onClick={exportDailyExcel} disabled={dailyLoading || exporting || !daily}>
-                Exportar Excel
-              </button>
+              <ReportPreviewButton onClick={openDailyPreview} disabled={dailyLoading || !daily} />
+              <ReportPdfButton onClick={exportDailyPdf} disabled={dailyLoading || exporting || !daily} />
+              <ReportExcelButton onClick={exportDailyExcel} disabled={dailyLoading || exporting || !daily} />
             </ReportFilterActions>
             {dailyLoading && !daily ? <ReportLoader /> : null}
             {daily && (
@@ -997,15 +1368,9 @@ export default function InventarioInformes() {
               monthRange={{ value: monthPeriod, onChange: setMonthPeriod }}
             />
             <ReportFilterActions>
-              <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openMonthlyPreview} disabled={monthlyLoading || !monthly}>
-                Vista previa
-              </button>
-              <button type="button" className="inv-btn inv-btn--outline" onClick={exportMonthlyPdf} disabled={monthlyLoading || exporting || !monthly}>
-                Exportar PDF
-              </button>
-              <button type="button" className="inv-btn inv-btn--outline" onClick={exportMonthlyExcel} disabled={monthlyLoading || exporting || !monthly}>
-                Exportar Excel
-              </button>
+              <ReportPreviewButton onClick={openMonthlyPreview} disabled={monthlyLoading || !monthly} />
+              <ReportPdfButton onClick={exportMonthlyPdf} disabled={monthlyLoading || exporting || !monthly} />
+              <ReportExcelButton onClick={exportMonthlyExcel} disabled={monthlyLoading || exporting || !monthly} />
             </ReportFilterActions>
             {monthlyLoading && !monthly ? <ReportLoader /> : null}
             {monthly && (
@@ -1043,15 +1408,9 @@ export default function InventarioInformes() {
               dateRange={{ from, to, onFromChange: setFrom, onToChange: setTo }}
             />
             <ReportFilterActions>
-              <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openSellersPreview} disabled={bySellerLoading || !bySeller}>
-                Vista previa
-              </button>
-              <button type="button" className="inv-btn inv-btn--outline" onClick={exportSellersPdf} disabled={bySellerLoading || exporting || !bySeller}>
-                Exportar PDF
-              </button>
-              <button type="button" className="inv-btn inv-btn--outline" onClick={exportSellersExcel} disabled={bySellerLoading || exporting || !bySeller}>
-                Exportar Excel
-              </button>
+              <ReportPreviewButton onClick={openSellersPreview} disabled={bySellerLoading || !bySeller} />
+              <ReportPdfButton onClick={exportSellersPdf} disabled={bySellerLoading || exporting || !bySeller} />
+              <ReportExcelButton onClick={exportSellersExcel} disabled={bySellerLoading || exporting || !bySeller} />
             </ReportFilterActions>
             {bySellerLoading && !bySeller ? <ReportLoader /> : null}
             {bySeller && (
@@ -1085,6 +1444,16 @@ export default function InventarioInformes() {
               dateRange={{ from, to, onFromChange: setFrom, onToChange: setTo }}
               searchPlaceholder="Remisión, equipo o IMEI…"
             />
+            <ReportFilterActions>
+              <ReportPreviewButton onClick={openRemissionPreview} disabled={byRemissionLoading || !byRemission} />
+              <ReportPdfButton onClick={exportRemissionsPdf} disabled={byRemissionLoading || exporting || !byRemission} />
+              <ReportExcelButton
+                onClick={exportRemissionsXls}
+                disabled={byRemissionLoading || exporting || !byRemission}
+              >
+                Exportar informe remisiones (.xls)
+              </ReportExcelButton>
+            </ReportFilterActions>
             {byRemissionLoading && !byRemission ? <ReportLoader /> : null}
             {byRemission && (
               <div className="inv-panel__body">
@@ -1109,15 +1478,9 @@ export default function InventarioInformes() {
               dateRange={{ from, to, onFromChange: setFrom, onToChange: setTo }}
             />
             <ReportFilterActions>
-              <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openCashPreview} disabled={cashLoading || !cash}>
-                Vista previa
-              </button>
-              <button type="button" className="inv-btn inv-btn--outline" onClick={exportCashPdf} disabled={cashLoading || exporting || !cash}>
-                Exportar PDF
-              </button>
-              <button type="button" className="inv-btn inv-btn--outline" onClick={exportCashExcel} disabled={cashLoading || exporting || !cash}>
-                Exportar Excel
-              </button>
+              <ReportPreviewButton onClick={openCashPreview} disabled={cashLoading || !cash} />
+              <ReportPdfButton onClick={exportCashPdf} disabled={cashLoading || exporting || !cash} />
+              <ReportExcelButton onClick={exportCashExcel} disabled={cashLoading || exporting || !cash} />
             </ReportFilterActions>
             {cashLoading && !cash ? <ReportLoader /> : null}
             {cash && (
@@ -1146,6 +1509,18 @@ export default function InventarioInformes() {
                   <article className="inv-stat inv-stat--slate">
                     <span className="inv-stat__label">Conciliación ventas</span>
                     <strong className="inv-stat__value">{formatPrice(cash.difference)}</strong>
+                  </article>
+                  <article className="inv-stat inv-stat--slate">
+                    <span className="inv-stat__label">Costo total</span>
+                    <strong className="inv-stat__value">{formatPrice(cash.total_cost ?? 0)}</strong>
+                  </article>
+                  <article className="inv-stat inv-stat--green">
+                    <span className="inv-stat__label">Utilidad bruta</span>
+                    <strong className="inv-stat__value">{formatPrice(cash.total_profit ?? 0)}</strong>
+                  </article>
+                  <article className="inv-stat inv-stat--amber">
+                    <span className="inv-stat__label">Margen</span>
+                    <strong className="inv-stat__value">{formatMargin(cash.margin_percent)}</strong>
                   </article>
                   {(cash.retake_outflows ?? 0) > 0 && (
                     <article className="inv-stat inv-stat--amber">
@@ -1186,21 +1561,72 @@ export default function InventarioInformes() {
               suppliers={suppliers}
             />
             <ReportFilterActions>
-              <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openReceivablesPreview} disabled={receivablesLoading || !receivables}>
-                Vista previa
-              </button>
-              <button type="button" className="inv-btn inv-btn--outline" onClick={exportReceivablesPdf} disabled={receivablesLoading || exporting || !receivables}>
-                Exportar PDF
-              </button>
-              <button type="button" className="inv-btn inv-btn--outline" onClick={exportReceivablesExcel} disabled={receivablesLoading || exporting || !receivables}>
-                Exportar Excel
-              </button>
+              <ReportPreviewButton onClick={openReceivablesPreview} disabled={receivablesLoading || !receivables} />
+              <ReportPdfButton onClick={exportReceivablesPdf} disabled={receivablesLoading || exporting || !receivables} />
+              <ReportExcelButton onClick={exportReceivablesExcel} disabled={receivablesLoading || exporting || !receivables} />
             </ReportFilterActions>
             {receivablesLoading && !receivables ? <ReportLoader /> : null}
             {receivables && (
               <div className="inv-panel__body">
                 <ReceivablesSummary totals={receivables.totals} methodology={receivables.methodology} />
                 <ReceivablesTable items={receivables.items} />
+              </div>
+            )}
+          </section>
+        )}
+
+        {tab === "intake" && (
+          <section className="inv-panel">
+            <ReportFilters
+              filters={filters}
+              onChange={(p) => setFilters((s) => ({ ...s, ...p }))}
+              suppliers={suppliers}
+              dateRange={{ from, to, onFromChange: setFrom, onToChange: setTo }}
+              searchPlaceholder="Equipo, IMEI o proveedor…"
+              mode="intake"
+            />
+            <ReportFilterActions>
+              <ReportPreviewButton onClick={openIntakePreview} disabled={intakeLoading || !intake} />
+              <ReportPdfButton onClick={exportIntakePdf} disabled={intakeLoading || exporting || !intake} />
+              <ReportExcelButton onClick={exportIntakeExcel} disabled={intakeLoading || exporting || !intake} />
+            </ReportFilterActions>
+            {intakeLoading && !intake ? <ReportLoader /> : null}
+            {intake && (
+              <div className="inv-panel__body">
+                <IntakeReportSummary totals={intake.totals} methodology={intake.methodology} />
+                <IntakeGroupedReport
+                  groups={intake.by_supplier}
+                  showDate={intakeIsRange || intake.is_range}
+                />
+              </div>
+            )}
+          </section>
+        )}
+
+        {tab === "service" && (
+          <section className="inv-panel">
+            <ReportFilters
+              filters={filters}
+              onChange={(p) => setFilters((s) => ({ ...s, ...p }))}
+              serviceStates={serviceStates}
+              workshops={workshops}
+              dateRange={{ from, to, onFromChange: setFrom, onToChange: setTo }}
+              searchPlaceholder="Equipo, IMEI o cliente…"
+              mode="service"
+            />
+            <ReportFilterActions>
+              <ReportPreviewButton onClick={openServicePreview} disabled={serviceReportLoading || !serviceReport} />
+              <ReportPdfButton onClick={exportServicePdf} disabled={serviceReportLoading || exporting || !serviceReport} />
+              <ReportExcelButton onClick={exportServiceExcel} disabled={serviceReportLoading || exporting || !serviceReport} />
+            </ReportFilterActions>
+            {serviceReportLoading && !serviceReport ? <ReportLoader /> : null}
+            {serviceReport && (
+              <div className="inv-panel__body">
+                <ServiceTicketsReportSummary totals={serviceReport.totals} methodology={serviceReport.methodology} />
+                <ServiceTicketsReportTable
+                  tickets={serviceReport.tickets}
+                  showDate={serviceIsRange || serviceReport.is_range}
+                />
               </div>
             )}
           </section>
@@ -1226,14 +1652,17 @@ export default function InventarioInformes() {
             <div className="inv-sheet-actions" style={{ marginTop: "1rem", flexWrap: "wrap" }}>
               {canManageInventory(user) && (
                 <button type="button" className="inv-btn inv-btn--outline" onClick={exportInventory}>
+                  <InvIcon name="download" />
                   Exportar inventario (CSV)
                 </button>
               )}
               <button type="button" className="inv-btn inv-btn--outline" onClick={exportSales}>
+                <InvIcon name="download" />
                 Exportar ventas (CSV)
               </button>
               {canManageInventory(user) && (
                 <label className="inv-btn inv-btn--primary inv-btn--inline" style={{ cursor: "pointer" }}>
+                  <InvIcon name="upload" />
                   {importing ? "Importando…" : "Importar inventario (CSV)"}
                   <input type="file" accept=".csv,.txt" hidden onChange={onImport} disabled={importing} />
                 </label>

@@ -118,10 +118,17 @@ class TraceabilityIntegrationTest extends TestCase
             ->assertCreated()
             ->json('id');
 
-        // 2. Apartado (separado)
-        $this->withToken($invToken)
-            ->putJson("/api/inventory/{$itemId}", ['status' => InventoryStatus::SEPARADO])
-            ->assertOk();
+        // 2. Apartado formal (separado)
+        $this->withToken($sellerToken)
+            ->postJson("/api/inventory/{$itemId}/reserve", [
+                'sale_price' => '2500000',
+                'deposit_amount' => 500000,
+                'deposit_method' => 'efectivo',
+                'customer_name' => 'Comprador Apartado',
+            ])
+            ->assertCreated();
+
+        $reservationSaleId = Sale::query()->where('inventory_item_id', $itemId)->value('id');
 
         $this->assertDatabaseHas('inventory_movements', [
             'inventory_item_id' => $itemId,
@@ -130,15 +137,15 @@ class TraceabilityIntegrationTest extends TestCase
             'new_value' => InventoryStatus::SEPARADO,
         ]);
 
-        // 3. Venta desde separado
+        // 3. Completar apartado → venta
         $saleId = $this->withToken($sellerToken)
-            ->postJson('/api/sales', [
-                'inventory_item_id' => $itemId,
-                'sale_price' => '2500000',
+            ->postJson("/api/sales/{$reservationSaleId}/complete-reservation", [
                 'payment_method' => 'efectivo',
-                'customer_name' => 'Comprador Test',
+                'payments' => [
+                    ['method' => 'efectivo', 'amount' => 2000000],
+                ],
             ])
-            ->assertCreated()
+            ->assertOk()
             ->json('id');
 
         $ventaMovement = InventoryMovement::query()

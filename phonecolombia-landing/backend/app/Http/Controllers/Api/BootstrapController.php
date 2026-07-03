@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CreditPaymentMethod;
 use App\Models\CreditSetting;
+use App\Models\ServiceTechnician;
 use App\Models\User;
+use App\Support\ServiceTicketStateCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -113,6 +115,19 @@ class BootstrapController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'role'])
                 ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name, 'role' => $u->resolvedRole()])
+                ->values()
+                ->all();
+            $payload['service_ticket_states'] = ServiceTicketStateCatalog::active()
+                ->map(fn ($state) => ['slug' => $state->slug, 'name' => $state->name])
+                ->values()
+                ->all();
+            $payload['workshops'] = ServiceTechnician::query()
+                ->where('is_active', true)
+                ->whereNotNull('workshop')
+                ->where('workshop', '!=', '')
+                ->orderBy('workshop')
+                ->distinct()
+                ->pluck('workshop')
                 ->values()
                 ->all();
         }

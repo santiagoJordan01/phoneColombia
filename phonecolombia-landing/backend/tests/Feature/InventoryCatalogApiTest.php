@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\DeviceBrand;
 use App\Models\DeviceColor;
 use App\Models\InventoryItem;
 use App\Models\InventoryProduct;
@@ -60,7 +61,7 @@ class InventoryCatalogApiTest extends TestCase
         $this->assertSame($supplier->id, $item->supplier_id);
     }
 
-    public function test_can_update_color_and_cascade_to_items_and_products(): void
+    public function test_can_update_color_and_cascade_to_items(): void
     {
         $token = $this->tokenFor(User::ROLE_INVENTORY);
 
@@ -75,26 +76,75 @@ class InventoryCatalogApiTest extends TestCase
             'quantity' => 1,
         ]);
 
-        $product = InventoryProduct::create([
-            'name' => 'IPHONE 13 128GB NEGRO',
-            'brand' => 'IPHONE',
-            'model' => '13',
-            'storage' => '128GB',
-            'color' => 'NEGRO',
-            'category' => 'celular',
-        ]);
-
         $this->withToken($token)
             ->putJson("/api/device-colors/{$color->id}", ['name' => 'CARBON'])
             ->assertOk()
             ->assertJsonPath('name', 'CARBON');
 
         $item->refresh();
-        $product->refresh();
 
         $this->assertSame('CARBON', $item->color);
-        $this->assertSame('CARBON', $product->color);
-        $this->assertSame('IPHONE 13 128GB CARBON', $product->name);
+    }
+
+    public function test_catalog_product_ignores_color_and_item_name_includes_unit_color(): void
+    {
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+
+        $product = InventoryProduct::create([
+            'name' => 'IPHONE 13 128GB',
+            'brand' => 'IPHONE',
+            'model' => '13',
+            'storage' => '128GB',
+            'category' => 'celular',
+        ]);
+
+        $this->withToken($token)
+            ->postJson('/api/inventory/products', [
+                'brand' => 'IPHONE',
+                'model' => '14 PRO',
+                'storage' => '256GB',
+                'color' => 'NEGRO',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('name', 'IPHONE 14 PRO 256GB')
+            ->assertJsonPath('color', null);
+
+        $this->withToken($token)
+            ->postJson('/api/inventory', [
+                'inventory_product_id' => $product->id,
+                'name' => 'placeholder',
+                'imei' => '333333333333333',
+                'color' => 'AZUL',
+                'sale_price' => '2800000',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('name', 'IPHONE 13 128GB AZUL')
+            ->assertJsonPath('color', 'AZUL');
+    }
+
+    public function test_creating_item_auto_registers_catalog_model(): void
+    {
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+
+        $this->withToken($token)
+            ->postJson('/api/inventory', [
+                'catalog_brand' => 'IPHONE',
+                'catalog_model' => '14 PRO',
+                'catalog_storage' => '128GB',
+                'imei' => '444444444444444',
+                'color' => 'NEGRO',
+                'sale_price' => '2800000',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('name', 'IPHONE 14 PRO 128GB NEGRO')
+            ->assertJsonPath('color', 'NEGRO');
+
+        $this->assertDatabaseHas('inventory_products', [
+            'brand' => 'IPHONE',
+            'model' => '14 PRO',
+            'storage' => '128GB',
+            'name' => 'IPHONE 14 PRO 128GB',
+        ]);
     }
 
     public function test_seller_cannot_update_catalog_entries(): void
@@ -109,6 +159,12 @@ class InventoryCatalogApiTest extends TestCase
 
         $this->withToken($token)
             ->putJson("/api/device-colors/{$color->id}", ['name' => 'ROJO'])
+            ->assertForbidden();
+
+        $brand = DeviceBrand::query()->where('name', 'SAMSUNG')->firstOrFail();
+
+        $this->withToken($token)
+            ->putJson("/api/device-brands/{$brand->id}", ['name' => 'OTRA'])
             ->assertForbidden();
     }
 }

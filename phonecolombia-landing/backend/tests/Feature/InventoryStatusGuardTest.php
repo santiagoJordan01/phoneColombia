@@ -50,15 +50,21 @@ class InventoryStatusGuardTest extends TestCase
             ->assertJsonValidationErrors(['status']);
     }
 
-    public function test_can_toggle_between_disponible_and_separado(): void
+    public function test_cannot_manually_separate_without_reservation(): void
     {
         $token = $this->tokenFor(User::ROLE_INVENTORY);
         $item = $this->createItem();
 
         $this->withToken($token)
             ->putJson("/api/inventory/{$item->id}", ['status' => InventoryStatus::SEPARADO])
-            ->assertOk()
-            ->assertJsonPath('status', InventoryStatus::SEPARADO);
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['status']);
+    }
+
+    public function test_can_release_separado_without_reservation_to_disponible(): void
+    {
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+        $item = $this->createItem(['status' => InventoryStatus::SEPARADO]);
 
         $this->withToken($token)
             ->putJson("/api/inventory/{$item->id}", ['status' => InventoryStatus::DISPONIBLE])

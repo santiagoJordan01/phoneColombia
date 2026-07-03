@@ -8,6 +8,19 @@ import InventoryItemSelect from "../components/InventoryItemSelect.jsx";
 import { useCachedQuery } from "../hooks/useCachedQuery.js";
 import api, { isApiConfigured } from "../lib/apiClient";
 import RemissionActionMenu from "../components/inventario/RemissionActionMenu.jsx";
+import {
+  PaymentMethodBadge,
+  SalePaidCell,
+  SalePendingCell,
+} from "../components/inventario/TableValueDisplay.jsx";
+import InvIcon from "../components/inventario/InvIcon.jsx";
+import PaymentMethodSelect from "../components/inventario/PaymentMethodSelect.jsx";
+import {
+  ABONO_PAYMENT_GROUPS,
+  IMMEDIATE_PAYMENT_GROUPS,
+  SALE_PAYMENT_GROUPS,
+  paymentLabel,
+} from "../lib/paymentMethods.js";
 import { invalidateInventarioCache } from "../lib/inventarioCache.js";
 import { useInventarioPage } from "./inventario/useInventarioPage.js";
 import {
@@ -25,25 +38,18 @@ import {
 } from "./inventario/shared.jsx";
 import "../styles.css";
 
-const PAYMENT_METHODS = [
-  { value: "efectivo", label: "Efectivo" },
-  { value: "transferencia", label: "Transferencia" },
-  { value: "credito", label: "Crédito" },
-  { value: "mixto", label: "Mixto" },
-];
-
 const EMPTY_MIXED_PAYMENT = { method: "efectivo", amount: "" };
 
-const PAYMENT_LABELS = {
-  efectivo: "Efectivo",
-  transferencia: "Transferencia",
-  credito: "Crédito",
-  mixto: "Mixto",
+const EMPTY_RESERVE_FORM = {
+  inventory_item_id: "",
+  sale_price: "",
+  service_customer_id: "",
+  customer_name: "",
+  customer_phone: "",
+  deposit_amount: "",
+  deposit_method: "efectivo",
+  notes: "",
 };
-
-function paymentLabel(method) {
-  return PAYMENT_LABELS[method] ?? method ?? "—";
-}
 
 const SALES_SORT_COLUMNS = [
   {
@@ -140,6 +146,8 @@ export default function InventarioVentas() {
   const [editingSale, setEditingSale] = useState(null);
   const [completingReservationId, setCompletingReservationId] = useState(null);
   const [paymentModal, setPaymentModal] = useState(null);
+  const [reserveModalOpen, setReserveModalOpen] = useState(false);
+  const [reserveForm, setReserveForm] = useState(EMPTY_RESERVE_FORM);
   const [mixedPayments, setMixedPayments] = useState([
     { ...EMPTY_MIXED_PAYMENT },
     { method: "transferencia", amount: "" },
@@ -157,6 +165,10 @@ export default function InventarioVentas() {
     notes: "",
   });
   const [paymentForm, setPaymentForm] = useState({ method: "efectivo", amount: "", notes: "" });
+  const [paymentMixedPayments, setPaymentMixedPayments] = useState([
+    { ...EMPTY_MIXED_PAYMENT },
+    { method: "transferencia", amount: "" },
+  ]);
   const [sortColumn, setSortColumn] = useState("fecha");
   const [sortDirection, setSortDirection] = useState("desc");
   const [barcodeScan, setBarcodeScan] = useState("");
@@ -165,6 +177,24 @@ export default function InventarioVentas() {
   const toolbarBarcodeRef = useRef(null);
 
   const showSensitive = canViewSensitiveInventoryFields(user);
+  const isPaymentMixto = paymentForm.method === "mixto";
+
+  const paymentMixedTotal = useMemo(
+    () => paymentMixedPayments.reduce((sum, p) => sum + parseCop(p.amount), 0),
+    [paymentMixedPayments],
+  );
+
+  const openPaymentModal = (sale) => {
+    setPaymentModal(sale);
+    setPaymentForm({ method: "efectivo", amount: "", notes: "" });
+    setPaymentMixedPayments([
+      { ...EMPTY_MIXED_PAYMENT },
+      { method: "transferencia", amount: "" },
+    ]);
+  };
+
+  const canReceiveAbono = (sale) => !sale.is_returned && (Number(sale.amount_due) || 0) > 0;
+
   const isMixto = form.payment_method === "mixto";
 
   const mixedTotal = useMemo(
@@ -435,6 +465,61 @@ export default function InventarioVentas() {
     return false;
   }, [form.payment_method, form.sale_price, mixedTotal, completingReservationId, reservationPending]);
 
+  const resetReserveForm = () => {
+    setReserveForm(EMPTY_RESERVE_FORM);
+  };
+
+  const openReserveModal = () => {
+    resetReserveForm();
+    setReserveModalOpen(true);
+  };
+
+  const handleReserveSubmit = async (e) => {
+    e.preventDefault();
+    if (!reserveForm.inventory_item_id) {
+      showToast("Selecciona un equipo disponible", "error");
+      return;
+    }
+    if (!reserveForm.sale_price) {
+      showToast("Indica el precio acordado del apartado", "error");
+      return;
+    }
+
+    const deposit = parseCop(reserveForm.deposit_amount);
+    if (deposit > 0 && !reserveForm.deposit_method) {
+      showToast("Indica el método de pago del abono", "error");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const payload = {
+        sale_price: String(parseCop(reserveForm.sale_price) || reserveForm.sale_price),
+        deposit_amount: deposit || undefined,
+        deposit_method: deposit > 0 ? reserveForm.deposit_method : undefined,
+        service_customer_id: reserveForm.service_customer_id || undefined,
+        customer_name: reserveForm.customer_name || undefined,
+        customer_phone: reserveForm.customer_phone || undefined,
+        notes: reserveForm.notes || undefined,
+      };
+
+      const response = await api.reserveInventoryItem(reserveForm.inventory_item_id, payload);
+      const sale = response.reservation || response;
+      showToast(deposit > 0 ? "Apartado registrado con abono" : "Apartado registrado");
+      setReserveModalOpen(false);
+      resetReserveForm();
+      await fetchCustomers();
+      patchSalesAfterMutation((prev) => ({
+        sales: sale?.id ? [sale, ...(prev.sales || [])] : prev.sales || [],
+        available_items: (prev.available_items || []).filter((i) => i.id !== reserveForm.inventory_item_id),
+      }));
+    } catch (err) {
+      showToast(err.message, "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleCreateSale = async (e) => {
     e.preventDefault();
     if (!editingSale && !form.inventory_item_id) {
@@ -450,7 +535,7 @@ export default function InventarioVentas() {
 
     const salePriceNum = parseCop(form.sale_price);
     const payTarget = completingReservationId ? reservationPending : salePriceNum;
-    if (isMixto) {
+    if (isMixto && !editingSale) {
       const validPayments = mixedPayments
         .filter((p) => parseCop(p.amount) > 0)
         .map((p) => ({ method: p.method, amount: parseCop(p.amount) }));
@@ -516,6 +601,7 @@ export default function InventarioVentas() {
         showToast("Venta registrada");
         setModalOpen(false);
         resetSaleForm();
+        await fetchCustomers();
         patchSalesAfterMutation((prev) => ({
           sales: [sale, ...(prev.sales || [])],
           available_items: (prev.available_items || []).filter((i) => i.id !== payload.inventory_item_id),
@@ -531,15 +617,51 @@ export default function InventarioVentas() {
   const handleAddPayment = async (e) => {
     e.preventDefault();
     if (!paymentModal) return;
+
+    const amountDue = Number(paymentModal.amount_due) || 0;
+    let payload = { notes: paymentForm.notes || undefined };
+
+    if (isPaymentMixto) {
+      const validPayments = paymentMixedPayments
+        .filter((p) => parseCop(p.amount) > 0)
+        .map((p) => ({ method: p.method, amount: parseCop(p.amount) }));
+      if (validPayments.length < 2) {
+        showToast("Agrega al menos dos pagos para abono mixto", "error");
+        return;
+      }
+      const paidTotal = validPayments.reduce((sum, p) => sum + p.amount, 0);
+      if (paidTotal > amountDue) {
+        showToast("El total del abono no puede superar el saldo pendiente", "error");
+        return;
+      }
+      if (paidTotal <= 0) {
+        showToast("Indica el monto del abono", "error");
+        return;
+      }
+      payload = { ...payload, method: "mixto", payments: validPayments };
+    } else {
+      const amount = parseCop(paymentForm.amount);
+      if (amount <= 0) {
+        showToast("Indica el monto del abono", "error");
+        return;
+      }
+      if (amount > amountDue) {
+        showToast("El abono no puede superar el saldo pendiente", "error");
+        return;
+      }
+      payload = { ...payload, method: paymentForm.method, amount };
+    }
+
     setSubmitting(true);
     try {
-      const sale = await api.addSalePayment(paymentModal.id, {
-        ...paymentForm,
-        amount: parseCop(paymentForm.amount),
-      });
+      const sale = await api.addSalePayment(paymentModal.id, payload);
       showToast("Abono registrado");
       setPaymentModal(null);
       setPaymentForm({ method: "efectivo", amount: "", notes: "" });
+      setPaymentMixedPayments([
+        { ...EMPTY_MIXED_PAYMENT },
+        { method: "transferencia", amount: "" },
+      ]);
       patchSalesAfterMutation((prev) => ({
         ...prev,
         sales: (prev.sales || []).map((s) => (s.id === sale.id ? sale : s)),
@@ -571,6 +693,16 @@ export default function InventarioVentas() {
   const onCustomerPick = (customerId) => {
     const customer = customers.find((c) => c.id === customerId);
     setForm((s) => ({
+      ...s,
+      service_customer_id: customerId,
+      customer_name: customer?.name || "",
+      customer_phone: customer?.phone || "",
+    }));
+  };
+
+  const onReserveCustomerPick = (customerId) => {
+    const customer = customers.find((c) => c.id === customerId);
+    setReserveForm((s) => ({
       ...s,
       service_customer_id: customerId,
       customer_name: customer?.name || "",
@@ -619,13 +751,22 @@ export default function InventarioVentas() {
             <div className="inv-sheet-actions">
               {canManageCustomers(user) && (
                 <button type="button" className="inv-btn inv-btn--outline" onClick={() => setCustomerModalOpen(true)}>
-                  + Cliente
+                  <InvIcon name="user-plus" />
+                  Cliente
                 </button>
               )}
-              <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openSaleModal}>
-                + Nueva venta
+              <button type="button" className="inv-btn inv-btn--outline" onClick={openReserveModal}>
+                <InvIcon name="bookmark" />
+                Apartar equipo
               </button>
-              <button type="button" className="inv-btn inv-btn--ghost" onClick={reloadSales} disabled={loading || refreshing}>Actualizar</button>
+              <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openSaleModal}>
+                <InvIcon name="cart-plus" />
+                Nueva venta
+              </button>
+              <button type="button" className="inv-btn inv-btn--ghost" onClick={reloadSales} disabled={loading || refreshing}>
+                <InvIcon name="refresh" spin={loading || refreshing} />
+                Actualizar
+              </button>
             </div>
           </div>
           <div className="inv-table-wrap inv-table-wrap--sheet">
@@ -671,10 +812,10 @@ export default function InventarioVentas() {
                           <span className="inv-badge inv-badge--retomado" style={{ marginLeft: "0.35rem" }}>Devuelto</span>
                         )}
                       </td>
-                      <td data-label="Precio">{formatPrice(sale.sale_price)}</td>
-                      <td data-label="Método">{paymentLabel(sale.payment_method)}</td>
-                      <td data-label="Pagado">{formatPrice(sale.amount_paid)}</td>
-                      <td data-label="Pendiente">{sale.amount_due > 0 ? formatPrice(sale.amount_due) : "—"}</td>
+                      <td data-label="Precio"><span className="inv-cell-mono">{formatPrice(sale.sale_price)}</span></td>
+                      <td data-label="Método"><PaymentMethodBadge method={sale.payment_method} /></td>
+                      <td data-label="Pagado"><SalePaidCell amountPaid={sale.amount_paid} salePrice={sale.sale_price} /></td>
+                      <td data-label="Pendiente"><SalePendingCell amountDue={sale.amount_due} /></td>
                       <td data-label="Cliente">{sale.customer_name || sale.service_customer?.name || "—"}</td>
                       <td data-label="Vendedor">{sale.user?.name || "—"}</td>
                       <td data-label="Acciones">
@@ -692,6 +833,7 @@ export default function InventarioVentas() {
                             onClick={() => openEditSale(sale)}
                             disabled={sale.is_returned}
                           >
+                            <InvIcon name="pencil" />
                             Editar
                           </button>
                           {sale.reservation_status === "active" && (
@@ -729,15 +871,17 @@ export default function InventarioVentas() {
                                 }
                               }}
                             >
+                              <InvIcon name="check-circle" />
                               Completar
                             </button>
                           )}
-                          {!sale.is_returned && (sale.credit_status === "pending" || sale.reservation_status === "active") && (
+                          {canReceiveAbono(sale) && (
                             <button
                               type="button"
                               className="inv-btn inv-btn--compact inv-btn--outline"
-                              onClick={() => setPaymentModal(sale)}
+                              onClick={() => openPaymentModal(sale)}
                             >
+                              <InvIcon name="wallet" />
                               Abonar
                             </button>
                           )}
@@ -813,20 +957,27 @@ export default function InventarioVentas() {
                 />
               </Field>
               <Field label="Método de pago *">
-                <select
-                  className="inv-field__input"
+                <PaymentMethodSelect
                   value={form.payment_method}
                   onChange={(e) => setForm((s) => ({ ...s, payment_method: e.target.value }))}
-                >
-                  {PAYMENT_METHODS.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
+                  groups={SALE_PAYMENT_GROUPS}
+                  disabled={Boolean(editingSale)}
+                  required
+                />
+                {editingSale && (
+                  <p className="inv-field__hint">Los pagos registrados no se modifican al editar.</p>
+                )}
               </Field>
 
               {form.payment_method === "credito" && (
                 <p className="inv-dash__muted inv-field--span-all" style={{ margin: 0 }}>
                   El monto total quedará pendiente de cobro. Debes indicar medio de crédito y plazo.
+                </p>
+              )}
+
+              {isMixto && needsCreditMeta && (
+                <p className="inv-dash__muted inv-field--span-all" style={{ margin: 0 }}>
+                  El saldo no cubierto por el mixto quedará en cartera. Indica medio y plazo de crédito.
                 </p>
               )}
 
@@ -872,20 +1023,29 @@ export default function InventarioVentas() {
                 </>
               )}
 
-              {isMixto && (
+              {editingSale && form.payment_method === "mixto" && (editingSale.payments?.length ?? 0) > 0 && (
                 <div className="inv-field--span-all">
-                  <p className="inv-field__label">Pagos mixtos (mínimo 2)</p>
+                  <p className="inv-field__label">Pagos registrados</p>
+                  <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
+                    {editingSale.payments.map((payment) => (
+                      <li key={payment.id || `${payment.method}-${payment.amount}`}>
+                        {paymentLabel(payment.method)}: {formatPrice(payment.amount)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {isMixto && !editingSale && (
+                <div className="inv-field--span-all">
+                  <p className="inv-field__label">Pagos mixtos (mínimo 2 métodos de contado)</p>
                   {mixedPayments.map((p, idx) => (
                     <div key={idx} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                      <select
-                        className="inv-field__input"
+                      <PaymentMethodSelect
                         value={p.method}
                         onChange={(e) => setMixedPayments((rows) => rows.map((r, i) => (i === idx ? { ...r, method: e.target.value } : r)))}
-                      >
-                        {PAYMENT_METHODS.filter((m) => m.value !== "mixto").map((m) => (
-                          <option key={m.value} value={m.value}>{m.label}</option>
-                        ))}
-                      </select>
+                        groups={IMMEDIATE_PAYMENT_GROUPS}
+                      />
                       <CurrencyInput
                         placeholder="$ 0"
                         value={p.amount}
@@ -929,42 +1089,43 @@ export default function InventarioVentas() {
                 </div>
               )}
 
-              <Field label="Cliente registrado" className="inv-field--span-all">
+              <Field label="Cliente" className="inv-field--span-all">
                 <SearchSelect
                   value={form.service_customer_id || ""}
                   onChange={(id) => {
                     if (!id) {
-                      setForm((s) => ({ ...s, service_customer_id: "", customer_name: "", customer_phone: "" }));
+                      setForm((s) => ({ ...s, service_customer_id: "" }));
                       return;
                     }
                     onCustomerPick(id);
                   }}
                   options={customerOptions}
-                  placeholder="Buscar cliente…"
+                  placeholder="Buscar cliente registrado…"
                 />
               </Field>
-              <Field label="Nombre cliente (manual)">
-                <input
-                  className="inv-field__input"
-                  value={form.customer_name}
-                  onChange={(e) => setForm((s) => ({
-                    ...s,
-                    customer_name: e.target.value,
-                    service_customer_id: "",
-                  }))}
-                />
-              </Field>
-              <Field label="Teléfono">
-                <input
-                  className="inv-field__input"
-                  value={form.customer_phone}
-                  onChange={(e) => setForm((s) => ({
-                    ...s,
-                    customer_phone: e.target.value,
-                    service_customer_id: "",
-                  }))}
-                />
-              </Field>
+              {!form.service_customer_id && (
+                <>
+                  <Field label="Nombre">
+                    <input
+                      className="inv-field__input"
+                      value={form.customer_name}
+                      onChange={(e) => setForm((s) => ({ ...s, customer_name: e.target.value }))}
+                      placeholder="Nombre del cliente"
+                    />
+                  </Field>
+                  <Field label="Teléfono">
+                    <input
+                      className="inv-field__input"
+                      value={form.customer_phone}
+                      onChange={(e) => setForm((s) => ({ ...s, customer_phone: e.target.value }))}
+                      placeholder="300 123 4567"
+                    />
+                  </Field>
+                  <p className="inv-field__hint inv-field--span-all" style={{ margin: 0 }}>
+                    Si no está en el catálogo, se crea o vincula automáticamente al guardar.
+                  </p>
+                </>
+              )}
               <Field label="Notas" className="inv-field--span-all">
                 <textarea
                   className="inv-field__input inv-field__textarea"
@@ -986,30 +1147,183 @@ export default function InventarioVentas() {
         </div>
       )}
 
+      {reserveModalOpen && (
+        <div className="inv-modal-overlay" onClick={() => !submitting && setReserveModalOpen(false)}>
+          <div className="inv-modal inv-modal--wide" onClick={(e) => e.stopPropagation()}>
+            <h3 className="inv-modal__title">Apartar equipo</h3>
+            <p className="inv-dash__muted" style={{ marginTop: 0 }}>
+              Registra el apartado con abono opcional. El equipo quedará separado hasta completar la venta.
+            </p>
+            <form onSubmit={handleReserveSubmit} className="inv-modal-form inv-modal-form--grid">
+              <Field label="Equipo disponible *" className="inv-field--span-all">
+                <InventoryItemSelect
+                  items={availableItems.filter((item) => item.status === "disponible")}
+                  value={reserveForm.inventory_item_id}
+                  onChange={(id) => {
+                    const item = availableItems.find((i) => i.id === id);
+                    setReserveForm((s) => ({
+                      ...s,
+                      inventory_item_id: id || "",
+                      sale_price: item?.sale_price || s.sale_price,
+                    }));
+                  }}
+                  showSensitive={showSensitive}
+                  placeholder="Buscar equipo disponible…"
+                  allowClear={false}
+                  clearLabel=""
+                />
+              </Field>
+              <Field label="Precio acordado *">
+                <CurrencyInput
+                  value={reserveForm.sale_price}
+                  onChange={(sale_price) => setReserveForm((s) => ({ ...s, sale_price }))}
+                  placeholder="$ 0"
+                />
+              </Field>
+              <Field label="Abono inicial (opcional)">
+                <CurrencyInput
+                  value={reserveForm.deposit_amount}
+                  onChange={(deposit_amount) => setReserveForm((s) => ({ ...s, deposit_amount }))}
+                  placeholder="$ 0"
+                />
+              </Field>
+              <Field label="Método abono">
+                <PaymentMethodSelect
+                  value={reserveForm.deposit_method}
+                  onChange={(e) => setReserveForm((s) => ({ ...s, deposit_method: e.target.value }))}
+                  groups={IMMEDIATE_PAYMENT_GROUPS}
+                />
+              </Field>
+              <Field label="Cliente" className="inv-field--span-all">
+                <SearchSelect
+                  value={reserveForm.service_customer_id || ""}
+                  onChange={(id) => {
+                    if (!id) {
+                      setReserveForm((s) => ({ ...s, service_customer_id: "" }));
+                      return;
+                    }
+                    onReserveCustomerPick(id);
+                  }}
+                  options={customerOptions}
+                  placeholder="Buscar cliente registrado…"
+                />
+              </Field>
+              {!reserveForm.service_customer_id && (
+                <>
+                  <Field label="Nombre">
+                    <input
+                      className="inv-field__input"
+                      value={reserveForm.customer_name}
+                      onChange={(e) => setReserveForm((s) => ({ ...s, customer_name: e.target.value }))}
+                      placeholder="Nombre del cliente"
+                    />
+                  </Field>
+                  <Field label="Teléfono">
+                    <input
+                      className="inv-field__input"
+                      value={reserveForm.customer_phone}
+                      onChange={(e) => setReserveForm((s) => ({ ...s, customer_phone: e.target.value }))}
+                      placeholder="300 123 4567"
+                    />
+                  </Field>
+                </>
+              )}
+              <Field label="Notas" className="inv-field--span-all">
+                <textarea
+                  className="inv-field__input inv-field__textarea"
+                  rows={2}
+                  value={reserveForm.notes}
+                  onChange={(e) => setReserveForm((s) => ({ ...s, notes: e.target.value }))}
+                  placeholder="Condiciones del apartado, fecha límite, etc."
+                />
+              </Field>
+              <div className="inv-modal__actions inv-field--span-all">
+                <button type="button" className="inv-btn inv-btn--outline" onClick={() => setReserveModalOpen(false)} disabled={submitting}>
+                  Cancelar
+                </button>
+                <button type="submit" className="inv-btn inv-btn--primary inv-btn--inline" disabled={submitting}>
+                  {submitting ? "Guardando…" : "Registrar apartado"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {paymentModal && (
         <div className="inv-modal-overlay" onClick={() => !submitting && setPaymentModal(null)}>
           <div className="inv-modal" onClick={(e) => e.stopPropagation()}>
             <h3 className="inv-modal__title">Registrar abono</h3>
             <p className="inv-dash__muted">Pendiente: {formatPrice(paymentModal.amount_due)}</p>
+            {paymentModal.reservation_status === "active" && Number(paymentModal.amount_due) > 0 && (
+              <p className="inv-dash__muted" style={{ marginTop: 0 }}>
+                Apartado activo: tras cubrir el saldo usa <strong>Completar</strong> para cerrar la venta.
+              </p>
+            )}
             <form onSubmit={handleAddPayment} className="inv-modal-form">
               <Field label="Método">
-                <select
-                  className="inv-field__input"
+                <PaymentMethodSelect
                   value={paymentForm.method}
                   onChange={(e) => setPaymentForm((s) => ({ ...s, method: e.target.value }))}
-                >
-                  {PAYMENT_METHODS.filter((m) => m.value !== "mixto").map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Monto *">
-                <CurrencyInput
-                  value={paymentForm.amount}
-                  onChange={(amount) => setPaymentForm((s) => ({ ...s, amount }))}
-                  required
+                  groups={ABONO_PAYMENT_GROUPS}
                 />
               </Field>
+
+              {!isPaymentMixto && (
+                <Field label="Monto *">
+                  <CurrencyInput
+                    value={paymentForm.amount}
+                    onChange={(amount) => setPaymentForm((s) => ({ ...s, amount }))}
+                    required
+                  />
+                </Field>
+              )}
+
+              {isPaymentMixto && (
+                <div className="inv-field--span-all">
+                  <p className="inv-field__label">Pagos mixtos (mínimo 2 métodos de contado)</p>
+                  {paymentMixedPayments.map((p, idx) => (
+                    <div key={idx} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                      <PaymentMethodSelect
+                        value={p.method}
+                        onChange={(e) => setPaymentMixedPayments((rows) => rows.map((r, i) => (i === idx ? { ...r, method: e.target.value } : r)))}
+                        groups={IMMEDIATE_PAYMENT_GROUPS}
+                      />
+                      <CurrencyInput
+                        placeholder="$ 0"
+                        value={p.amount}
+                        onChange={(amount) => setPaymentMixedPayments((rows) => rows.map((r, i) => (i === idx ? { ...r, amount } : r)))}
+                      />
+                      {paymentMixedPayments.length > 2 && (
+                        <button
+                          type="button"
+                          className="inv-btn inv-btn--ghost"
+                          onClick={() => setPaymentMixedPayments((rows) => rows.filter((_, i) => i !== idx))}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="inv-btn inv-btn--outline inv-btn--compact"
+                    onClick={() => setPaymentMixedPayments((rows) => [...rows, { ...EMPTY_MIXED_PAYMENT }])}
+                  >
+                    + Agregar pago
+                  </button>
+                  <p className="inv-dash__muted" style={{ marginTop: "0.5rem" }}>
+                    Total abono: {formatPrice(paymentMixedTotal)}
+                    {paymentMixedTotal > 0 && paymentMixedTotal < Number(paymentModal.amount_due) && (
+                      <> · Quedará pendiente: {formatPrice(Number(paymentModal.amount_due) - paymentMixedTotal)}</>
+                    )}
+                    {paymentMixedTotal > Number(paymentModal.amount_due) && (
+                      <> · Supera el saldo pendiente</>
+                    )}
+                  </p>
+                </div>
+              )}
+
               <div className="inv-modal__actions">
                 <button type="button" className="inv-btn inv-btn--outline" onClick={() => setPaymentModal(null)} disabled={submitting}>
                   Cancelar

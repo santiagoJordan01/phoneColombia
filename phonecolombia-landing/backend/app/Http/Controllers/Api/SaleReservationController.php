@@ -16,8 +16,10 @@ use App\Support\InventoryFieldGuard;
 use App\Support\InventoryStatus;
 use App\Support\InventoryStatusGuard;
 use App\Support\MoneyFormatter;
+use App\Support\PaymentMethods;
 use App\Support\RemissionNumberGenerator;
 use App\Support\SaleReservationStatus;
+use App\Support\ServiceCustomerResolver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -53,7 +55,7 @@ class SaleReservationController extends Controller
         $data = $request->validate([
             'sale_price' => ['required', 'string', 'max:50'],
             'deposit_amount' => ['nullable', 'numeric', 'min:0'],
-            'deposit_method' => ['nullable', Rule::in(['efectivo', 'transferencia', 'credito'])],
+            'deposit_method' => ['nullable', Rule::in(PaymentMethods::immediate())],
             'customer_name' => ['nullable', 'string', 'max:120'],
             'customer_phone' => ['nullable', 'string', 'max:30'],
             'service_customer_id' => ['nullable', 'uuid', 'exists:service_customers,id'],
@@ -75,13 +77,7 @@ class SaleReservationController extends Controller
             ]);
         }
 
-        if (! empty($data['service_customer_id'])) {
-            $customer = ServiceCustomer::find($data['service_customer_id']);
-            if ($customer) {
-                $data['customer_name'] = $customer->name;
-                $data['customer_phone'] = $customer->phone;
-            }
-        }
+        ServiceCustomerResolver::resolveIntoPayload($data);
 
         $reservedAt = now();
         $depositMethod = $deposit > 0 ? ($data['deposit_method'] ?? 'efectivo') : 'efectivo';
@@ -128,6 +124,7 @@ class SaleReservationController extends Controller
 
             $this->movements->record($inventoryItem, 'status_change', 'status', $oldStatus, InventoryStatus::SEPARADO, 'Equipo apartado', [
                 'sale_id' => $sale->id,
+                'remission_number' => $sale->remission_number,
                 'sale_price' => $data['sale_price'],
                 'deposit' => $deposit,
             ]);
@@ -223,13 +220,7 @@ class SaleReservationController extends Controller
 
         $this->assertCreditRequirements($merged, $amountDue);
 
-        if (! empty($data['service_customer_id'])) {
-            $customer = ServiceCustomer::find($data['service_customer_id']);
-            if ($customer) {
-                $data['customer_name'] = $customer->name;
-                $data['customer_phone'] = $customer->phone;
-            }
-        }
+        ServiceCustomerResolver::resolveIntoPayload($data);
 
         $soldAt = isset($data['sold_at']) ? Carbon::parse($data['sold_at']) : now();
         $creditDueAt = $this->resolveCreditDueAt($merged, $soldAt, $amountDue);
@@ -275,6 +266,7 @@ class SaleReservationController extends Controller
             $this->movements->record($item, 'venta', 'status', $oldStatus, InventoryStatus::VENDIDO, 'Venta completada (apartado)', [
                 'sale_id' => $sale->id,
                 'sale_price' => $data['sale_price'] ?? $sale->sale_price,
+                'remission_number' => $sale->remission_number,
             ]);
 
             $this->audit->log($sale, 'reservation_completed');
@@ -303,6 +295,7 @@ class SaleReservationController extends Controller
 
             $this->movements->record($item, 'status_change', 'status', $oldStatus, InventoryStatus::DISPONIBLE, 'Apartado cancelado', [
                 'sale_id' => $sale->id,
+                'remission_number' => $sale->remission_number,
             ]);
 
             $this->audit->log($sale, 'reservation_cancelled');
@@ -330,7 +323,7 @@ class SaleReservationController extends Controller
     {
         return $request->validate([
             'sale_price' => ['sometimes', 'string', 'max:50'],
-            'payment_method' => ['required', Rule::in(['efectivo', 'transferencia', 'credito', 'mixto'])],
+            'payment_method' => ['required', Rule::in(PaymentMethods::salePrimary())],
             'customer_name' => ['nullable', 'string', 'max:120'],
             'customer_phone' => ['nullable', 'string', 'max:30'],
             'service_customer_id' => ['nullable', 'uuid', 'exists:service_customers,id'],
@@ -340,7 +333,7 @@ class SaleReservationController extends Controller
             'credit_term_type' => ['nullable', Rule::in(['8_days', '15_days', 'custom'])],
             'credit_due_at' => ['nullable', 'date'],
             'payments' => ['nullable', 'array'],
-            'payments.*.method' => ['required_with:payments', Rule::in(['efectivo', 'transferencia', 'credito'])],
+            'payments.*.method' => ['required_with:payments', Rule::in(PaymentMethods::mixedLine())],
             'payments.*.amount' => ['required_with:payments', 'numeric', 'min:0'],
             'payments.*.notes' => ['nullable', 'string'],
         ]);
@@ -353,10 +346,18 @@ class SaleReservationController extends Controller
         $method = $data['payment_method'];
 
         if ($method === 'mixto') {
-            if (empty($data['payments'])) {
+            if (empty($data['payments']) || count($data['payments']) < 2) {
                 throw ValidationException::withMessages([
-                    'payments' => ['Indica los pagos para saldar el apartado.'],
+                    'payments' => ['Indica al menos dos pagos para venta mixta.'],
                 ]);
+            }
+
+            foreach ($data['payments'] as $payment) {
+                if (($payment['method'] ?? '') === 'credito') {
+                    throw ValidationException::withMessages([
+                        'payments' => ['En pago mixto usa métodos de contado. El saldo pendiente se registra con medio de crédito.'],
+                    ]);
+                }
             }
 
             return $data['payments'];
@@ -375,7 +376,9 @@ class SaleReservationController extends Controller
 
     private function assertCreditRequirements(array $data, float $amountDue): void
     {
-        if ($amountDue <= 0 || ($data['payment_method'] ?? '') !== 'credito') {
+        $isCreditSale = ($data['payment_method'] ?? '') === 'credito' || $amountDue > 0;
+
+        if (! $isCreditSale) {
             return;
         }
 

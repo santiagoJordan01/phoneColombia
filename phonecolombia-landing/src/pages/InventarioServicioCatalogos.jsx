@@ -1,15 +1,16 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import InventarioTopbar from "../components/inventario/InventarioTopbar.jsx";
+import InvIcon from "../components/inventario/InvIcon.jsx";
 import api, { isApiConfigured } from "../lib/apiClient";
 import { Field, canAccessInventory, canManageInventory, isServiceTechnician } from "./inventario/shared.jsx";
 import "../styles.css";
 
 const TABS = [
-  { id: "estados", label: "Estados" },
-  { id: "tecnicos", label: "Técnicos / talleres" },
-  { id: "clientes", label: "Clientes" },
-  { id: "categorias", label: "Categorías" },
+  { id: "estados", label: "Estados", icon: "flag" },
+  { id: "tecnicos", label: "Técnicos / talleres", icon: "servicio" },
+  { id: "clientes", label: "Clientes", icon: "users" },
+  { id: "categorias", label: "Categorías", icon: "tag" },
 ];
 
 const EMPTY_CUSTOMER = { name: "", phone: "", email: "", document: "", notes: "", is_active: true };
@@ -215,7 +216,8 @@ export default function InventarioServicioCatalogos() {
           <div className="inv-sheet-toolbar">
             <div className="inv-sheet-toolbar__main">
               <Link to="/admin/inventario/servicio-tecnico" className="inv-btn inv-btn--ghost inv-btn--compact">
-                ← Tickets
+                <InvIcon name="arrow-left" />
+                Tickets
               </Link>
               <nav className="inv-st-tabs" aria-label="Catálogos">
                 {TABS.map((t) => (
@@ -225,6 +227,7 @@ export default function InventarioServicioCatalogos() {
                     className={`inv-st-tabs__btn${tab === t.id ? " is-active" : ""}`}
                     onClick={() => setTab(t.id)}
                   >
+                    <InvIcon name={t.icon} />
                     {t.label}
                   </button>
                 ))}
@@ -233,10 +236,14 @@ export default function InventarioServicioCatalogos() {
             <div className="inv-sheet-actions">
               {canManageInventory(user) && (
                 <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openCreate}>
-                  + Nuevo
+                  <InvIcon name="plus" />
+                  Nuevo
                 </button>
               )}
-              <button type="button" className="inv-btn inv-btn--ghost" onClick={load} disabled={loading}>Actualizar</button>
+              <button type="button" className="inv-btn inv-btn--ghost" onClick={load} disabled={loading}>
+                <InvIcon name="refresh" spin={loading} />
+                Actualizar
+              </button>
             </div>
           </div>
 
@@ -274,8 +281,8 @@ export default function InventarioServicioCatalogos() {
                         <td data-label="Acciones">
                           {canManageInventory(user) && (
                             <>
-                              <button type="button" className="inv-btn inv-btn--compact inv-btn--ghost" onClick={() => openEdit(row)}>Editar</button>
-                              <button type="button" className="inv-btn inv-btn--compact inv-btn--outline" onClick={() => remove(row)} disabled={row.is_default}>Eliminar</button>
+                              <button type="button" className="inv-btn inv-btn--compact inv-btn--ghost" onClick={() => openEdit(row)}><InvIcon name="pencil" /> Editar</button>
+                              <button type="button" className="inv-btn inv-btn--compact inv-btn--outline" onClick={() => remove(row)} disabled={row.is_default}><InvIcon name="trash" /> Eliminar</button>
                             </>
                           )}
                         </td>
@@ -307,8 +314,8 @@ export default function InventarioServicioCatalogos() {
                         <td data-label="Acciones">
                           {canManageInventory(user) && (
                             <>
-                              <button type="button" className="inv-btn inv-btn--compact inv-btn--ghost" onClick={() => openEdit(row)}>Editar</button>
-                              <button type="button" className="inv-btn inv-btn--compact inv-btn--outline" onClick={() => remove(row)}>Eliminar</button>
+                              <button type="button" className="inv-btn inv-btn--compact inv-btn--ghost" onClick={() => openEdit(row)}><InvIcon name="pencil" /> Editar</button>
+                              <button type="button" className="inv-btn inv-btn--compact inv-btn--outline" onClick={() => remove(row)}><InvIcon name="trash" /> Eliminar</button>
                             </>
                           )}
                         </td>
@@ -340,8 +347,8 @@ export default function InventarioServicioCatalogos() {
                         <td data-label="Acciones">
                           {canManageInventory(user) && (
                             <>
-                              <button type="button" className="inv-btn inv-btn--compact inv-btn--ghost" onClick={() => openEdit(row)}>Editar</button>
-                              <button type="button" className="inv-btn inv-btn--compact inv-btn--outline" onClick={() => remove(row)}>Eliminar</button>
+                              <button type="button" className="inv-btn inv-btn--compact inv-btn--ghost" onClick={() => openEdit(row)}><InvIcon name="pencil" /> Editar</button>
+                              <button type="button" className="inv-btn inv-btn--compact inv-btn--outline" onClick={() => remove(row)}><InvIcon name="trash" /> Eliminar</button>
                             </>
                           )}
                         </td>
@@ -374,8 +381,8 @@ export default function InventarioServicioCatalogos() {
                         <td data-label="Acciones">
                           {canManageInventory(user) && (
                             <>
-                              <button type="button" className="inv-btn inv-btn--compact inv-btn--ghost" onClick={() => openEdit(row)}>Editar</button>
-                              <button type="button" className="inv-btn inv-btn--compact inv-btn--outline" onClick={() => remove(row)}>Eliminar</button>
+                              <button type="button" className="inv-btn inv-btn--compact inv-btn--ghost" onClick={() => openEdit(row)}><InvIcon name="pencil" /> Editar</button>
+                              <button type="button" className="inv-btn inv-btn--compact inv-btn--outline" onClick={() => remove(row)}><InvIcon name="trash" /> Eliminar</button>
                             </>
                           )}
                         </td>

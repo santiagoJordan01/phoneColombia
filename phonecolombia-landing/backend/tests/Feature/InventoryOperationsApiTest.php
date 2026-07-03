@@ -154,6 +154,133 @@ class InventoryOperationsApiTest extends TestCase
         ]);
     }
 
+    public function test_partial_mixed_sale_requires_credit_meta(): void
+    {
+        $token = $this->tokenFor(User::ROLE_SELLER);
+        $item = $this->createItem();
+
+        $this->withToken($token)
+            ->postJson('/api/sales', [
+                'inventory_item_id' => $item->id,
+                'sale_price' => '1000000',
+                'payment_method' => 'mixto',
+                'payments' => [
+                    ['method' => 'efectivo', 'amount' => 400000],
+                    ['method' => 'transferencia', 'amount' => 200000],
+                ],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['credit_payment_method_id']);
+    }
+
+    public function test_partial_mixed_sale_succeeds_with_credit_meta(): void
+    {
+        $token = $this->tokenFor(User::ROLE_SELLER);
+        $item = $this->createItem();
+
+        $this->withToken($token)
+            ->postJson('/api/sales', [
+                'inventory_item_id' => $item->id,
+                'sale_price' => '1000000',
+                'payment_method' => 'mixto',
+                'payments' => [
+                    ['method' => 'efectivo', 'amount' => 400000],
+                    ['method' => 'transferencia', 'amount' => 200000],
+                ],
+                'credit_payment_method_id' => $this->creditMethodId(),
+                'credit_term_type' => '15_days',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('amount_paid', '600000.00')
+            ->assertJsonPath('amount_due', '400000.00')
+            ->assertJsonPath('credit_status', 'pending');
+    }
+
+    public function test_mixed_sale_rejects_credito_payment_line(): void
+    {
+        $token = $this->tokenFor(User::ROLE_SELLER);
+        $item = $this->createItem();
+
+        $this->withToken($token)
+            ->postJson('/api/sales', [
+                'inventory_item_id' => $item->id,
+                'sale_price' => '1000000',
+                'payment_method' => 'mixto',
+                'payments' => [
+                    ['method' => 'efectivo', 'amount' => 500000],
+                    ['method' => 'credito', 'amount' => 500000],
+                ],
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_add_payment_rejects_credito_method(): void
+    {
+        $token = $this->tokenFor(User::ROLE_SELLER);
+        $item = $this->createItem(['status' => InventoryStatus::VENDIDO]);
+
+        $sale = Sale::create([
+            'inventory_item_id' => $item->id,
+            'user_id' => User::factory()->create()->id,
+            'sale_price' => '1000000',
+            'payment_method' => 'credito',
+            'credit_payment_method_id' => $this->creditMethodId(),
+            'credit_status' => 'pending',
+            'amount_paid' => 0,
+            'amount_due' => 1000000,
+            'sold_at' => now(),
+        ]);
+
+        $this->withToken($token)
+            ->postJson("/api/sales/{$sale->id}/payments", [
+                'method' => 'credito',
+                'amount' => 200000,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['method']);
+    }
+
+    public function test_add_payment_mixed_creates_two_lines(): void
+    {
+        $token = $this->tokenFor(User::ROLE_SELLER);
+        $item = $this->createItem(['status' => InventoryStatus::VENDIDO]);
+
+        $sale = Sale::create([
+            'inventory_item_id' => $item->id,
+            'user_id' => User::factory()->create()->id,
+            'sale_price' => '1000000',
+            'payment_method' => 'credito',
+            'credit_payment_method_id' => $this->creditMethodId(),
+            'credit_status' => 'pending',
+            'amount_paid' => 0,
+            'amount_due' => 1000000,
+            'sold_at' => now(),
+        ]);
+
+        $this->withToken($token)
+            ->postJson("/api/sales/{$sale->id}/payments", [
+                'method' => 'mixto',
+                'payments' => [
+                    ['method' => 'efectivo', 'amount' => 300000],
+                    ['method' => 'transferencia', 'amount' => 200000],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('amount_paid', '500000.00')
+            ->assertJsonPath('amount_due', '500000.00');
+
+        $this->assertDatabaseHas('sale_payments', [
+            'sale_id' => $sale->id,
+            'method' => 'efectivo',
+            'amount' => '300000.00',
+        ]);
+        $this->assertDatabaseHas('sale_payments', [
+            'sale_id' => $sale->id,
+            'method' => 'transferencia',
+            'amount' => '200000.00',
+        ]);
+    }
+
     public function test_credito_sale_creates_full_pending_balance(): void
     {
         $token = $this->tokenFor(User::ROLE_SELLER);

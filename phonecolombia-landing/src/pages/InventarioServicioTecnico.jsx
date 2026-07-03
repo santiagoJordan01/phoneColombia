@@ -1,6 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import InventarioTopbar from "../components/inventario/InventarioTopbar.jsx";
+import InvIcon from "../components/inventario/InvIcon.jsx";
+import {
+  ServiceCostCell,
+  ServiceCustomerPriceCell,
+  TicketTypeBadge,
+  serviceStatusSelectClass,
+} from "../components/inventario/TableValueDisplay.jsx";
 import CurrencyInput from "../components/inventario/CurrencyInput.jsx";
 import SearchSelect from "../components/SearchSelect.jsx";
 import InventoryItemSelect from "../components/InventoryItemSelect.jsx";
@@ -407,6 +414,7 @@ export default function InventarioServicioTecnico() {
                   setFilters((f) => ({ ...f, q: searchDraft }));
                 }}
               >
+                <InvIcon name="search" className="inv-search__icon" />
                 <input
                   className="inv-search__input"
                   placeholder="Buscar IMEI, equipo, cliente…"
@@ -440,15 +448,20 @@ export default function InventarioServicioTecnico() {
             <div className="inv-sheet-actions">
               {canManageInventory(user) && (
                 <Link to="/admin/inventario/servicio-tecnico/catalogos" className="inv-btn inv-btn--ghost inv-btn--inline">
+                  <InvIcon name="layers" />
                   Estados y técnicos
                 </Link>
               )}
               {canManageServiceTickets(user) && (
                 <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openCreate}>
-                  + Nuevo ticket
+                  <InvIcon name="plus" />
+                  Nuevo ticket
                 </button>
               )}
-              <button type="button" className="inv-btn inv-btn--ghost" onClick={refreshAll} disabled={loading || listRefreshing}>Actualizar</button>
+              <button type="button" className="inv-btn inv-btn--ghost" onClick={refreshAll} disabled={loading || listRefreshing}>
+                <InvIcon name="refresh" spin={loading || listRefreshing} />
+                Actualizar
+              </button>
             </div>
           </div>
           <div className={`inv-table-wrap inv-table-wrap--sheet${listRefreshing ? " is-loading" : ""}`}>
@@ -481,20 +494,26 @@ export default function InventarioServicioTecnico() {
                         {t.display_name || t.inventory_item?.name || t.device_name || "—"}
                         {t.is_warranty && <span className="inv-badge inv-badge--amber" style={{ marginLeft: "0.35rem" }}>Garantía</span>}
                       </td>
-                      <td data-label="Tipo">{SERVICE_TICKET_TYPES[t.ticket_type] || t.ticket_type}</td>
+                      <td data-label="Tipo"><TicketTypeBadge ticketType={t.ticket_type} /></td>
                       <td data-label="Servicio">
                         {t.category?.name || (t.service_category && meta.categories?.[t.service_category]) || ""}
                         {(t.category?.name || t.service_category) ? " · " : ""}
                         {t.issue_description}
                       </td>
                       <td data-label="Taller">{t.service_technician?.workshop || t.workshop || "—"}</td>
-                      <td data-label="Costo">{t.repair_cost != null ? formatPrice(t.repair_cost) : "—"}</td>
-                      <td data-label="Precio cliente">{t.customer_price != null ? formatPrice(t.customer_price) : "—"}</td>
+                      <td data-label="Costo"><ServiceCostCell repairCost={t.repair_cost} /></td>
+                      <td data-label="Precio cliente">
+                        <ServiceCustomerPriceCell
+                          customerPrice={t.customer_price}
+                          repairCost={t.repair_cost}
+                          isWarranty={t.is_warranty}
+                        />
+                      </td>
                       <td data-label="Cliente">{t.service_customer?.name || t.customer_name || "—"}</td>
                       <td data-label="Estado">
                         {canEditServiceTicket(user) ? (
                           <select
-                            className="inv-filter-select inv-st-status-select"
+                            className={`inv-filter-select inv-st-status-select${serviceStatusSelectClass(t.status)}`}
                             value={t.status}
                             onChange={(e) => updateStatus(t, e.target.value)}
                             aria-label="Estado del ticket"
@@ -519,11 +538,13 @@ export default function InventarioServicioTecnico() {
                             service_category_id: t.service_category_id || t.category?.id || "",
                             service_technician_id: t.service_technician_id || t.service_technician?.id || "",
                           })}>
+                            <InvIcon name="pencil" />
                             Editar
                           </button>
                         )}
                         {canViewServiceTicket(user, t) && !canEditServiceTicket(user) && (
                           <button type="button" className="inv-btn inv-btn--compact inv-btn--ghost" onClick={() => setViewTicket(t)}>
+                            <InvIcon name="eye" />
                             Ver
                           </button>
                         )}
@@ -559,7 +580,17 @@ export default function InventarioServicioTecnico() {
                 <select
                   className="inv-field__input"
                   value={form.ticket_type}
-                  onChange={(e) => setForm((s) => ({ ...s, ticket_type: e.target.value, inventory_item_id: "", device_name: "" }))}
+                  onChange={(e) => {
+                    const ticket_type = e.target.value;
+                    setForm((s) => ({
+                      ...s,
+                      ticket_type,
+                      inventory_item_id: "",
+                      device_name: "",
+                      is_warranty: ticket_type === "garantia",
+                      customer_price: ticket_type === "garantia" ? "" : s.customer_price,
+                    }));
+                  }}
                 >
                   {Object.entries(meta.ticket_types || SERVICE_TICKET_TYPES).map(([v, l]) => (
                     <option key={v} value={v}>{l}</option>
@@ -679,6 +710,13 @@ export default function InventarioServicioTecnico() {
                   onChange={(customer_price) => setForm((s) => ({ ...s, customer_price }))}
                   disabled={form.is_warranty || isWarrantyType}
                 />
+                {(form.is_warranty || isWarrantyType) && (
+                  <p className="inv-dash__muted" style={{ margin: "0.35rem 0 0", fontSize: "0.78rem" }}>
+                    {isWarrantyType
+                      ? "Los tickets de tipo Garantía no llevan cobro al cliente."
+                      : "Desactiva «Reparación en garantía» para ingresar un precio."}
+                  </p>
+                )}
               </Field>
 
               <Field label="Nombre cliente (manual)">
@@ -829,6 +867,11 @@ export default function InventarioServicioTecnico() {
                   onChange={(customer_price) => setEditTicket((t) => ({ ...t, customer_price }))}
                   disabled={editTicket.is_warranty}
                 />
+                {editTicket.is_warranty && (
+                  <p className="inv-dash__muted" style={{ margin: "0.35rem 0 0", fontSize: "0.78rem" }}>
+                    Ticket en garantía: sin cobro al cliente.
+                  </p>
+                )}
               </Field>
               <Field label="Cliente">
                 <input

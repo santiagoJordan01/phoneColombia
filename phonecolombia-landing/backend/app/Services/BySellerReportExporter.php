@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\PaymentMethods;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -244,7 +245,7 @@ class BySellerReportExporter
                 $sheet->setCellValue('D'.$row, (float) ($sale['sale_price_num'] ?? 0));
                 $sheet->setCellValue('E'.$row, (float) ($sale['purchase_price_num'] ?? 0));
                 $sheet->setCellValue('F'.$row, (float) ($sale['net_profit'] ?? 0));
-                $sheet->setCellValue('G'.$row, $sale['payment_method'] ?? '—');
+                $sheet->setCellValue('G'.$row, PaymentMethods::label((string) ($sale['payment_method'] ?? '')));
                 $sheet->setCellValue('H'.$row, $sale['customer'] ?? '—');
 
                 $this->styleDataRow($sheet, 'A'.$row.':H'.$row, $index % 2 === 1);

@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import api from "../../lib/apiClient";
+import InvIcon from "./InvIcon.jsx";
 import { openRemissionPreview } from "../../lib/remissionPreview.js";
 
 export default function RemissionActionMenu({ saleId, remissionNumber, onNotify }) {
@@ -66,12 +67,14 @@ export default function RemissionActionMenu({ saleId, remissionNumber, onNotify 
         aria-haspopup="menu"
         aria-controls={menuId}
       >
+        <InvIcon name="file-text" />
         Remisión
         <span className="inv-action-menu__chevron" aria-hidden="true" />
       </button>
       {open && (
         <div className="inv-action-menu__panel" id={menuId} role="menu">
           <button type="button" className="inv-action-menu__item" role="menuitem" onClick={handlePreview}>
+            <InvIcon name="eye" />
             Vista previa
           </button>
           <button
@@ -81,6 +84,7 @@ export default function RemissionActionMenu({ saleId, remissionNumber, onNotify 
             onClick={handleDownload}
             disabled={downloading}
           >
+            <InvIcon name="download" />
             {downloading ? "Descargando…" : "Descargar PDF"}
           </button>
         </div>

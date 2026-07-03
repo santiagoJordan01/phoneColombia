@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import ColorSwatch from "../ColorSwatch.jsx";
+import InvIcon from "./InvIcon.jsx";
 import {
   describeInventoryMovement,
   formatPrice,
@@ -157,7 +158,9 @@ export default function InventoryHistoryModal({ item, loading, onClose, showSens
             <TimelineSkeleton />
           ) : movements.length === 0 ? (
             <div className="inv-history-empty">
-              <span className="inv-history-empty__icon" aria-hidden="true">📋</span>
+              <span className="inv-history-empty__icon" aria-hidden="true">
+                <InvIcon name="history" className="" />
+              </span>
               <p className="inv-history-empty__title">Sin movimientos</p>
               <p className="inv-history-empty__text">Aún no hay cambios registrados para este equipo.</p>
             </div>

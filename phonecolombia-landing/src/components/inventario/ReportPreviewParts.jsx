@@ -1,4 +1,5 @@
 import { formatPrice } from "../../pages/inventario/shared.jsx";
+import { paymentLabel as formatPaymentMethodLabel } from "../../lib/paymentMethods.js";
 
 export function formatDateLabel(dateStr) {
   if (!dateStr) return "—";
@@ -22,13 +23,6 @@ export function formatSoldAt(soldAt) {
   return new Date(soldAt).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" });
 }
 
-const PAYMENT_LABELS = {
-  efectivo: "Efectivo",
-  transferencia: "Transferencia",
-  credito: "Crédito",
-  mixto: "Mixto",
-};
-
 const COLLECTION_TYPE_LABELS = {
   venta: "Cobro venta",
   apartado: "Abono apartado",
@@ -38,7 +32,7 @@ const COLLECTION_TYPE_LABELS = {
 };
 
 export function paymentLabel(method) {
-  return PAYMENT_LABELS[method] ?? method ?? "—";
+  return formatPaymentMethodLabel(method);
 }
 
 export function collectionTypeLabel(type) {

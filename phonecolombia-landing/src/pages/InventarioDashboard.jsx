@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { Link, Navigate } from "react-router-dom";
 import InventarioTopbar from "../components/inventario/InventarioTopbar.jsx";
+import InvIcon from "../components/inventario/InvIcon.jsx";
 import MobileCollapsible from "../components/inventario/MobileCollapsible.jsx";
 import { useCachedQuery } from "../hooks/useCachedQuery.js";
 import api, { isApiConfigured } from "../lib/apiClient";
@@ -273,25 +274,30 @@ export default function InventarioDashboard() {
           <div className="inv-sheet-actions" style={{ flexWrap: "wrap", gap: "0.75rem" }}>
             {canAccessInventory(user) && (
               <Link to="/admin/inventario" className="inv-btn inv-btn--outline">
+                <InvIcon name="inventario" />
                 Ver inventario
               </Link>
             )}
             {canManageSales(user) && (
               <Link to="/admin/inventario/ventas" className="inv-btn inv-btn--primary inv-btn--inline">
+                <InvIcon name="cart-plus" />
                 Registrar venta
               </Link>
             )}
             {canViewReports(user) && (
               <Link to="/admin/inventario/informes" className="inv-btn inv-btn--outline">
+                <InvIcon name="informes" />
                 Informes y caja
               </Link>
             )}
             {!isAccountant(user) && (
               <Link to="/admin/inventario/servicio-tecnico" className="inv-btn inv-btn--outline">
+                <InvIcon name="servicio" />
                 Servicio técnico
               </Link>
             )}
             <button type="button" className="inv-btn inv-btn--ghost" onClick={refetch} disabled={loading || refreshing}>
+              <InvIcon name="refresh" spin={loading || refreshing} />
               Actualizar
             </button>
           </div>

@@ -16,6 +16,7 @@ use App\Services\InventoryMovementService;
 use App\Support\InventoryFieldGuard;
 use App\Support\InventoryStatus;
 use App\Support\InventoryStatusGuard;
+use App\Support\PaymentMethods;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -152,7 +153,7 @@ class InventoryItemController extends Controller
         $this->denyIfReadOnlyInventoryRole($user, 'registrar equipos');
 
         $data = InventoryFieldGuard::stripRestrictedUpdates(
-            $this->applyProductDefaults($this->validated($request)),
+            $this->applyProductDefaults($this->resolveCatalogProduct($this->validated($request))),
             $user,
         );
         $data['quantity'] = 1;
@@ -188,7 +189,7 @@ class InventoryItemController extends Controller
         }
 
         $data = InventoryFieldGuard::stripRestrictedUpdates(
-            $this->applyProductDefaults($this->validated($request, partial: true)),
+            $this->applyProductDefaults($this->resolveCatalogProduct($this->validated($request, partial: true))),
             $user,
         );
 
@@ -270,7 +271,7 @@ class InventoryItemController extends Controller
         if ($inventoryItem->status === InventoryStatus::VENDIDO) {
             $data = $request->validate([
                 'retake_price' => ['required', 'string', 'max:50'],
-                'retake_payment_method' => ['required', Rule::in(['efectivo', 'transferencia'])],
+                'retake_payment_method' => ['required', Rule::in(PaymentMethods::immediate())],
             ]);
 
             $retakePrice = (string) (int) MoneyFormatter::parse($data['retake_price']);
@@ -409,22 +410,72 @@ class InventoryItemController extends Controller
         }
 
         $product = InventoryProduct::findOrFail($data['inventory_product_id']);
-        if (empty($data['name'])) {
-            $data['name'] = $product->name;
-        }
-
-        if (empty($data['color']) && $product->color) {
-            $data['color'] = $product->color;
-        }
+        $data['name'] = $this->composeItemNameFromProduct(
+            $product,
+            $data['color'] ?? null,
+        );
 
         return $data;
+    }
+
+    private function resolveCatalogProduct(array $data): array
+    {
+        if (! empty($data['inventory_product_id'])) {
+            return $data;
+        }
+
+        $model = isset($data['catalog_model']) ? trim((string) $data['catalog_model']) : '';
+        if ($model === '') {
+            return $data;
+        }
+
+        $product = InventoryProduct::findOrCreateFromParts(
+            $data['catalog_brand'] ?? null,
+            $model,
+            $data['catalog_storage'] ?? null,
+        );
+
+        $data['inventory_product_id'] = $product->id;
+        unset($data['catalog_brand'], $data['catalog_model'], $data['catalog_storage']);
+
+        return $data;
+    }
+
+    private function composeItemNameFromProduct(InventoryProduct $product, ?string $color): string
+    {
+        $parts = array_filter([$product->brand, $product->model, $product->storage]);
+        $base = strtoupper(trim(implode(' ', $parts)));
+        if ($base === '') {
+            $base = strtoupper(trim($product->name));
+        }
+
+        $tone = $color ? strtoupper(trim($color)) : '';
+        if ($tone === '') {
+            return $base;
+        }
+
+        if (str_ends_with($base, ' '.$tone)) {
+            return $base;
+        }
+
+        return trim($base.' '.$tone);
     }
 
     private function validated(Request $request, bool $partial = false): array
     {
         $rules = [
             'inventory_product_id' => ['nullable', 'uuid', 'exists:inventory_products,id'],
-            'name' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
+            'catalog_brand' => ['nullable', 'string', 'max:80'],
+            'catalog_model' => ['nullable', 'string', 'max:120'],
+            'catalog_storage' => ['nullable', 'string', 'max:50'],
+            'name' => [
+                $partial ? 'sometimes' : 'nullable',
+                'string',
+                'max:255',
+                Rule::requiredIf(fn () => ! $partial
+                    && ! $request->filled('inventory_product_id')
+                    && ! $request->filled('catalog_model')),
+            ],
             'imei' => ['nullable', 'string', 'max:50'],
             'barcode' => ['nullable', 'string', 'max:64'],
             'color' => ['nullable', 'string', 'max:50'],
@@ -490,6 +541,7 @@ class InventoryItemController extends Controller
                 'sale_price' => $reservation->sale_price,
                 'amount_paid' => (float) $reservation->amount_paid,
                 'amount_due' => (float) $reservation->amount_due,
+                'payment_method' => $reservation->payment_method,
                 'customer_name' => $reservation->customer_name,
                 'customer_phone' => $reservation->customer_phone,
                 'service_customer_id' => $reservation->service_customer_id,

@@ -26,13 +26,9 @@
 <body>
     @php
         use App\Support\MoneyFormatter;
+        use App\Support\PaymentMethods;
 
-        $paymentLabels = [
-            'efectivo' => 'Efectivo',
-            'transferencia' => 'Transferencia',
-            'credito' => 'Crédito',
-            'mixto' => 'Mixto',
-        ];
+        $paymentLabels = PaymentMethods::labels();
         $collectionLabels = [
             'venta' => 'Cobro venta',
             'apartado' => 'Abono apartado',
@@ -54,6 +50,9 @@
             ['label' => 'Cobrado en período', 'value' => MoneyFormatter::format($report['cash_collected_in_period'] ?? $report['total_collected'] ?? 0), 'tone' => 'green'],
             ['label' => 'Pendiente (ventas)', 'value' => MoneyFormatter::format($report['pending_credits'] ?? 0), 'tone' => 'amber'],
             ['label' => 'Conciliación ventas', 'value' => MoneyFormatter::format($report['difference'] ?? 0), 'tone' => 'slate'],
+            ['label' => 'Costo total', 'value' => MoneyFormatter::format($report['total_cost'] ?? 0), 'tone' => 'slate'],
+            ['label' => 'Utilidad bruta', 'value' => MoneyFormatter::format($report['total_profit'] ?? 0), 'tone' => 'green'],
+            ['label' => 'Margen', 'value' => ($report['margin_percent'] ?? null) !== null ? ($report['margin_percent'].'%') : '—', 'tone' => 'amber'],
             ['label' => 'Cobros ventas período', 'value' => MoneyFormatter::format($report['collections_on_period_sales'] ?? 0), 'tone' => 'green'],
             ['label' => 'Apartados/abonos previos', 'value' => MoneyFormatter::format($report['collections_on_other_sales'] ?? 0), 'tone' => 'purple'],
         ];

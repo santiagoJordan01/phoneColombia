@@ -1,5 +1,4 @@
 import { formatPrice, STATUS_LABELS, supplierSubtitle } from "../pages/inventario/shared.jsx";
-import { getCanonicalColorName } from "./deviceColorMap.js";
 
 export function inventoryItemSelectOptions(items, { showSensitive = true } = {}) {
   return (items || []).map((item) => {
@@ -35,13 +34,13 @@ export function supplierSelectOptions(suppliers) {
 
 export function catalogProductSelectOptions(products) {
   return (products || []).map((product) => {
-    const meta = [product.storage, product.color ? getCanonicalColorName(product.color) : ""].filter(Boolean);
+    const meta = [product.storage].filter(Boolean);
     if (product.reference_price) meta.push(formatPrice(product.reference_price));
     return {
       value: product.id,
       label: product.name,
       sublabel: meta.join(" · ") || undefined,
-      searchText: [product.name, product.brand, product.model, product.storage, product.color].filter(Boolean).join(" "),
+      searchText: [product.name, product.brand, product.model, product.storage].filter(Boolean).join(" "),
     };
   });
 }
@@ -63,3 +62,66 @@ export function serviceTechnicianCatalogOptions(technicians) {
     searchText: [t.name, t.workshop, t.phone].filter(Boolean).join(" "),
   }));
 }
+
+export function brandSelectOptions(brands) {
+  return (brands || []).map((brand) => ({
+    value: brand.name,
+    label: brand.name,
+    searchText: brand.name,
+  }));
+}
+
+export function catalogModelSelectOptions(models, catalogProducts = [], brand = "") {
+  const brandUpper = String(brand || "").toUpperCase();
+  const isAppleBrand = brandUpper === "IPHONE" || brandUpper === "APPLE";
+
+  if (!brandUpper) {
+    return [];
+  }
+
+  if (!isAppleBrand) {
+    const fromCatalog = (catalogProducts || [])
+      .filter((p) => (p.brand || "").toUpperCase() === brandUpper && p.model)
+      .map((p) => String(p.model).toUpperCase().trim());
+
+    return [...new Set(fromCatalog)].map((model) => ({
+      value: model,
+      label: model,
+      searchText: model,
+    }));
+  }
+
+  const fromCatalog = (catalogProducts || [])
+    .filter((p) => {
+      const productBrand = (p.brand || "").toUpperCase();
+      return (productBrand === "IPHONE" || productBrand === "APPLE") && p.model;
+    })
+    .map((p) => String(p.model).toUpperCase().trim());
+
+  const merged = [...new Set([...(models || []), ...fromCatalog])];
+
+  return merged.map((model) => ({
+    value: model,
+    label: model,
+    searchText: model,
+  }));
+}
+
+/** @deprecated Use catalogModelSelectOptions */
+export function iphoneModelSelectOptions(models, catalogProducts = [], brand = "") {
+  return catalogModelSelectOptions(models, catalogProducts, brand || "IPHONE");
+}
+
+export const IPHONE_STORAGE_OPTIONS = [
+  "16GB",
+  "32GB",
+  "64GB",
+  "128GB",
+  "256GB",
+  "512GB",
+  "1TB",
+].map((storage) => ({
+  value: storage,
+  label: storage,
+  searchText: storage,
+}));

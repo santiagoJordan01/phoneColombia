@@ -48,6 +48,9 @@ class AuditLogPresenter
         'returned' => 'Devolución por retoma',
         'reingreso' => 'Reingreso',
         'payment_added' => 'Abono registrado',
+        'reservation_created' => 'Apartado creado',
+        'reservation_completed' => 'Apartado completado',
+        'reservation_cancelled' => 'Apartado cancelado',
         'import' => 'Importación',
     ];
 
@@ -320,6 +323,10 @@ class AuditLogPresenter
 
         $stringValue = (string) $value;
 
+        if (in_array($field, ['payment_method', 'retake_payment_method', 'deposit_method'], true)) {
+            return PaymentMethods::label($stringValue);
+        }
+
         if ($field === 'status' || $field === 'credit_status') {
             return self::STATUS_LABELS[$stringValue] ?? strtoupper(str_replace('_', ' ', $stringValue));
         }
@@ -349,12 +356,43 @@ class AuditLogPresenter
             return "{$created} creados, {$skipped} omitidos".($errors > 0 ? ", {$errors} errores" : '');
         }
 
+        if ($log->action === 'payment_added' && is_array($log->meta['payments'] ?? null)) {
+            $parts = collect($log->meta['payments'])
+                ->map(function (array $line) {
+                    $method = PaymentMethods::label((string) ($line['method'] ?? ''));
+                    $amount = isset($line['amount']) ? MoneyFormatter::format($line['amount']) : '—';
+
+                    return "{$method} {$amount}";
+                })
+                ->filter()
+                ->values()
+                ->all();
+
+            $remission = $log->meta['remission_number'] ?? null;
+            $summary = $parts !== [] ? implode(', ', $parts) : null;
+
+            return collect([$remission, $summary])->filter()->implode(' · ');
+        }
+
         if ($log->action === 'deleted' && isset($log->meta['email'])) {
             return "Correo: {$log->meta['email']}";
         }
 
         return collect($log->meta)
-            ->map(fn ($v, $k) => is_scalar($v) ? "{$k}: {$v}" : "{$k}: ".json_encode($v, JSON_UNESCAPED_UNICODE))
+            ->map(function ($v, $k) {
+                if (is_scalar($v) && in_array($k, ['payment_method', 'retake_payment_method', 'deposit_method'], true)) {
+                    $keyLabel = match ($k) {
+                        'payment_method' => 'Método de pago',
+                        'retake_payment_method' => 'Método retoma',
+                        'deposit_method' => 'Método abono',
+                        default => $k,
+                    };
+
+                    return "{$keyLabel}: ".PaymentMethods::label((string) $v);
+                }
+
+                return is_scalar($v) ? "{$k}: {$v}" : "{$k}: ".json_encode($v, JSON_UNESCAPED_UNICODE);
+            })
             ->implode(' · ');
     }
 
@@ -386,7 +424,11 @@ class AuditLogPresenter
         }
 
         if ($log->action === 'payment_added') {
-            return "Registró abono en {$target}".($newDisplay ? " → {$newDisplay}" : '');
+            $metaSummary = $this->formatMetaSummary($log);
+
+            return "Registró abono en {$target}"
+                .($oldDisplay && $newDisplay ? " · {$oldDisplay} → {$newDisplay}" : ($newDisplay ? " → {$newDisplay}" : ''))
+                .($metaSummary ? " ({$metaSummary})" : '');
         }
 
         if ($fieldLabel && $oldDisplay && $newDisplay) {

@@ -18,5 +18,6 @@ class DatabaseSeeder extends Seeder
         $this->call(AdminUserSeeder::class);
         $this->call(CreditPaymentMethodSeeder::class);
         $this->call(DeviceColorSeeder::class);
+        $this->call(IphoneModelSeeder::class);
     }
 }

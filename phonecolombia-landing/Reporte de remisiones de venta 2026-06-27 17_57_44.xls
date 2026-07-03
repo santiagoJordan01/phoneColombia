@@ -1,0 +1,1413 @@
+         <table border="1" cellpadding="10" cellspacing="0" style="border-collapse:collapse;">
+            <thead>
+            <tr>
+               <th class="text-center">Sucursal</th>
+               <th class="text-center">Centro de costos</th>
+                              <th class="text-center">ID remisión</th>
+               <th class="text-center">ID venta ecommerce</th>
+               <th class="text-center">Nombre venta ecommerce</th>
+               <th class="text-center">Ecommerce</th>
+               <th class="text-center">Bodega</th>
+               <th class="text-center">Cliente</th>
+               <th class="text-center">ID. cliente</th>
+               <th class="text-center">Teléfono</th>
+               <th class="text-center">País</th>
+               <th class="text-center">Departamento</th>
+               <th class="text-center">Ciudad</th>
+               <th class="text-center">DANE Ciudad</th>
+               <th class="text-center">Dirección</th>
+               <th class="text-center">Tipo de markting</th>
+               <th class="text-center">Vendedor</th>
+               <th class="text-center">Total bruto</th>
+               <th class="text-center">Descuentos</th>
+               <th class="text-center">Subtotal</th>
+               <th class="text-center">Impuestos</th>
+               <th class="text-center">Retenciones</th>
+               <th class="text-center">Propina voluntaria</th>
+               <th class="text-center">Total neto</th>
+               <th class="text-center">Devoluciones vigentes</th>
+                                 <th class="text-center">Costo manual</th>
+                  <th class="text-center">Utilidad (costo manual)</th>
+                  <th class="text-center">Margen de utilidad (costo manual)</th>
+                  <th class="text-center">Costo promedio</th>
+                  <th class="text-center">Utilidad (costo promedio)</th>
+                  <th class="text-center">Margen de utilidad (costo promedio)</th>
+                                 <th class="text-center">Pdte. de cobro</th>
+               <th class="text-center">Estado CXC</th>
+               <th class="text-center">Días mora</th>
+               <th class="text-center">Valor mora</th>
+               <th class="text-center">Fecha de entrega</th>
+               <th class="text-center">Observación</th>
+               <th class="text-center">Garantía</th>
+               <th class="text-center">Estado remisión</th>
+               <th class="text-center">Fecha de creación</th>
+               <th class="text-center">Responsable de creación</th>
+               <th class="text-center">Observación de anulación</th>
+               <th class="text-center">Fecha de anulación</th>
+               <th class="text-center">Responsable de anulación</th>
+               <th class="text-center">Relación de despacho</th>
+               <th class="text-center">Guía interna de transporte</th>
+               <th class="text-center">Guía inicial de transportadora</th>
+               <th class="text-center">Estado transportadora guía inicial</th>
+               <th class="text-center">Estado global guía inicial</th>
+               <th class="text-center">Valor flete guía inicial</th>
+               <th class="text-center">Guía adicional de transportadora</th>
+               <th class="text-center">Estado transportadora guía adicional</th>
+               <th class="text-center">Estado global guía adicional</th>
+               <th class="text-center">Distribuidor Dropshipping</th>
+               <th class="text-center">Proveedor Dropshipping</th>
+               <th class="text-center">Compra del distribuidor</th>
+               <th class="text-center">Total compra del distribuidor</th>
+               <th class="text-center">Venta del distribuidor</th>
+               <th class="text-center">Total venta del distribuidor</th>
+               <th class="text-center">Venta del proveedor</th>
+               <th class="text-center">Total venta del proveedor</th>
+               <th class="text-center">Guía transportadora Dropshipping</th>
+               <th class="text-center">Estado guía Dropshipping</th>
+               <th class="text-center">Valor a recaudar por el proveedor</th>
+               <th class="text-center">Convenio Dropshipping</th>
+               <th class="text-center">Estado transacción de Dropshipping</th>
+               <th class="text-center">URL Guía Dropshipping</th>
+               <th class="text-center">Adjuntos</th>
+               <th class="text-center">Adjunto con enlace</th>
+            </tr>
+            </thead>
+            <tbody id="bodyTabla">
+                           <tr>
+                  <td>PRINCIPAL SAN SUR</td>
+                  <td>Principal</td>
+                                    <td class="text-nowrap">PPAL-3944</td>
+                  <td style="mso-number-format:'@';"></td>
+                  <td></td>
+                  <td></td>
+                  <td>LOCAL 309</td>
+                  <td>CONSUMIDOR FINAL</td>
+                  <td>CC 222222222222</td>
+                  <td>1111111111</td>
+                  <td>Colombia</td>
+                  <td>Valle del Cauca</td>
+                  <td>Cali</td>
+                  <td>76001000</td>
+                  <td>.</td>
+                  <td></td>
+                  <td>NICOLAS DONATO</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2700000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">1300000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">1400000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">1400000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                                       <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">1400000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">1400000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                                       <td
+                     style="mso-number-format:'$#,##0.00';">0</td>
+                  <td>Anulado</td>
+                  <td>0</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0</td>
+                  <td>2026-06-27</td>
+                  <td></td>
+                  <td></td>
+                  <td>Anulado</td>
+                  <td>2026-06-27 12:17:35</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+                  <td>ERROR CLIENTE</td>
+                  <td>2026-06-27 12:28:46</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+
+                  <td>No registra.</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                                       <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                                       <td></td>
+                  <td></td>
+               </tr>
+                           <tr>
+                  <td>PRINCIPAL SAN SUR</td>
+                  <td>Principal</td>
+                                    <td class="text-nowrap">PPAL-3945</td>
+                  <td style="mso-number-format:'@';"></td>
+                  <td></td>
+                  <td></td>
+                  <td>LOCAL 309</td>
+                  <td>SORAIMA BONILLA</td>
+                  <td>CC 1130617474</td>
+                  <td>3166109888</td>
+                  <td>Colombia</td>
+                  <td>Valle del Cauca</td>
+                  <td>Cali</td>
+                  <td>76001000</td>
+                  <td>. (.)</td>
+                  <td></td>
+                  <td>CARLOS OREJUELA</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">4750000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">700000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">4050000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">4050000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                                       <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">4050000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">4050000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                                       <td
+                     style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>Pago total</td>
+                  <td>0</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>2026-06-27</td>
+                  <td></td>
+                  <td></td>
+                  <td>Pendiente de facturar</td>
+                  <td>2026-06-27 12:22:30</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+
+                  <td>No registra.</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                                       <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                                       <td></td>
+                  <td></td>
+               </tr>
+                           <tr>
+                  <td>PRINCIPAL SAN SUR</td>
+                  <td>Principal</td>
+                                    <td class="text-nowrap">PPAL-3946</td>
+                  <td style="mso-number-format:'@';"></td>
+                  <td></td>
+                  <td></td>
+                  <td>LOCAL 309</td>
+                  <td>MABEL FERNANDA MARTINEZ</td>
+                  <td>CC 1113538748</td>
+                  <td>3166281697</td>
+                  <td>Colombia</td>
+                  <td>Valle del Cauca</td>
+                  <td>Cali</td>
+                  <td>76001000</td>
+                  <td>. (.)</td>
+                  <td></td>
+                  <td>NICOLAS DONATO</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2700000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">1300000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">1400000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">1400000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                                       <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">1400000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">1400000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                                       <td
+                     style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>Pago total</td>
+                  <td>0</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>2026-06-27</td>
+                  <td></td>
+                  <td></td>
+                  <td>Pendiente de facturar</td>
+                  <td>2026-06-27 12:28:26</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+
+                  <td>No registra.</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                                       <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                                       <td></td>
+                  <td></td>
+               </tr>
+                           <tr>
+                  <td>PRINCIPAL SAN SUR</td>
+                  <td>Principal</td>
+                                    <td class="text-nowrap">PPAL-3947</td>
+                  <td style="mso-number-format:'@';"></td>
+                  <td></td>
+                  <td></td>
+                  <td>LOCAL 309</td>
+                  <td>MALCON BRAVO</td>
+                  <td>CC 1111753998</td>
+                  <td>3145110295</td>
+                  <td>Colombia</td>
+                  <td>Valle del Cauca</td>
+                  <td>Cali</td>
+                  <td>76001000</td>
+                  <td>. (.)</td>
+                  <td></td>
+                  <td>SERGIO ANDRES RENGIFO</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2650000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2650000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2650000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                                       <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">20000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">2630000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">0,99</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">20000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">2630000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">0,99</td>
+                                       <td
+                     style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>Pago total</td>
+                  <td>0</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>2026-06-27</td>
+                  <td></td>
+                  <td></td>
+                  <td>Pendiente de facturar</td>
+                  <td>2026-06-27 12:48:46</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+
+                  <td>No registra.</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                                       <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                                       <td></td>
+                  <td></td>
+               </tr>
+                           <tr>
+                  <td>PRINCIPAL SAN SUR</td>
+                  <td>Principal</td>
+                                    <td class="text-nowrap">PPAL-3948</td>
+                  <td style="mso-number-format:'@';"></td>
+                  <td></td>
+                  <td></td>
+                  <td>LOCAL 309</td>
+                  <td>katherine londoño</td>
+                  <td>CC 1144076469</td>
+                  <td>3162833841</td>
+                  <td>Colombia</td>
+                  <td>Valle del Cauca</td>
+                  <td>Cali</td>
+                  <td>76001000</td>
+                  <td>.</td>
+                  <td></td>
+                  <td>ROSA NORELY VINASCO</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2850000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2850000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2850000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                                       <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">20000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">2830000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">0,99</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">20000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">2830000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">0,99</td>
+                                       <td
+                     style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>Pago total</td>
+                  <td>0</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>2026-06-27</td>
+                  <td></td>
+                  <td></td>
+                  <td>Pendiente de facturar</td>
+                  <td>2026-06-27 13:54:50</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+
+                  <td>No registra.</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                                       <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                                       <td></td>
+                  <td></td>
+               </tr>
+                           <tr>
+                  <td>PRINCIPAL SAN SUR</td>
+                  <td>Principal</td>
+                                    <td class="text-nowrap">PPAL-3949</td>
+                  <td style="mso-number-format:'@';"></td>
+                  <td></td>
+                  <td></td>
+                  <td>LOCAL 309</td>
+                  <td>LEIDY VIVIANA PILLIMUE</td>
+                  <td>NIT 1144037041</td>
+                  <td>3185288599</td>
+                  <td>Colombia</td>
+                  <td>Valle del Cauca</td>
+                  <td>Cali</td>
+                  <td>76001000</td>
+                  <td>. (.)</td>
+                  <td></td>
+                  <td>SERGIO ANDRES RENGIFO</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">3000000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">3000000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">3000000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                                       <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">3000000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">3000000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                                       <td
+                     style="mso-number-format:'$#,##0.00';">2950000,00</td>
+                  <td>Pendiente de cobro al día</td>
+                  <td>0</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>2026-06-27</td>
+                  <td></td>
+                  <td></td>
+                  <td>Pendiente de facturar</td>
+                  <td>2026-06-27 14:24:14</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+
+                  <td>No registra.</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                                       <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                                       <td></td>
+                  <td></td>
+               </tr>
+                           <tr>
+                  <td>PRINCIPAL SAN SUR</td>
+                  <td>Principal</td>
+                                    <td class="text-nowrap">PPAL-3950</td>
+                  <td style="mso-number-format:'@';"></td>
+                  <td></td>
+                  <td></td>
+                  <td>LOCAL 309</td>
+                  <td>MARIAM SOFIA LOPEZ</td>
+                  <td>CC 1149934435</td>
+                  <td>3224175871</td>
+                  <td>Colombia</td>
+                  <td>Valle del Cauca</td>
+                  <td>Cali</td>
+                  <td>76001000</td>
+                  <td>. (.)</td>
+                  <td></td>
+                  <td>SERGIO ANDRES RENGIFO</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">1,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">1,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">1,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                                       <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">1,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">1,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                                       <td
+                     style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>Pago total</td>
+                  <td>0</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>2026-06-27</td>
+                  <td>EQUIPO SE CAMBIA POR GARANTIA PPAL-3922</td>
+                  <td></td>
+                  <td>Pendiente de facturar</td>
+                  <td>2026-06-27 15:04:58</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+
+                  <td>No registra.</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                                       <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                                       <td></td>
+                  <td></td>
+               </tr>
+                           <tr>
+                  <td>PRINCIPAL SAN SUR</td>
+                  <td>Principal</td>
+                                    <td class="text-nowrap">PPAL-3951</td>
+                  <td style="mso-number-format:'@';"></td>
+                  <td></td>
+                  <td></td>
+                  <td>LOCAL 309</td>
+                  <td>LUZ MARI</td>
+                  <td>CC 38667652</td>
+                  <td>3184158798</td>
+                  <td>Colombia</td>
+                  <td>Valle del Cauca</td>
+                  <td>Cali</td>
+                  <td>76001000</td>
+                  <td>CALI</td>
+                  <td></td>
+                  <td>CARLOS OREJUELA</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">4750000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">4750000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">4750000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                                       <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">4750000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">4750000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                                       <td
+                     style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>Pago total</td>
+                  <td>0</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>2026-06-27</td>
+                  <td></td>
+                  <td></td>
+                  <td>Pendiente de facturar</td>
+                  <td>2026-06-27 15:16:55</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+
+                  <td>No registra.</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                                       <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                                       <td></td>
+                  <td></td>
+               </tr>
+                           <tr>
+                  <td>PRINCIPAL SAN SUR</td>
+                  <td>Principal</td>
+                                    <td class="text-nowrap">PPAL-3952</td>
+                  <td style="mso-number-format:'@';"></td>
+                  <td></td>
+                  <td></td>
+                  <td>LOCAL 309</td>
+                  <td>FRANCISCO VIDAL</td>
+                  <td>CC 11983087947</td>
+                  <td>3226617288</td>
+                  <td>Colombia</td>
+                  <td>Valle del Cauca</td>
+                  <td>Cali</td>
+                  <td>76001000</td>
+                  <td>. (.)</td>
+                  <td></td>
+                  <td>SERGIO ANDRES RENGIFO</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2350000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2350000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2350000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                                       <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">2350000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">2350000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                                       <td
+                     style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>Pago total</td>
+                  <td>0</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>2026-06-27</td>
+                  <td></td>
+                  <td></td>
+                  <td>Pendiente de facturar</td>
+                  <td>2026-06-27 16:07:24</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+
+                  <td>No registra.</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                                       <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                                       <td></td>
+                  <td></td>
+               </tr>
+                           <tr>
+                  <td>PRINCIPAL SAN SUR</td>
+                  <td>Principal</td>
+                                    <td class="text-nowrap">PPAL-3953</td>
+                  <td style="mso-number-format:'@';"></td>
+                  <td></td>
+                  <td></td>
+                  <td>LOCAL 309</td>
+                  <td>ANGELA CAICEDO</td>
+                  <td>CC 1108565472</td>
+                  <td>3156096210</td>
+                  <td>Colombia</td>
+                  <td>Valle del Cauca</td>
+                  <td>Cali</td>
+                  <td>76001000</td>
+                  <td>. (.)</td>
+                  <td></td>
+                  <td>NICOLAS DONATO</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">1400000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">1400000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">1400000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                                       <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">1400000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">1400000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                                       <td
+                     style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>Pago total</td>
+                  <td>0</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>2026-06-27</td>
+                  <td></td>
+                  <td></td>
+                  <td>Pendiente de facturar</td>
+                  <td>2026-06-27 16:12:20</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+
+                  <td>No registra.</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                                       <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                                       <td></td>
+                  <td></td>
+               </tr>
+                           <tr>
+                  <td>PRINCIPAL SAN SUR</td>
+                  <td>Principal</td>
+                                    <td class="text-nowrap">PPAL-3954</td>
+                  <td style="mso-number-format:'@';"></td>
+                  <td></td>
+                  <td></td>
+                  <td>LOCAL 309</td>
+                  <td>ANA MARIA BETANCOURT</td>
+                  <td>CC 1144025970</td>
+                  <td>3008069365</td>
+                  <td>Colombia</td>
+                  <td>Valle del Cauca</td>
+                  <td>Bajo Calima</td>
+                  <td>76109006</td>
+                  <td>. (.)</td>
+                  <td></td>
+                  <td>ROSA NORELY VINASCO</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">3715000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">3715000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">3715000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                                       <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">20000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">3695000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">0,99</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">20000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">3695000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">0,99</td>
+                                       <td
+                     style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>Pago total</td>
+                  <td>0</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>2026-06-27</td>
+                  <td></td>
+                  <td></td>
+                  <td>Pendiente de facturar</td>
+                  <td>2026-06-27 16:19:32</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+
+                  <td>No registra.</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                                       <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                                       <td></td>
+                  <td></td>
+               </tr>
+                           <tr>
+                  <td>PRINCIPAL SAN SUR</td>
+                  <td>Principal</td>
+                                    <td class="text-nowrap">PPAL-3955</td>
+                  <td style="mso-number-format:'@';"></td>
+                  <td></td>
+                  <td></td>
+                  <td>LOCAL 309</td>
+                  <td>SARA MOSQUERA</td>
+                  <td>CC 1143950806</td>
+                  <td>3160762861</td>
+                  <td>Colombia</td>
+                  <td>Valle del Cauca</td>
+                  <td>Cali</td>
+                  <td>76001000</td>
+                  <td>. (.)</td>
+                  <td></td>
+                  <td>VENTA COMPARTIDA CARLOS Y ADM</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2000000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2000000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2000000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                                       <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">2000000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">2000000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                                       <td
+                     style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>Pago total</td>
+                  <td>0</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>2026-06-27</td>
+                  <td></td>
+                  <td></td>
+                  <td>Pendiente de facturar</td>
+                  <td>2026-06-27 16:26:06</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+
+                  <td>No registra.</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                                       <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                                       <td></td>
+                  <td></td>
+               </tr>
+                           <tr>
+                  <td>PRINCIPAL SAN SUR</td>
+                  <td>Principal</td>
+                                    <td class="text-nowrap">PPAL-3956</td>
+                  <td style="mso-number-format:'@';"></td>
+                  <td></td>
+                  <td></td>
+                  <td>LOCAL 309</td>
+                  <td>JULIETH LONDOÑO</td>
+                  <td>CC 1107518999</td>
+                  <td>3206168769</td>
+                  <td>Colombia</td>
+                  <td>Valle del Cauca</td>
+                  <td>Cali</td>
+                  <td>76001000</td>
+                  <td>. (.)</td>
+                  <td></td>
+                  <td>CARLOS OREJUELA</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">3000000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">800000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2200000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2200000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                                       <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">2200000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">2200000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                                       <td
+                     style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>Pago total</td>
+                  <td>0</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>2026-06-27</td>
+                  <td></td>
+                  <td></td>
+                  <td>Pendiente de facturar</td>
+                  <td>2026-06-27 16:47:36</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+
+                  <td>No registra.</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                                       <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                                       <td></td>
+                  <td></td>
+               </tr>
+                           <tr>
+                  <td>PRINCIPAL SAN SUR</td>
+                  <td>Principal</td>
+                                    <td class="text-nowrap">PPAL-3957</td>
+                  <td style="mso-number-format:'@';"></td>
+                  <td></td>
+                  <td></td>
+                  <td>LOCAL 309</td>
+                  <td>ESTEPHANY LOZANO</td>
+                  <td>CC 1118296336</td>
+                  <td>3136646330</td>
+                  <td>Colombia</td>
+                  <td>Valle del Cauca</td>
+                  <td>Cali</td>
+                  <td>76001000</td>
+                  <td>. (.)</td>
+                  <td></td>
+                  <td>SERGIO ANDRES RENGIFO</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">3100000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">3100000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">3100000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                                       <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">3100000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">3100000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                                       <td
+                     style="mso-number-format:'$#,##0.00';">3000000,00</td>
+                  <td>Pendiente de cobro al día</td>
+                  <td>0</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>2026-06-27</td>
+                  <td></td>
+                  <td>3057414105 ESPOSO GABRIEL </td>
+                  <td>Pendiente de facturar</td>
+                  <td>2026-06-27 17:02:39</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+
+                  <td>No registra.</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                                       <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                                       <td></td>
+                  <td></td>
+               </tr>
+                           <tr>
+                  <td>PRINCIPAL SAN SUR</td>
+                  <td>Principal</td>
+                                    <td class="text-nowrap">PPAL-3958</td>
+                  <td style="mso-number-format:'@';"></td>
+                  <td></td>
+                  <td></td>
+                  <td>LOCAL 309</td>
+                  <td>SEBASTIAN BARONA</td>
+                  <td>CC 1006037041</td>
+                  <td>3192554389</td>
+                  <td>Colombia</td>
+                  <td>Valle del Cauca</td>
+                  <td>Cali</td>
+                  <td>76001000</td>
+                  <td>. (.)</td>
+                  <td></td>
+                  <td>Angie lorena l</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">3890000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">2700000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">1190000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">1190000,00</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                                       <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">1190000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">0,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'$#,##0.00';">1190000,00</td>
+                     <td class="text-nowrap"
+                         style="mso-number-format:'0%';">1,00</td>
+                                       <td
+                     style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>Pago total</td>
+                  <td>0</td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td>2026-06-27</td>
+                  <td></td>
+                  <td></td>
+                  <td>Pendiente de facturar</td>
+                  <td>2026-06-27 17:08:22</td>
+                  <td>Angie Maryeli Llanten Hernandez (angiellantenhernandez@gmail.com)</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+
+                  <td>No registra.</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-nowrap"
+                      style="mso-number-format:'$#,##0.00';">0,00</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                                       <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                     <td></td>
+                                       <td></td>
+                  <td></td>
+               </tr>
+                        </tbody>
+         </table>
+         

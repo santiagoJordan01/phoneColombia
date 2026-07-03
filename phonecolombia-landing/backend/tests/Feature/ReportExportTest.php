@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Support\InventoryStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
 class ReportExportTest extends TestCase
@@ -44,6 +45,7 @@ class ReportExportTest extends TestCase
             'amount_paid' => 2500000,
             'amount_due' => 0,
             'sold_at' => now(),
+            'remission_number' => 'R-'.now()->format('Y').'-000001',
         ]);
     }
 
@@ -73,7 +75,7 @@ class ReportExportTest extends TestCase
         $temp = tempnam(sys_get_temp_dir(), 'xlsx_').'.xlsx';
         file_put_contents($temp, $response->streamedContent());
 
-        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($temp);
+        $spreadsheet = IOFactory::load($temp);
         @unlink($temp);
 
         $this->assertSame('Resumen', $spreadsheet->getSheet(0)->getTitle());
@@ -142,7 +144,7 @@ class ReportExportTest extends TestCase
         $temp = tempnam(sys_get_temp_dir(), 'xlsx_').'.xlsx';
         file_put_contents($temp, $response->streamedContent());
 
-        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($temp);
+        $spreadsheet = IOFactory::load($temp);
         @unlink($temp);
 
         $this->assertSame('Resumen', $spreadsheet->getSheet(0)->getTitle());
@@ -176,7 +178,7 @@ class ReportExportTest extends TestCase
         $temp = tempnam(sys_get_temp_dir(), 'xlsx_').'.xlsx';
         file_put_contents($temp, $response->streamedContent());
 
-        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($temp);
+        $spreadsheet = IOFactory::load($temp);
         @unlink($temp);
 
         $this->assertSame('Resumen', $spreadsheet->getSheet(0)->getTitle());
@@ -206,11 +208,109 @@ class ReportExportTest extends TestCase
         $temp = tempnam(sys_get_temp_dir(), 'xlsx_').'.xlsx';
         file_put_contents($temp, $response->streamedContent());
 
-        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($temp);
+        $spreadsheet = IOFactory::load($temp);
         @unlink($temp);
 
         $this->assertSame('Resumen', $spreadsheet->getSheet(0)->getTitle());
         $this->assertSame('Detalle cartera', $spreadsheet->getSheet(1)->getTitle());
         $this->assertSame('Informe de cartera', $spreadsheet->getSheet(0)->getCell('A2')->getValue());
+    }
+
+    public function test_by_remission_report_xls_export(): void
+    {
+        $this->createSale();
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+        $date = now()->toDateString();
+
+        $response = $this->withToken($token)
+            ->get("/api/reports/by-remission/export/xls?from={$date}&to={$date}")
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.ms-excel; charset=windows-1252');
+
+        $content = $response->streamedContent();
+        $decoded = mb_convert_encoding($content, 'UTF-8', 'Windows-1252');
+
+        $this->assertStringContainsString('<table border="1"', $decoded);
+        $this->assertStringContainsString('ID remisión', $decoded);
+        $this->assertStringContainsString('R-'.now()->format('Y').'-000001', $decoded);
+        $this->assertStringContainsString('PHONE COLOMBIA', $decoded);
+        $this->assertStringContainsString('Pago total', $decoded);
+    }
+
+    public function test_by_remission_report_pdf_export(): void
+    {
+        $this->createSale();
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+        $date = now()->toDateString();
+
+        $this->withToken($token)
+            ->get("/api/reports/by-remission/export/pdf?from={$date}&to={$date}")
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_inventory_intake_report_json_and_exports(): void
+    {
+        InventoryItem::create([
+            'name' => 'IPHONE 15 128GB',
+            'supplier' => 'Proveedor Test',
+            'purchase_price' => '1800000',
+            'sale_price' => '2200000',
+            'status' => InventoryStatus::DISPONIBLE,
+            'quantity' => 1,
+            'acquired_at' => now(),
+        ]);
+
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+        $date = now()->toDateString();
+
+        $this->withToken($token)
+            ->getJson("/api/reports/inventory-intake?from={$date}&to={$date}")
+            ->assertOk()
+            ->assertJsonPath('totals.count', 1)
+            ->assertJsonPath('by_supplier.0.supplier_name', 'Proveedor Test');
+
+        $this->withToken($token)
+            ->get("/api/reports/inventory-intake/export/pdf?from={$date}&to={$date}")
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->withToken($token)
+            ->get("/api/reports/inventory-intake/export/xlsx?from={$date}&to={$date}")
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+
+    public function test_service_tickets_report_json_and_exports(): void
+    {
+        \App\Models\ServiceTicket::create([
+            'ticket_type' => 'cliente_externo',
+            'device_name' => 'SAMSUNG A54',
+            'status' => 'proceso_revision',
+            'issue_description' => 'Pantalla rota',
+            'repair_cost' => 150000,
+            'customer_price' => 280000,
+            'customer_name' => 'Cliente ST',
+            'received_at' => now(),
+        ]);
+
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+        $date = now()->toDateString();
+
+        $this->withToken($token)
+            ->getJson("/api/reports/service-tickets?from={$date}&to={$date}")
+            ->assertOk()
+            ->assertJsonPath('totals.count', 1)
+            ->assertJsonPath('tickets.0.display_name', 'SAMSUNG A54');
+
+        $this->withToken($token)
+            ->get("/api/reports/service-tickets/export/pdf?from={$date}&to={$date}")
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->withToken($token)
+            ->get("/api/reports/service-tickets/export/xlsx?from={$date}&to={$date}")
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }
 }

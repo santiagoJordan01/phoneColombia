@@ -155,4 +155,70 @@ class SaleReservationTest extends TestCase
             'reservation_status' => SaleReservationStatus::CANCELLED,
         ]);
     }
+
+    private function creditMethodId(): string
+    {
+        $this->seed(\Database\Seeders\CreditPaymentMethodSeeder::class);
+
+        return CreditPaymentMethod::query()->where('slug', 'addi')->value('id');
+    }
+
+    public function test_complete_reservation_partial_mixto_requires_credit_meta(): void
+    {
+        $tokenInventory = $this->tokenFor(User::ROLE_INVENTORY);
+        $tokenSeller = $this->tokenFor(User::ROLE_SELLER);
+        $item = $this->createItem();
+
+        $saleId = $this->withToken($tokenInventory)
+            ->postJson("/api/inventory/{$item->id}/reserve", [
+                'sale_price' => '2000000',
+                'deposit_amount' => 500000,
+                'deposit_method' => 'efectivo',
+            ])
+            ->assertCreated()
+            ->json('reservation.id');
+
+        $this->withToken($tokenSeller)
+            ->postJson("/api/sales/{$saleId}/complete-reservation", [
+                'payment_method' => 'mixto',
+                'payments' => [
+                    ['method' => 'efectivo', 'amount' => 500000],
+                    ['method' => 'transferencia', 'amount' => 200000],
+                ],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['credit_payment_method_id']);
+    }
+
+    public function test_complete_reservation_partial_mixto_succeeds_with_credit_meta(): void
+    {
+        $tokenInventory = $this->tokenFor(User::ROLE_INVENTORY);
+        $tokenSeller = $this->tokenFor(User::ROLE_SELLER);
+        $item = $this->createItem();
+
+        $saleId = $this->withToken($tokenInventory)
+            ->postJson("/api/inventory/{$item->id}/reserve", [
+                'sale_price' => '2000000',
+                'deposit_amount' => 500000,
+                'deposit_method' => 'efectivo',
+            ])
+            ->assertCreated()
+            ->json('reservation.id');
+
+        $this->withToken($tokenSeller)
+            ->postJson("/api/sales/{$saleId}/complete-reservation", [
+                'payment_method' => 'mixto',
+                'payments' => [
+                    ['method' => 'efectivo', 'amount' => 500000],
+                    ['method' => 'transferencia', 'amount' => 200000],
+                ],
+                'credit_payment_method_id' => $this->creditMethodId(),
+                'credit_term_type' => '15_days',
+            ])
+            ->assertOk()
+            ->assertJsonPath('amount_paid', '1200000.00')
+            ->assertJsonPath('amount_due', '800000.00')
+            ->assertJsonPath('credit_status', 'pending')
+            ->assertJsonPath('reservation_status', null);
+    }
 }

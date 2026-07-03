@@ -14,12 +14,9 @@
         $byMethod = $report['totals']['by_method'] ?? [];
         $isRange = $report['is_range'] ?? false;
 
-        $paymentLabels = [
-            'efectivo' => 'Efectivo',
-            'transferencia' => 'Transferencia',
-            'credito' => 'Crédito',
-            'mixto' => 'Mixto',
-        ];
+        use App\Support\PaymentMethods;
+
+        $paymentLabels = PaymentMethods::labels();
         $paymentLabel = fn ($method) => $paymentLabels[$method] ?? ($method ?: '—');
 
         $formatMargin = function ($value) {

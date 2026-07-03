@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState, Suspense, useMemo } fr
 import { Link, Navigate, useParams } from "react-router-dom";
 import SearchSelect from "../components/SearchSelect.jsx";
 import AjustesSidebar from "../components/inventario/AjustesSidebar.jsx";
+import InvIcon from "../components/inventario/InvIcon.jsx";
 import InventarioTopbar from "../components/inventario/InventarioTopbar.jsx";
 import api, { isApiConfigured } from "../lib/apiClient";
 import { useInventarioPage } from "./inventario/useInventarioPage.js";
@@ -34,12 +35,8 @@ function AjustesHub() {
         {AJUSTES_MENU.map((item) => (
           <li key={item.id}>
             <Link to={item.path} className="inv-settings__card inv-settings__card--link inv-ajustes-welcome__card">
-              <span className="inv-settings__card-icon inv-settings__card-icon--rose" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
+              <span className={`inv-settings__card-icon inv-settings__card-icon--${item.id === "usuarios" ? "cyan" : item.id === "auditoria" ? "purple" : "amber"}`} aria-hidden="true">
+                <InvIcon name={item.icon} className="" />
               </span>
               <span className="inv-settings__card-body">
                 <strong>{item.label}</strong>

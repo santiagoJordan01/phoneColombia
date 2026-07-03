@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import InvIcon from "./InvIcon.jsx";
 import {
   canAccessContent,
   canAccessInventory,
@@ -10,16 +11,15 @@ import {
 } from "../../pages/inventario/shared.jsx";
 
 const NAV = [
-  { id: "dashboard", path: "/admin/inventario/dashboard", label: "Tablero de control" },
-  { id: "inventario", path: "/admin/inventario", label: "Inventario", requiresInventory: true },
-  { id: "ventas", path: "/admin/inventario/ventas", label: "Ventas", requiresSales: true },
-  { id: "informes", path: "/admin/inventario/informes", label: "Informes", requiresReports: true },
-  { id: "servicio", path: "/admin/inventario/servicio-tecnico", label: "Servicio técnico", requiresService: true },
+  { id: "dashboard", path: "/admin/inventario/dashboard", label: "Tablero", title: "Tablero de control", icon: "dashboard" },
+  { id: "inventario", path: "/admin/inventario", label: "Inventario", title: "Inventario", icon: "inventario", requiresInventory: true },
+  { id: "ventas", path: "/admin/inventario/ventas", label: "Ventas", title: "Ventas", icon: "ventas", requiresSales: true },
+  { id: "informes", path: "/admin/inventario/informes", label: "Informes", title: "Informes", icon: "informes", requiresReports: true },
+  { id: "servicio", path: "/admin/inventario/servicio-tecnico", label: "Servicio", title: "Servicio técnico", icon: "servicio", requiresService: true },
 ];
 
 export default function InventarioTopbar({
   title = "Inventario",
-  subtitle = "Gestión de equipos · Phone Colombia",
   current = "inventario",
   user = null,
   onSignOut,
@@ -37,10 +37,7 @@ export default function InventarioTopbar({
             className="inv-topbar__logo"
           />
         </span>
-        <div className="inv-topbar__titles">
-          <h1 className="inv-topbar__title">{title}</h1>
-          <p className="inv-topbar__subtitle">{subtitle}</p>
-        </div>
+        <h1 className="inv-topbar__title">{title}</h1>
       </div>
       <nav className="inv-topbar__nav" aria-label="Secciones del inventario">
         {NAV.map((item) => {
@@ -53,8 +50,10 @@ export default function InventarioTopbar({
             <Link
               key={item.id}
               to={item.path}
-              className={`inv-btn inv-btn--ghost${current === item.id ? " is-active" : ""}`}
+              className={`inv-btn inv-btn--ghost inv-btn--compact${current === item.id ? " is-active" : ""}`}
+              title={item.title}
             >
+              <InvIcon name={item.icon} />
               {item.label}
             </Link>
           );
@@ -62,24 +61,29 @@ export default function InventarioTopbar({
         {showAjustesLink && (
           <Link
             to="/admin/inventario/ajustes"
-            className={`inv-btn inv-btn--ghost${current === "ajustes" ? " is-active" : ""}`}
+            className={`inv-btn inv-btn--ghost inv-btn--compact${current === "ajustes" ? " is-active" : ""}`}
+            title="Ajustes"
           >
+            <InvIcon name="ajustes" />
             Ajustes
           </Link>
         )}
         {showContentLink && (
-          <Link to="/admin" className="inv-btn inv-btn--ghost">Panel de contenido</Link>
+          <Link to="/admin" className="inv-btn inv-btn--ghost inv-btn--compact" title="Panel de contenido">
+            <InvIcon name="contenido" />
+            Contenido
+          </Link>
         )}
       </nav>
       <div className="inv-topbar__account">
         <button
           type="button"
-          className="inv-btn inv-btn--outline inv-topbar__signout"
+          className="inv-btn inv-btn--outline inv-btn--icon inv-topbar__signout"
           onClick={onSignOut}
           aria-label="Cerrar sesión"
+          title="Cerrar sesión"
         >
-          <span className="inv-topbar__signout-short" aria-hidden="true">Salir</span>
-          <span className="inv-topbar__signout-full">Cerrar sesión</span>
+          <InvIcon name="log-out" className="" />
         </button>
       </div>
     </header>

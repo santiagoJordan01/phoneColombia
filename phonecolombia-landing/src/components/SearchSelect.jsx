@@ -12,6 +12,8 @@ export default function SearchSelect({
   searchPlaceholder = "Buscar…",
   allowClear = true,
   clearLabel = "Sin selección",
+  creatable = false,
+  createLabel = (text) => `Usar «${text}»`,
   disabled = false,
   id,
 }) {
@@ -34,6 +36,17 @@ export default function SearchSelect({
         (o.searchText && o.searchText.toLowerCase().includes(q)),
     );
   }, [options, search]);
+
+  const customOption = useMemo(() => {
+    if (!creatable) return null;
+    const q = search.trim();
+    if (!q) return null;
+    const exists = options.some(
+      (o) => o.value.toLowerCase() === q.toLowerCase() || o.label.toLowerCase() === q.toLowerCase(),
+    );
+    if (exists) return null;
+    return q.toUpperCase();
+  }, [creatable, options, search]);
 
   useEffect(() => {
     if (!open) return;
@@ -106,23 +119,36 @@ export default function SearchSelect({
                 </button>
               </li>
             )}
-            {filtered.length === 0 ? (
+            {filtered.length === 0 && !customOption ? (
               <li className="inv-select2__empty">Sin resultados</li>
             ) : (
-              filtered.map((o) => (
-                <li key={o.value}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={value === o.value}
-                    className={`inv-select2__option ${value === o.value ? "is-selected" : ""}`}
-                    onClick={() => pick(o.value)}
-                  >
-                    <span>{o.label}</span>
-                    {o.sublabel && <span className="inv-select2__option-sub">{o.sublabel}</span>}
-                  </button>
-                </li>
-              ))
+              <>
+                {customOption && (
+                  <li>
+                    <button
+                      type="button"
+                      className="inv-select2__option inv-select2__option--create"
+                      onClick={() => pick(customOption)}
+                    >
+                      {createLabel(customOption)}
+                    </button>
+                  </li>
+                )}
+                {filtered.map((o) => (
+                  <li key={o.value}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={value === o.value}
+                      className={`inv-select2__option ${value === o.value ? "is-selected" : ""}`}
+                      onClick={() => pick(o.value)}
+                    >
+                      <span>{o.label}</span>
+                      {o.sublabel && <span className="inv-select2__option-sub">{o.sublabel}</span>}
+                    </button>
+                  </li>
+                ))}
+              </>
             )}
           </ul>
         </div>

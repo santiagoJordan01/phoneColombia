@@ -257,6 +257,28 @@ export const api = {
     return request(`/device-colors/${id}`, { method: "DELETE" });
   },
 
+  async getDeviceBrands() {
+    return request("/device-brands");
+  },
+
+  async createDeviceBrand(name) {
+    return request("/device-brands", {
+      method: "POST",
+      body: { name },
+    });
+  },
+
+  async updateDeviceBrand(id, name) {
+    return request(`/device-brands/${id}`, {
+      method: "PUT",
+      body: { name },
+    });
+  },
+
+  async deleteDeviceBrand(id) {
+    return request(`/device-brands/${id}`, { method: "DELETE" });
+  },
+
   async getSuppliers() {
     return request("/suppliers");
   },
@@ -336,7 +358,9 @@ export const api = {
   },
 
   async getInventorySummaryByModel(params = {}) {
-    const qs = new URLSearchParams(params).toString();
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
     return request(`/inventory/summary-by-model${qs ? `?${qs}` : ""}`);
   },
 
@@ -419,6 +443,20 @@ export const api = {
       Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
     ).toString();
     return request(`/reports/by-remission${qs ? `?${qs}` : ""}`);
+  },
+
+  async getInventoryIntakeReport(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return request(`/reports/inventory-intake${qs ? `?${qs}` : ""}`);
+  },
+
+  async getServiceTicketsReport(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return request(`/reports/service-tickets${qs ? `?${qs}` : ""}`);
   },
 
   async getCreditConfig() {
@@ -611,6 +649,48 @@ export const api = {
       Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
     ).toString();
     return `${rawUrl}/reports/receivables/export/xlsx${qs ? `?${qs}` : ""}`;
+  },
+
+  exportByRemissionReportXlsUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/by-remission/export/xls${qs ? `?${qs}` : ""}`;
+  },
+
+  exportByRemissionReportPdfUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/by-remission/export/pdf${qs ? `?${qs}` : ""}`;
+  },
+
+  exportInventoryIntakeReportPdfUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/inventory-intake/export/pdf${qs ? `?${qs}` : ""}`;
+  },
+
+  exportInventoryIntakeReportExcelUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/inventory-intake/export/xlsx${qs ? `?${qs}` : ""}`;
+  },
+
+  exportServiceTicketsReportPdfUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/service-tickets/export/pdf${qs ? `?${qs}` : ""}`;
+  },
+
+  exportServiceTicketsReportExcelUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/service-tickets/export/xlsx${qs ? `?${qs}` : ""}`;
   },
 
   exportRemissionPdfUrl(saleId) {

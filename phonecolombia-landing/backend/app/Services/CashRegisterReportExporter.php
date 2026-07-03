@@ -11,7 +11,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Support\PaymentMethods;
 
 class CashRegisterReportExporter
 {
@@ -22,13 +22,6 @@ class CashRegisterReportExporter
     private const COLOR_ALT_ROW = 'FFF8FAFC';
 
     private const COLOR_BORDER = 'FFCBD5E1';
-
-    private const PAYMENT_LABELS = [
-        'efectivo' => 'Efectivo',
-        'transferencia' => 'Transferencia',
-        'credito' => 'Crédito',
-        'mixto' => 'Mixto',
-    ];
 
     private const COLLECTION_LABELS = [
         'venta' => 'Cobro venta',
@@ -119,6 +112,9 @@ class CashRegisterReportExporter
             ['Conciliación ventas', (float) ($report['difference'] ?? 0)],
             ['Cobros ventas del período', (float) ($report['collections_on_period_sales'] ?? 0)],
             ['Apartados y abonos previos', (float) ($report['collections_on_other_sales'] ?? 0)],
+            ['Costo total', (float) ($report['total_cost'] ?? 0)],
+            ['Utilidad bruta', (float) ($report['total_profit'] ?? 0)],
+            ['Margen', ($report['margin_percent'] ?? null) !== null ? ($report['margin_percent'].'%') : '—'],
         ];
         if (($report['retake_outflows'] ?? 0) > 0) {
             $summary[] = ['Pagos retoma', -1 * abs((float) $report['retake_outflows'])];
@@ -137,6 +133,8 @@ class CashRegisterReportExporter
         foreach ($summary as $index => [$label, $value]) {
             $sheet->setCellValue('A'.$row, $label);
             if (is_int($value)) {
+                $sheet->setCellValue('B'.$row, $value);
+            } elseif (is_string($value)) {
                 $sheet->setCellValue('B'.$row, $value);
             } else {
                 $sheet->setCellValue('B'.$row, $value);
@@ -263,7 +261,7 @@ class CashRegisterReportExporter
 
     private function paymentLabel(string $method): string
     {
-        return self::PAYMENT_LABELS[$method] ?? ($method !== '' ? $method : '—');
+        return PaymentMethods::label($method !== '' ? $method : '—');
     }
 
     private function collectionLabel(string $type): string

@@ -43,6 +43,16 @@ export default function ReceivablesReportDocument({ report, generatedAt }) {
       tone: "orange",
     });
   }
+  kpis.push(
+    { label: "Valor ventas", value: reportMoney(totals.revenue), tone: "purple" },
+    { label: "Costo total", value: reportMoney(totals.total_cost), tone: "slate" },
+    { label: "Utilidad bruta", value: reportMoney(totals.total_profit), tone: "green" },
+    {
+      label: "Margen",
+      value: totals.margin_percent != null ? `${totals.margin_percent}%` : "—",
+      tone: "amber",
+    },
+  );
 
   return (
     <div className="inv-report-doc">

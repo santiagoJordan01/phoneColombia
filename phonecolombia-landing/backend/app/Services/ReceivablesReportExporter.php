@@ -106,6 +106,10 @@ class ReceivablesReportExporter
             ['Saldo créditos', (float) ($totals['creditos_due'] ?? 0)],
             ['Vencidos (cantidad)', (int) ($totals['overdue_count'] ?? 0)],
             ['Saldo vencido', (float) ($totals['overdue_amount'] ?? 0)],
+            ['Valor ventas', (float) ($totals['revenue'] ?? 0)],
+            ['Costo total', (float) ($totals['total_cost'] ?? 0)],
+            ['Utilidad bruta', (float) ($totals['total_profit'] ?? 0)],
+            ['Margen', ($totals['margin_percent'] ?? null) !== null ? ($totals['margin_percent'].'%') : '—'],
         ];
 
         $row = 6;
@@ -121,7 +125,7 @@ class ReceivablesReportExporter
         foreach ($summary as $index => [$label, $value]) {
             $sheet->setCellValue('A'.$row, $label);
             $sheet->setCellValue('B'.$row, $value);
-            if (! is_int($value)) {
+            if (! is_int($value) && ! is_string($value)) {
                 $sheet->getStyle('B'.$row)->getNumberFormat()->setFormatCode('"$"#,##0.00');
             }
             $this->styleDataRow($sheet, 'A'.$row.':B'.$row, $index % 2 === 1);

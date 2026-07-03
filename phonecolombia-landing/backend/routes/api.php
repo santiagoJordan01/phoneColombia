@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BootstrapController;
 use App\Http\Controllers\Api\CreditConfigController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DeviceBrandController;
 use App\Http\Controllers\Api\DeviceColorController;
 use App\Http\Controllers\Api\InventoryImportExportController;
 use App\Http\Controllers\Api\InventoryItemController;
@@ -17,8 +18,8 @@ use App\Http\Controllers\Api\SaleReservationController;
 use App\Http\Controllers\Api\ServiceCategoryController;
 use App\Http\Controllers\Api\ServiceCustomerController;
 use App\Http\Controllers\Api\ServiceTechnicianController;
-use App\Http\Controllers\Api\ServiceTicketStateController;
 use App\Http\Controllers\Api\ServiceTicketController;
+use App\Http\Controllers\Api\ServiceTicketStateController;
 use App\Http\Controllers\Api\SiteSettingController;
 use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\TestimonioController;
@@ -70,6 +71,11 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::post('/device-colors', [DeviceColorController::class, 'store']);
         Route::match(['put', 'post'], '/device-colors/{deviceColor}', [DeviceColorController::class, 'update']);
         Route::delete('/device-colors/{deviceColor}', [DeviceColorController::class, 'destroy']);
+
+        Route::get('/device-brands', [DeviceBrandController::class, 'index']);
+        Route::post('/device-brands', [DeviceBrandController::class, 'store']);
+        Route::match(['put', 'post'], '/device-brands/{deviceBrand}', [DeviceBrandController::class, 'update']);
+        Route::delete('/device-brands/{deviceBrand}', [DeviceBrandController::class, 'destroy']);
 
         Route::get('/suppliers', [SupplierController::class, 'index']);
         Route::post('/suppliers', [SupplierController::class, 'store']);
@@ -138,12 +144,20 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::get('/reports/by-seller/export/pdf', [ReportController::class, 'exportBySellerPdf']);
         Route::get('/reports/by-seller/export/xlsx', [ReportController::class, 'exportBySellerExcel']);
         Route::get('/reports/by-remission', [ReportController::class, 'byRemission']);
+        Route::get('/reports/by-remission/export/xls', [ReportController::class, 'exportByRemissionXls']);
+        Route::get('/reports/by-remission/export/pdf', [ReportController::class, 'exportByRemissionPdf']);
         Route::get('/reports/cash-register', [ReportController::class, 'cashRegister']);
         Route::get('/reports/cash-register/export/pdf', [ReportController::class, 'exportCashRegisterPdf']);
         Route::get('/reports/cash-register/export/xlsx', [ReportController::class, 'exportCashRegisterExcel']);
         Route::get('/reports/receivables', [ReportController::class, 'receivables']);
         Route::get('/reports/receivables/export/pdf', [ReportController::class, 'exportReceivablesPdf']);
         Route::get('/reports/receivables/export/xlsx', [ReportController::class, 'exportReceivablesExcel']);
+        Route::get('/reports/inventory-intake', [ReportController::class, 'inventoryIntake']);
+        Route::get('/reports/inventory-intake/export/pdf', [ReportController::class, 'exportInventoryIntakePdf']);
+        Route::get('/reports/inventory-intake/export/xlsx', [ReportController::class, 'exportInventoryIntakeExcel']);
+        Route::get('/reports/service-tickets', [ReportController::class, 'serviceTickets']);
+        Route::get('/reports/service-tickets/export/pdf', [ReportController::class, 'exportServiceTicketsPdf']);
+        Route::get('/reports/service-tickets/export/xlsx', [ReportController::class, 'exportServiceTicketsExcel']);
         Route::get('/reports/export/sales', [ReportController::class, 'exportSales']);
     });
 

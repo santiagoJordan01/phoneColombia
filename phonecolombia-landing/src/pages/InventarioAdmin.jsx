@@ -6,16 +6,20 @@ import SearchSelect from "../components/SearchSelect.jsx";
 import ColorSwatch from "../components/ColorSwatch.jsx";
 import InventarioTopbar from "../components/inventario/InventarioTopbar.jsx";
 import MobileCollapsible from "../components/inventario/MobileCollapsible.jsx";
-import CustomerCatalogModal from "../components/inventario/CustomerCatalogModal.jsx";
 import ConfirmDeleteDialog from "../components/inventario/ConfirmDeleteDialog.jsx";
 import CurrencyInput from "../components/inventario/CurrencyInput.jsx";
 import InventoryHistoryModal from "../components/inventario/InventoryHistoryModal.jsx";
+import InvIcon from "../components/inventario/InvIcon.jsx";
+import { PaymentMethodBadge } from "../components/inventario/TableValueDisplay.jsx";
+import PaymentMethodSelect from "../components/inventario/PaymentMethodSelect.jsx";
+import { IMMEDIATE_PAYMENT_GROUPS, paymentLabel } from "../lib/paymentMethods.js";
 import { useCachedQuery } from "../hooks/useCachedQuery.js";
 import api, { isApiConfigured } from "../lib/apiClient";
 import { invalidateInventarioCache } from "../lib/inventarioCache.js";
+import iphoneModels from "../data/iphone-models.json";
 import { locationPayload, municipalityLabel } from "../lib/daneLocations.js";
 import { getCanonicalColorName, getDeviceColorHex } from "../lib/deviceColorMap";
-import { catalogProductSelectOptions, supplierSelectOptions } from "../lib/inventarioSelectOptions.js";
+import { catalogProductSelectOptions, brandSelectOptions, catalogModelSelectOptions, IPHONE_STORAGE_OPTIONS, supplierSelectOptions } from "../lib/inventarioSelectOptions.js";
 import { useInventarioPage } from "./inventario/useInventarioPage.js";
 import {
   CATEGORY_LABELS,
@@ -23,14 +27,17 @@ import {
   EMPTY_FORM,
   EMPTY_SUPPLIER_FORM,
   EMPTY_COLOR_FORM,
+  EMPTY_BRAND_FORM,
   Field,
   STATUS_LABELS,
   editableInventoryStatuses,
-  buildProductPreview,
+  buildCatalogPreview,
+  buildInventoryItemName,
+  formatInventoryIdentifier,
+  applyInventoryIdentifierInput,
   canAccessContent,
   canAccessInventory,
   canManageInventory,
-  canManageCustomers,
   canManageSales,
   isAccountant,
   canViewSensitiveInventoryFields,
@@ -38,19 +45,13 @@ import {
   isServiceTechnician,
   parseCop,
   productToEquipoForm,
+  productToItemCatalogFields,
   supplierSubtitle,
   supplierToForm,
 } from "./inventario/shared.jsx";
 import "../styles.css";
 
 const SEARCH_DEBOUNCE_MS = 400;
-
-const EMPTY_RESERVE_META = {
-  customer_name: "",
-  customer_phone: "",
-  deposit_amount: "",
-  deposit_method: "efectivo",
-};
 
 function formatArchivedAt(iso) {
   if (!iso) return "—";
@@ -63,19 +64,134 @@ function formatArchivedAt(iso) {
   });
 }
 
-function TableSkeleton({ rows = 8 }) {
+function formatAcquiredAt(item) {
+  const iso = item.acquired_at || item.created_at;
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("es-CO", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function inventorySalePaymentMethod(item) {
+  if (item.status === "vendido") return item.latest_sale?.payment_method ?? null;
+  if (item.status === "separado") return item.active_reservation?.payment_method ?? null;
+  return null;
+}
+
+const INVENTORY_SORT_COLUMNS = [
+  {
+    id: "identifier",
+    label: "Cód. barras / IMEI",
+    getValue: (item) => item.imei || item.barcode || "",
+  },
+  {
+    id: "equipo",
+    label: "Equipo",
+    getValue: (item) => item.name || "",
+  },
+  {
+    id: "color",
+    label: "Color",
+    getValue: (item) => item.color || "",
+  },
+  {
+    id: "proveedor",
+    label: "Proveedor",
+    getValue: (item) => item.supplier || "",
+  },
+  {
+    id: "precio",
+    label: "Precio",
+    getValue: (item) => parseCop(item.sale_price),
+  },
+  {
+    id: "fecha_ingreso",
+    label: "Fecha ingreso",
+    getValue: (item) => new Date(item.acquired_at || item.created_at || 0).getTime(),
+  },
+  {
+    id: "bateria",
+    label: "Batería",
+    getValue: (item) => (item.battery != null && item.battery !== "" ? Number(item.battery) : NaN),
+  },
+  {
+    id: "estado",
+    label: "Estado",
+    getValue: (item) => (item.is_archived ? "archived" : item.status || ""),
+  },
+  {
+    id: "metodo_venta",
+    label: "Método venta",
+    getValue: (item) => paymentLabel(inventorySalePaymentMethod(item) || ""),
+  },
+  {
+    id: "archivado",
+    label: "Archivado el",
+    archivedOnly: true,
+    getValue: (item) => new Date(item.deleted_at || 0).getTime(),
+  },
+  {
+    id: "observaciones",
+    label: "Observaciones",
+    getValue: (item) => item.notes || "",
+  },
+];
+
+function compareSortValues(a, b, direction) {
+  const isEmpty = (v) => v == null || v === "" || (typeof v === "number" && Number.isNaN(v));
+  const aEmpty = isEmpty(a);
+  const bEmpty = isEmpty(b);
+  if (aEmpty && bEmpty) return 0;
+  if (aEmpty) return 1;
+  if (bEmpty) return -1;
+
+  let cmp = 0;
+  if (typeof a === "number" && typeof b === "number") {
+    cmp = a - b;
+  } else {
+    cmp = String(a).localeCompare(String(b), "es", { sensitivity: "base", numeric: true });
+  }
+  return direction === "asc" ? cmp : -cmp;
+}
+
+function SortableTh({ column, sortColumn, sortDirection, onSort }) {
+  const active = sortColumn === column.id;
+  const ariaSort = active ? (sortDirection === "asc" ? "ascending" : "descending") : "none";
+  return (
+    <th aria-sort={ariaSort}>
+      <button
+        type="button"
+        className={`inv-th-sort${active ? ` inv-th-sort--${sortDirection}` : ""}`}
+        onClick={() => onSort(column.id)}
+      >
+        <span>{column.label}</span>
+        <span className="inv-th-sort__icon" aria-hidden="true">
+          {active ? (sortDirection === "desc" ? "▼" : "▲") : "↕"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
+function TableSkeleton({ rows = 8, archived = false }) {
   return (
     <tbody>
       {Array.from({ length: rows }, (_, i) => (
         <tr key={i} className="inv-skeleton-row">
           <td><span className="inv-skeleton inv-skeleton--md" /></td>
-          <td><span className="inv-skeleton inv-skeleton--md" /></td>
           <td><span className="inv-skeleton inv-skeleton--lg" /></td>
           <td><span className="inv-skeleton inv-skeleton--xs" /></td>
           <td><span className="inv-skeleton inv-skeleton--sm" /></td>
           <td><span className="inv-skeleton inv-skeleton--md" /></td>
+          <td><span className="inv-skeleton inv-skeleton--sm" /></td>
           <td><span className="inv-skeleton inv-skeleton--xs" /></td>
           <td><span className="inv-skeleton inv-skeleton--sm" /></td>
+          <td><span className="inv-skeleton inv-skeleton--sm" /></td>
+          {archived && <td><span className="inv-skeleton inv-skeleton--sm" /></td>}
           <td><span className="inv-skeleton inv-skeleton--md" /></td>
           <td />
         </tr>
@@ -86,19 +202,20 @@ function TableSkeleton({ rows = 8 }) {
 
 export default function InventarioAdmin() {
   const { user, authChecked, signOut, navigate } = useInventarioPage();
-  const imeiInputRef = useRef(null);
-  const barcodeInputRef = useRef(null);
+  const identifierInputRef = useRef(null);
 
   const [items, setItems] = useState([]);
   const [catalogProducts, setCatalogProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [deviceColors, setDeviceColors] = useState([]);
+  const [deviceBrands, setDeviceBrands] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [reserveMeta, setReserveMeta] = useState(EMPTY_RESERVE_META);
+  const [catalogMenuOpen, setCatalogMenuOpen] = useState(false);
   const [editingOriginalStatus, setEditingOriginalStatus] = useState(null);
   const [equipoForm, setEquipoForm] = useState(EMPTY_EQUIPO_FORM);
   const [supplierForm, setSupplierForm] = useState(EMPTY_SUPPLIER_FORM);
   const [colorForm, setColorForm] = useState(EMPTY_COLOR_FORM);
+  const [brandForm, setBrandForm] = useState(EMPTY_BRAND_FORM);
   const [editingId, setEditingId] = useState(null);
   const [toast, setToast] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -106,10 +223,13 @@ export default function InventarioAdmin() {
   const [editingEquipoId, setEditingEquipoId] = useState(null);
   const [editingSupplierId, setEditingSupplierId] = useState(null);
   const [editingColorId, setEditingColorId] = useState(null);
+  const [editingBrandId, setEditingBrandId] = useState(null);
   const [creatingSupplier, setCreatingSupplier] = useState(false);
   const [creatingColor, setCreatingColor] = useState(false);
+  const [creatingBrand, setCreatingBrand] = useState(false);
   const [deletingSupplierId, setDeletingSupplierId] = useState(null);
   const [deletingColorId, setDeletingColorId] = useState(null);
+  const [deletingBrandId, setDeletingBrandId] = useState(null);
   const [catalogDeleteTarget, setCatalogDeleteTarget] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [filters, setFilters] = useState({ q: "", status: "" });
@@ -120,7 +240,7 @@ export default function InventarioAdmin() {
   const [equipoModalOpen, setEquipoModalOpen] = useState(false);
   const [supplierModalOpen, setSupplierModalOpen] = useState(false);
   const [colorModalOpen, setColorModalOpen] = useState(false);
-  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [brandModalOpen, setBrandModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState("list");
   const [groupedSummary, setGroupedSummary] = useState([]);
   const [historyItem, setHistoryItem] = useState(null);
@@ -129,6 +249,8 @@ export default function InventarioAdmin() {
   const [retakeTarget, setRetakeTarget] = useState(null);
   const [retakePrice, setRetakePrice] = useState("");
   const [retakePaymentMethod, setRetakePaymentMethod] = useState("efectivo");
+  const [sortColumn, setSortColumn] = useState("fecha_ingreso");
+  const [sortDirection, setSortDirection] = useState("desc");
 
   const viewingArchived = listScope === "archived";
 
@@ -175,6 +297,15 @@ export default function InventarioAdmin() {
     }
   }, [showToast]);
 
+  const fetchDeviceBrands = useCallback(async () => {
+    try {
+      const data = await api.getDeviceBrands();
+      setDeviceBrands(data || []);
+    } catch (e) {
+      showToast(e.message, "error");
+    }
+  }, [showToast]);
+
   const inventoryCacheKey = useMemo(
     () => ["inventory", { q: filters.q, status: filters.status, archived: listScope === "archived" }],
     [filters.q, filters.status, listScope],
@@ -199,6 +330,27 @@ export default function InventarioAdmin() {
   useEffect(() => {
     setItems(cachedItems || []);
   }, [cachedItems]);
+
+  const visibleSortColumns = useMemo(
+    () => INVENTORY_SORT_COLUMNS.filter((column) => !column.archivedOnly || viewingArchived),
+    [viewingArchived],
+  );
+
+  const sortedItems = useMemo(() => {
+    const column = visibleSortColumns.find((c) => c.id === sortColumn) || visibleSortColumns.find((c) => c.id === "fecha_ingreso") || visibleSortColumns[0];
+    const rows = [...items];
+    rows.sort((a, b) => compareSortValues(column.getValue(a), column.getValue(b), sortDirection));
+    return rows;
+  }, [items, sortColumn, sortDirection, visibleSortColumns]);
+
+  const handleSort = useCallback((columnId) => {
+    if (sortColumn === columnId) {
+      setSortDirection((dir) => (dir === "desc" ? "asc" : "desc"));
+      return;
+    }
+    setSortColumn(columnId);
+    setSortDirection("desc");
+  }, [sortColumn]);
 
   const fetchItems = useCallback(async () => {
     try {
@@ -231,6 +383,7 @@ export default function InventarioAdmin() {
 
   useEffect(() => {
     if (!user) return;
+    if ((itemModalOpen || equipoModalOpen || brandModalOpen) && deviceBrands.length === 0) fetchDeviceBrands();
     if ((itemModalOpen || equipoModalOpen) && catalogProducts.length === 0) {
       fetchCatalogProducts();
     }
@@ -243,12 +396,15 @@ export default function InventarioAdmin() {
     equipoModalOpen,
     supplierModalOpen,
     colorModalOpen,
+    brandModalOpen,
     catalogProducts.length,
     suppliers.length,
     deviceColors.length,
+    deviceBrands.length,
     fetchCatalogProducts,
     fetchSuppliers,
     fetchDeviceColors,
+    fetchDeviceBrands,
   ]);
 
   useEffect(() => {
@@ -258,10 +414,10 @@ export default function InventarioAdmin() {
   }, [toast]);
 
   useEffect(() => {
-    if (!deleteTarget && !catalogDeleteTarget && !itemModalOpen && !equipoModalOpen && !supplierModalOpen && !colorModalOpen) return;
+    if (!deleteTarget && !catalogDeleteTarget && !itemModalOpen && !equipoModalOpen && !supplierModalOpen && !colorModalOpen && !brandModalOpen) return;
     const onKey = (e) => {
       if (e.key !== "Escape") return;
-      if (catalogDeleteTarget && !deletingColorId && !deletingSupplierId) {
+      if (catalogDeleteTarget && !deletingColorId && !deletingSupplierId && !deletingBrandId) {
         setCatalogDeleteTarget(null);
         return;
       }
@@ -272,6 +428,9 @@ export default function InventarioAdmin() {
       if (colorModalOpen && !creatingColor) {
         if (editingColorId) cancelColorEdit();
         else setColorModalOpen(false);
+      } else if (brandModalOpen && !creatingBrand) {
+        if (editingBrandId) cancelBrandEdit();
+        else setBrandModalOpen(false);
       } else if (supplierModalOpen && !creatingSupplier) {
         if (editingSupplierId) cancelSupplierEdit();
         else setSupplierModalOpen(false);
@@ -280,15 +439,30 @@ export default function InventarioAdmin() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [deleteTarget, catalogDeleteTarget, itemModalOpen, equipoModalOpen, supplierModalOpen, colorModalOpen, creatingEquipo, creatingSupplier, creatingColor, submitting, deletingId, deletingColorId, deletingSupplierId, editingColorId, editingSupplierId]);
+  }, [deleteTarget, catalogDeleteTarget, itemModalOpen, equipoModalOpen, supplierModalOpen, colorModalOpen, brandModalOpen, creatingEquipo, creatingSupplier, creatingColor, creatingBrand, submitting, deletingId, deletingColorId, deletingSupplierId, deletingBrandId, editingColorId, editingBrandId, editingSupplierId]);
+
+  const defaultCatalogBrand = () => (
+    deviceBrands.some((b) => b.name === "IPHONE") ? "IPHONE" : deviceBrands[0]?.name || ""
+  );
+
+  const buildItemNamePreview = (draft) => {
+    const base = {
+      brand: draft.catalog_brand,
+      model: draft.catalog_model,
+      storage: draft.catalog_storage,
+    };
+    if (!draft.catalog_brand && !draft.catalog_model && !draft.catalog_storage) {
+      return draft.name || "";
+    }
+    return buildInventoryItemName(base, draft.color);
+  };
 
   const openNewItemModal = () => {
     setEditingId(null);
     setEditingOriginalStatus(null);
-    setForm(EMPTY_FORM);
-    setReserveMeta(EMPTY_RESERVE_META);
+    setForm({ ...EMPTY_FORM, catalog_brand: defaultCatalogBrand() });
     setItemModalOpen(true);
-    requestAnimationFrame(() => barcodeInputRef.current?.focus());
+    requestAnimationFrame(() => identifierInputRef.current?.focus());
   };
 
   const closeItemModal = () => {
@@ -296,11 +470,11 @@ export default function InventarioAdmin() {
     setItemModalOpen(false);
     setEditingId(null);
     setForm(EMPTY_FORM);
-    setReserveMeta(EMPTY_RESERVE_META);
     setEditingOriginalStatus(null);
   };
 
   const startEdit = (item) => {
+    const product = item.inventory_product || catalogProducts.find((p) => p.id === item.inventory_product_id);
     setEditingId(item.id);
     setEditingOriginalStatus(item.status || "disponible");
     setForm({
@@ -316,15 +490,8 @@ export default function InventarioAdmin() {
       status: item.status || "disponible",
       notes: item.notes || "",
       inventory_product_id: item.inventory_product_id || "",
+      ...productToItemCatalogFields(product),
       acquired_at: item.acquired_at ? item.acquired_at.slice(0, 10) : "",
-    });
-    setReserveMeta({
-      customer_name: item.active_reservation?.customer_name || "",
-      customer_phone: item.active_reservation?.customer_phone || "",
-      deposit_amount: item.active_reservation?.amount_paid
-        ? String(item.active_reservation.amount_paid)
-        : "",
-      deposit_method: item.active_reservation?.payments?.[0]?.method || "efectivo",
     });
     setItemModalOpen(true);
   };
@@ -332,62 +499,34 @@ export default function InventarioAdmin() {
   const resetForm = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
-    setReserveMeta(EMPTY_RESERVE_META);
     setEditingOriginalStatus(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.catalog_brand.trim()) {
+      showToast("Selecciona la marca del equipo", "error");
+      return;
+    }
+    if (!form.catalog_model.trim()) {
+      showToast("Indica el modelo del equipo", "error");
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {
         ...form,
+        name: buildItemNamePreview(form) || form.name,
         battery: form.battery === "" ? null : Number(form.battery),
         supplier_id: form.supplier_id || undefined,
         acquired_at: form.acquired_at || undefined,
+        catalog_brand: form.catalog_brand.trim() || undefined,
+        catalog_model: form.catalog_model.trim() || undefined,
+        catalog_storage: form.catalog_storage.trim() || undefined,
+        inventory_product_id: form.inventory_product_id || undefined,
       };
 
-      const becomingSeparado = form.status === "separado"
-        && (editingOriginalStatus === "disponible" || !editingId);
-
-      if (becomingSeparado) {
-        if (!form.sale_price) {
-          showToast("Indica el precio acordado del apartado", "error");
-          return;
-        }
-        const deposit = parseCop(reserveMeta.deposit_amount);
-        if (deposit > 0 && !reserveMeta.deposit_method) {
-          showToast("Indica el método de pago del abono", "error");
-          return;
-        }
-
-        let itemId = editingId;
-        if (!itemId) {
-          const created = await api.createInventoryItem({ ...payload, status: "disponible" });
-          itemId = created.id;
-        } else {
-          const { status, ...updatePayload } = payload;
-          await api.updateInventoryItem(itemId, updatePayload);
-        }
-
-        const reserveResponse = await api.reserveInventoryItem(itemId, {
-          sale_price: String(parseCop(form.sale_price) || form.sale_price),
-          deposit_amount: deposit || undefined,
-          deposit_method: deposit > 0 ? reserveMeta.deposit_method : undefined,
-          customer_name: reserveMeta.customer_name || undefined,
-          customer_phone: reserveMeta.customer_phone || undefined,
-          notes: form.notes || undefined,
-        });
-
-        showToast(deposit > 0 ? "Equipo apartado con abono registrado" : "Equipo apartado");
-        bumpInventoryCaches();
-        const updatedItem = reserveResponse.item || reserveResponse;
-        if (editingId) {
-          setCachedItems((prev) => (prev || []).map((item) => (item.id === itemId ? updatedItem : item)));
-        } else {
-          setCachedItems((prev) => [updatedItem, ...(prev || [])]);
-        }
-      } else if (editingId) {
+      if (editingId) {
         const updated = await api.updateInventoryItem(editingId, payload);
         showToast("Equipo actualizado");
         bumpInventoryCaches();
@@ -401,6 +540,7 @@ export default function InventarioAdmin() {
 
       resetForm();
       setItemModalOpen(false);
+      await fetchCatalogProducts();
     } catch (err) {
       showToast(err.message || String(err), "error");
     } finally {
@@ -416,7 +556,10 @@ export default function InventarioAdmin() {
   };
 
   const openEquipoModal = () => {
-    setEquipoForm(EMPTY_EQUIPO_FORM);
+    const defaultBrand = deviceBrands.some((b) => b.name === "IPHONE")
+      ? "IPHONE"
+      : deviceBrands[0]?.name || "";
+    setEquipoForm({ ...EMPTY_EQUIPO_FORM, brand: defaultBrand });
     setEditingEquipoId(null);
     setEquipoModalOpen(true);
   };
@@ -433,7 +576,11 @@ export default function InventarioAdmin() {
 
   const handleSaveEquipo = async (e) => {
     e.preventDefault();
-    const preview = buildProductPreview(equipoForm);
+    const preview = buildCatalogPreview(equipoForm);
+    if (!equipoForm.brand.trim()) {
+      showToast("Selecciona la marca del modelo", "error");
+      return;
+    }
     if (!preview && !equipoForm.model.trim()) {
       showToast("Indica al menos el modelo del equipo", "error");
       return;
@@ -444,7 +591,6 @@ export default function InventarioAdmin() {
         brand: equipoForm.brand.trim() || undefined,
         model: equipoForm.model.trim() || undefined,
         storage: equipoForm.storage.trim() || undefined,
-        color: equipoForm.color.trim() || undefined,
         category: equipoForm.category,
         reference_price: equipoForm.reference_price.trim() || undefined,
         notes: equipoForm.notes.trim() || undefined,
@@ -456,18 +602,6 @@ export default function InventarioAdmin() {
         setEditingEquipoId(null);
         setEquipoForm(EMPTY_EQUIPO_FORM);
         showToast(`Modelo "${updated.name}" actualizado`);
-      } else {
-        const created = await api.createInventoryProduct(payload);
-        await fetchCatalogProducts();
-        setForm((s) => ({
-          ...s,
-          name: created.name,
-          color: created.color || "",
-          sale_price: created.reference_price || s.sale_price,
-          inventory_product_id: created.id,
-        }));
-        closeEquipoModal();
-        showToast(`Modelo "${created.name}" guardado en catálogo`);
       }
     } catch (err) {
       showToast(err.message || String(err), "error");
@@ -565,12 +699,51 @@ export default function InventarioAdmin() {
     setColorForm(EMPTY_COLOR_FORM);
   };
 
+  const handleSaveBrand = async (e) => {
+    e.preventDefault();
+    if (!brandForm.name.trim()) return;
+    setCreatingBrand(true);
+    try {
+      if (editingBrandId) {
+        const updated = await api.updateDeviceBrand(editingBrandId, brandForm.name.trim());
+        await fetchDeviceBrands();
+        await fetchCatalogProducts();
+        setEditingBrandId(null);
+        setBrandForm(EMPTY_BRAND_FORM);
+        showToast(`Marca "${updated.name}" actualizada`);
+      } else {
+        const created = await api.createDeviceBrand(brandForm.name.trim());
+        await fetchDeviceBrands();
+        setBrandForm(EMPTY_BRAND_FORM);
+        showToast(`Marca "${created.name}" agregada`);
+      }
+    } catch (err) {
+      showToast(err.message || String(err), "error");
+    } finally {
+      setCreatingBrand(false);
+    }
+  };
+
+  const startEditBrand = (brand) => {
+    setEditingBrandId(brand.id);
+    setBrandForm({ name: brand.name || "" });
+  };
+
+  const cancelBrandEdit = () => {
+    setEditingBrandId(null);
+    setBrandForm(EMPTY_BRAND_FORM);
+  };
+
   const removeColor = (id, name) => {
     setCatalogDeleteTarget({ kind: "color", id, name });
   };
 
   const removeSupplier = (id, name) => {
     setCatalogDeleteTarget({ kind: "supplier", id, name });
+  };
+
+  const removeBrand = (id, name) => {
+    setCatalogDeleteTarget({ kind: "brand", id, name });
   };
 
   const confirmCatalogDelete = async () => {
@@ -592,6 +765,21 @@ export default function InventarioAdmin() {
       return;
     }
 
+    if (kind === "brand") {
+      setDeletingBrandId(id);
+      try {
+        await api.deleteDeviceBrand(id);
+        await fetchDeviceBrands();
+        showToast(`Marca "${name}" eliminada`);
+        setCatalogDeleteTarget(null);
+      } catch (err) {
+        showToast(err.message || String(err), "error");
+      } finally {
+        setDeletingBrandId(null);
+      }
+      return;
+    }
+
     setDeletingSupplierId(id);
     try {
       await api.deleteSupplier(id);
@@ -607,23 +795,50 @@ export default function InventarioAdmin() {
 
   const catalogDeleteLoading = catalogDeleteTarget?.kind === "color"
     ? deletingColorId === catalogDeleteTarget?.id
-    : catalogDeleteTarget?.kind === "supplier"
-      ? deletingSupplierId === catalogDeleteTarget?.id
-      : false;
+    : catalogDeleteTarget?.kind === "brand"
+      ? deletingBrandId === catalogDeleteTarget?.id
+      : catalogDeleteTarget?.kind === "supplier"
+        ? deletingSupplierId === catalogDeleteTarget?.id
+        : false;
 
   const pickEquipoFromCatalog = (productId) => {
+    if (!productId) {
+      setForm((s) => ({
+        ...s,
+        inventory_product_id: "",
+        name: buildItemNamePreview({ ...s, inventory_product_id: "" }),
+      }));
+      return;
+    }
     const product = catalogProducts.find((p) => p.id === productId);
     if (!product) return;
     setForm((s) => ({
       ...s,
       inventory_product_id: product.id,
-      name: product.name,
-      color: product.color || "",
+      ...productToItemCatalogFields(product),
+      name: buildInventoryItemName(product, s.color),
       sale_price: product.reference_price || s.sale_price,
     }));
   };
 
-  const equipoPreview = buildProductPreview(equipoForm);
+  const updateItemCatalogField = (field, value) => {
+    setForm((s) => {
+      const next = { ...s, [field]: value, inventory_product_id: "" };
+      next.name = buildItemNamePreview(next);
+      return next;
+    });
+  };
+
+  const updateItemColor = (color) => {
+    setForm((s) => {
+      const next = { ...s, color };
+      next.name = buildItemNamePreview(next);
+      return next;
+    });
+  };
+
+  const itemNamePreview = buildItemNamePreview(form);
+  const equipoPreview = buildCatalogPreview(equipoForm);
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -723,6 +938,15 @@ export default function InventarioAdmin() {
 
   const showSensitive = canViewSensitiveInventoryFields(user);
 
+  const updateItemIdentifier = (value) => {
+    setForm((s) => ({
+      ...s,
+      ...applyInventoryIdentifierInput(value, { allowImei: showSensitive }),
+    }));
+  };
+
+  const itemIdentifierValue = formatInventoryIdentifier(form.imei, form.barcode, { showImei: showSensitive });
+
   const showHistory = async (item) => {
     setHistoryItem(item);
     setHistoryLoading(true);
@@ -784,10 +1008,21 @@ export default function InventarioAdmin() {
   const filterableStatuses = Object.entries(STATUS_LABELS).filter(([value]) => value !== "archived");
   const isInitialLoad = listLoading && items.length === 0;
   const isFilteredEmpty = !listLoading && items.length === 0 && hasActiveFilters;
-  const equipoSuggestions = catalogProducts.map((p) => p.name);
   const catalogProductOptions = useMemo(
     () => catalogProductSelectOptions(catalogProducts),
     [catalogProducts],
+  );
+  const brandOptions = useMemo(
+    () => brandSelectOptions(deviceBrands),
+    [deviceBrands],
+  );
+  const catalogModelOptions = useMemo(
+    () => catalogModelSelectOptions(iphoneModels, catalogProducts, form.catalog_brand),
+    [catalogProducts, form.catalog_brand],
+  );
+  const equipoCatalogModelOptions = useMemo(
+    () => catalogModelSelectOptions(iphoneModels, catalogProducts, equipoForm.brand),
+    [catalogProducts, equipoForm.brand],
   );
   const supplierOptions = useMemo(
     () => supplierSelectOptions(suppliers),
@@ -848,10 +1083,7 @@ export default function InventarioAdmin() {
                   setFilters((prev) => ({ ...prev, q: searchDraft }));
                 }}
               >
-                <svg className="inv-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="m20 20-3-3" />
-                </svg>
+                <InvIcon name="search" className="inv-search__icon" />
                 <input
                   className="inv-search__input"
                   placeholder="Buscar código barras, IMEI, equipo, proveedor…"
@@ -876,6 +1108,7 @@ export default function InventarioAdmin() {
               </select>
               {hasActiveFilters && (
                 <button type="button" className="inv-btn inv-btn--ghost inv-btn--compact" onClick={clearFilters}>
+                  <InvIcon name="x-circle" />
                   Limpiar
                 </button>
               )}
@@ -887,6 +1120,7 @@ export default function InventarioAdmin() {
                 className={`inv-btn inv-btn--ghost${listScope === "active" ? " is-active" : ""}`}
                 onClick={() => switchListScope("active")}
               >
+                <InvIcon name="folder" />
                 Activos
               </button>
               <button
@@ -894,6 +1128,7 @@ export default function InventarioAdmin() {
                 className={`inv-btn inv-btn--ghost${listScope === "archived" ? " is-active" : ""}`}
                 onClick={() => switchListScope("archived")}
               >
+                <InvIcon name="archive" />
                 Archivados
               </button>
               <button
@@ -901,6 +1136,7 @@ export default function InventarioAdmin() {
                 className={`inv-btn inv-btn--ghost${viewMode === "list" ? " is-active" : ""}`}
                 onClick={() => setViewMode("list")}
               >
+                <InvIcon name="list" />
                 Lista
               </button>
               {!viewingArchived && (
@@ -909,39 +1145,99 @@ export default function InventarioAdmin() {
                 className={`inv-btn inv-btn--ghost${viewMode === "grouped" ? " is-active" : ""}`}
                 onClick={() => { setViewMode("grouped"); fetchGroupedSummary(); }}
               >
+                <InvIcon name="grid" />
                 Por modelo
               </button>
               )}
-              {canManageCustomers(user) && (
-                <button
-                  type="button"
-                  className="inv-btn inv-btn--outline"
-                  onClick={() => setCustomerModalOpen(true)}
-                >
-                  + Cliente
-                </button>
-              )}
               {canManageInventory(user) && !viewingArchived && (
                 <>
-                  <button
-                    type="button"
-                    className="inv-btn inv-btn--outline"
-                    onClick={() => { setColorForm(EMPTY_COLOR_FORM); setEditingColorId(null); setColorModalOpen(true); }}
-                  >
-                    + Color
-                  </button>
-                  <button
-                    type="button"
-                    className="inv-btn inv-btn--outline"
-                    onClick={() => { setSupplierForm(EMPTY_SUPPLIER_FORM); setEditingSupplierId(null); setSupplierModalOpen(true); }}
-                  >
-                    + Proveedor
-                  </button>
-                  <button type="button" className="inv-btn inv-btn--outline" onClick={openEquipoModal}>
-                    + Modelo
-                  </button>
+                  <div className="inv-catalog-menu" style={{ position: "relative" }}>
+                    <button
+                      type="button"
+                      className="inv-btn inv-btn--outline"
+                      onClick={() => setCatalogMenuOpen((open) => !open)}
+                      aria-expanded={catalogMenuOpen}
+                    >
+                      <InvIcon name="layers" />
+                      Catálogos
+                      <InvIcon name="chevron-down" />
+                    </button>
+                    {catalogMenuOpen && (
+                      <div
+                        className="inv-panel"
+                        style={{
+                          position: "absolute",
+                          right: 0,
+                          top: "calc(100% + 0.35rem)",
+                          zIndex: 20,
+                          minWidth: "11rem",
+                          padding: "0.35rem",
+                          display: "grid",
+                          gap: "0.25rem",
+                          boxShadow: "0 8px 24px rgba(15,23,42,0.12)",
+                        }}
+                        role="menu"
+                      >
+                        <button
+                          type="button"
+                          className="inv-btn inv-btn--ghost"
+                          style={{ justifyContent: "flex-start" }}
+                          onClick={() => {
+                            setColorForm(EMPTY_COLOR_FORM);
+                            setEditingColorId(null);
+                            setColorModalOpen(true);
+                            setCatalogMenuOpen(false);
+                          }}
+                        >
+                          <InvIcon name="palette" />
+                          Colores
+                        </button>
+                        <button
+                          type="button"
+                          className="inv-btn inv-btn--ghost"
+                          style={{ justifyContent: "flex-start" }}
+                          onClick={() => {
+                            setBrandForm(EMPTY_BRAND_FORM);
+                            setEditingBrandId(null);
+                            setBrandModalOpen(true);
+                            setCatalogMenuOpen(false);
+                          }}
+                        >
+                          <InvIcon name="tag" />
+                          Marcas
+                        </button>
+                        <button
+                          type="button"
+                          className="inv-btn inv-btn--ghost"
+                          style={{ justifyContent: "flex-start" }}
+                          onClick={() => {
+                            setSupplierForm(EMPTY_SUPPLIER_FORM);
+                            setEditingSupplierId(null);
+                            setSupplierModalOpen(true);
+                            setCatalogMenuOpen(false);
+                          }}
+                        >
+                          <InvIcon name="truck" />
+                          Proveedores
+                        </button>
+                        <button
+                          type="button"
+                          className="inv-btn inv-btn--ghost"
+                          style={{ justifyContent: "flex-start" }}
+                          onClick={() => {
+                            openEquipoModal();
+                            setCatalogMenuOpen(false);
+                          }}
+                        >
+                          <InvIcon name="smartphone" />
+                          Modelos
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openNewItemModal}>
-                    + Agregar equipo
+                    <InvIcon name="plus" />
+                    Agregar equipo
                   </button>
                 </>
               )}
@@ -953,10 +1249,7 @@ export default function InventarioAdmin() {
                 title="Actualizar"
                 aria-label="Actualizar"
               >
-                <svg className={listLoading ? "inv-spin" : ""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 12a9 9 0 1 1-9-9" />
-                  <path d="M21 3v6h-6" />
-                </svg>
+                <InvIcon name="refresh" className="" spin={listLoading} />
               </button>
             </div>
           </div>
@@ -990,25 +1283,24 @@ export default function InventarioAdmin() {
             <table className="inv-table inv-table--sheet">
               <thead>
                 <tr>
-                  {showSensitive && <th>IMEI / Ref.</th>}
-                  <th>Cód. barras</th>
-                  <th>Equipo</th>
-                  <th>Color</th>
-                  <th>Proveedor</th>
-                  <th>Precio</th>
-                  <th>Batería</th>
-                  <th>Estado</th>
-                  {viewingArchived && <th>Archivado el</th>}
-                  <th>Observaciones</th>
+                  {visibleSortColumns.map((column) => (
+                    <SortableTh
+                      key={column.id}
+                      column={column}
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                    />
+                  ))}
                   <th />
                 </tr>
               </thead>
               {isInitialLoad ? (
-                <TableSkeleton />
+                <TableSkeleton archived={viewingArchived} />
               ) : items.length === 0 ? (
                 <tbody>
                   <tr>
-                    <td colSpan={showSensitive ? (viewingArchived ? 11 : 10) : (viewingArchived ? 10 : 9)} className="inv-sheet-empty">
+                    <td colSpan={viewingArchived ? 12 : 11} className="inv-sheet-empty">
                       <p>
                         {viewingArchived
                           ? (isFilteredEmpty ? "Sin archivados para los filtros aplicados." : "No hay equipos archivados.")
@@ -1016,6 +1308,7 @@ export default function InventarioAdmin() {
                       </p>
                       {!isFilteredEmpty && !viewingArchived && (
                         <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openNewItemModal}>
+                          <InvIcon name="plus" />
                           Agregar primer equipo
                         </button>
                       )}
@@ -1024,7 +1317,7 @@ export default function InventarioAdmin() {
                 </tbody>
               ) : (
                 <tbody>
-                  {items.map((item) => (
+                  {sortedItems.map((item) => (
                     <tr
                       key={item.id}
                       className={`inv-sheet-row ${viewingArchived ? "" : "is-clickable"} ${editingId === item.id ? "is-editing" : ""} ${item.color ? "has-color" : ""} ${item.is_archived ? "is-archived" : ""}`}
@@ -1032,13 +1325,10 @@ export default function InventarioAdmin() {
                       onClick={viewingArchived ? undefined : () => startEdit(item)}
                       title={viewingArchived ? undefined : "Clic para editar"}
                     >
-                      {showSensitive && (
-                      <td data-label="IMEI / Ref.">
-                        <span className="inv-sheet-imei">{item.imei || "—"}</span>
-                      </td>
-                      )}
-                      <td data-label="Cód. barras">
-                        <span className="inv-sheet-imei">{item.barcode || "—"}</span>
+                      <td data-label="Cód. barras / IMEI">
+                        <span className="inv-sheet-imei">
+                          {formatInventoryIdentifier(item.imei, item.barcode, { showImei: showSensitive }) || "—"}
+                        </span>
                       </td>
                       <td data-label="Equipo">
                         <span className="inv-sheet-equipo">{item.name}</span>
@@ -1059,6 +1349,9 @@ export default function InventarioAdmin() {
                       <td data-label="Precio">
                         <span className="inv-sheet-price">{formatPrice(item.sale_price)}</span>
                       </td>
+                      <td data-label="Fecha ingreso">
+                        <span className="inv-sheet-muted">{formatAcquiredAt(item)}</span>
+                      </td>
                       <td data-label="Batería">
                         <span className={`inv-sheet-battery ${item.battery != null && item.battery < 85 ? "is-low" : ""}`}>
                           {item.battery != null && item.battery !== "" ? `${item.battery}%` : ""}
@@ -1068,6 +1361,16 @@ export default function InventarioAdmin() {
                         <span className={`inv-badge inv-badge--${item.is_archived ? "archived" : item.status}`}>
                           {item.is_archived ? "ARCHIVADO" : (STATUS_LABELS[item.status] || item.status)}
                         </span>
+                      </td>
+                      <td data-label="Método venta">
+                        {(() => {
+                          const method = inventorySalePaymentMethod(item);
+                          return method ? (
+                            <PaymentMethodBadge method={method} />
+                          ) : (
+                            <span className="inv-sheet-muted">—</span>
+                          );
+                        })()}
                       </td>
                       {viewingArchived && (
                         <td data-label="Archivado el">
@@ -1080,17 +1383,11 @@ export default function InventarioAdmin() {
                       <td data-label="Acciones" onClick={(e) => e.stopPropagation()}>
                         <div className="inv-row-actions">
                           <button type="button" className="inv-icon-btn" title="Historial" onClick={() => showHistory(item)}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <circle cx="12" cy="12" r="10" />
-                              <path d="M12 6v6l4 2" />
-                            </svg>
+                            <InvIcon name="history" className="" />
                           </button>
                           {!viewingArchived && canManageInventory(user) && (
                             <button type="button" className="inv-icon-btn" title="Editar" onClick={() => startEdit(item)}>
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                              </svg>
+                              <InvIcon name="pencil" className="" />
                             </button>
                           )}
                           {!viewingArchived && (item.status === "disponible" || item.status === "separado") && canManageSales(user) && (
@@ -1100,7 +1397,7 @@ export default function InventarioAdmin() {
                               title="Vender"
                               onClick={() => sellItem(item)}
                             >
-                              $
+                              <InvIcon name="ventas" className="" />
                             </button>
                           )}
                           {!viewingArchived && item.status === "vendido" && canManageInventory(user) && (
@@ -1111,7 +1408,7 @@ export default function InventarioAdmin() {
                               disabled={retakingId === item.id}
                               onClick={() => handleRetake(item)}
                             >
-                              ↺
+                              <InvIcon name="rotate-ccw" className="" />
                             </button>
                           )}
                           {!viewingArchived && item.status === "retomado" && canManageInventory(user) && (
@@ -1122,7 +1419,7 @@ export default function InventarioAdmin() {
                               disabled={retakingId === item.id}
                               onClick={() => handleRetake(item)}
                             >
-                              ✓
+                              <InvIcon name="check-circle" className="" />
                             </button>
                           )}
                           {!viewingArchived && canManageInventory(user) && item.status !== "vendido" && item.status !== "retomado" && (
@@ -1136,9 +1433,7 @@ export default function InventarioAdmin() {
                             {deletingId === item.id ? (
                               <span className="inv-loader inv-loader--sm" />
                             ) : (
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                              </svg>
+                              <InvIcon name="trash" className="" />
                             )}
                           </button>
                           )}
@@ -1166,69 +1461,84 @@ export default function InventarioAdmin() {
             <h3 id="inv-item-title" className="inv-modal__title">
               {editingId ? "Editar equipo" : "Agregar equipo"}
             </h3>
+            <p className="inv-modal__text">
+              {editingId
+                ? "Modifica los datos de la unidad. El modelo se reutiliza en el catálogo para futuros ingresos."
+                : "Registra la unidad con marca, modelo y almacenamiento. Si el modelo no existe, se guarda automáticamente en el catálogo."}
+            </p>
             <form onSubmit={handleSubmit} className="inv-modal-form inv-modal-form--grid">
-              <Field label="Código de barras">
+              <Field label={showSensitive ? "Código de barras / IMEI" : "Código de barras"} className="inv-field--span-all">
                 <input
-                  ref={barcodeInputRef}
+                  ref={identifierInputRef}
                   className="inv-field__input inv-field__input--mono"
-                  placeholder="Escanear o escribir código EAN/UPC"
-                  value={form.barcode}
-                  onChange={(e) => setForm((s) => ({ ...s, barcode: e.target.value }))}
+                  placeholder={showSensitive ? "Escanear código EAN/UPC o IMEI (15 dígitos)…" : "Escanear o escribir código EAN/UPC…"}
+                  value={itemIdentifierValue}
+                  onChange={(e) => updateItemIdentifier(e.target.value)}
                   autoComplete="off"
                 />
               </Field>
-
-              {showSensitive && (
-              <Field label="IMEI / Ref.">
-                <input
-                  ref={imeiInputRef}
-                  className="inv-field__input inv-field__input--mono"
-                  placeholder="353906107695406 o 0108"
-                  value={form.imei}
-                  onChange={(e) => setForm((s) => ({ ...s, imei: e.target.value }))}
-                  autoComplete="off"
-                />
-              </Field>
-              )}
 
               {catalogProducts.length > 0 && (
-                <Field label="Cargar del catálogo (opcional)" className="inv-field--span-all">
+                <Field label="Modelo guardado (opcional)" className="inv-field--span-all">
                   <SearchSelect
                     value={form.inventory_product_id}
                     onChange={pickEquipoFromCatalog}
                     options={catalogProductOptions}
-                    placeholder="Buscar modelo guardado…"
+                    placeholder="Buscar en catálogo…"
                     searchPlaceholder="Marca, modelo, almacenamiento…"
-                    clearLabel="Sin modelo de catálogo"
+                    clearLabel="Definir modelo manualmente"
                   />
                 </Field>
               )}
 
-              <Field label="Equipo *" className="inv-field--span-all">
-                <input
-                  className="inv-field__input"
-                  list="equipo-suggestions"
-                  placeholder="11 PRO MAX 256GB DORADO"
-                  value={form.name}
-                  onChange={(e) => setForm((s) => ({ ...s, name: e.target.value.toUpperCase(), inventory_product_id: "" }))}
-                  required
-                  autoComplete="off"
+              <Field label="Marca *">
+                <SearchSelect
+                  value={form.catalog_brand}
+                  onChange={(brand) => updateItemCatalogField("catalog_brand", brand)}
+                  options={brandOptions}
+                  placeholder={deviceBrands.length === 0 ? "Crea marcas con + Marca" : "Seleccionar marca…"}
+                  searchPlaceholder="Buscar marca…"
+                  allowClear={false}
+                  clearLabel=""
                 />
-                <datalist id="equipo-suggestions">
-                  {equipoSuggestions.map((name) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
+              </Field>
+
+              <Field label="Modelo *">
+                <SearchSelect
+                  value={form.catalog_model}
+                  onChange={(model) => updateItemCatalogField("catalog_model", model)}
+                  options={catalogModelOptions}
+                  placeholder={form.catalog_brand ? "Seleccionar o buscar modelo…" : "Selecciona la marca primero…"}
+                  searchPlaceholder="Ej. 15 PRO MAX…"
+                  allowClear={false}
+                  clearLabel=""
+                  creatable
+                />
+              </Field>
+
+              <Field label="Almacenamiento">
+                <SearchSelect
+                  value={form.catalog_storage}
+                  onChange={(storage) => updateItemCatalogField("catalog_storage", storage)}
+                  options={IPHONE_STORAGE_OPTIONS}
+                  placeholder="Seleccionar almacenamiento…"
+                  searchPlaceholder="Ej. 256GB…"
+                  creatable
+                />
               </Field>
 
               <Field label="Color">
                 <ColorSelect
                   value={form.color}
-                  onChange={(color) => setForm((s) => ({ ...s, color }))}
+                  onChange={updateItemColor}
                   colors={deviceColors}
-                  placeholder="Seleccionar color…"
+                  placeholder="Color de esta unidad"
                 />
               </Field>
+
+              <p className="inv-product-preview inv-field--span-all">
+                Nombre en inventario: <strong>{itemNamePreview || "—"}</strong>
+              </p>
 
               <Field label="Proveedor">
                 <SearchSelect
@@ -1317,75 +1627,48 @@ export default function InventarioAdmin() {
               {form.status === "separado" && (
                 <div className="inv-field--span-all inv-separado-alert" role="status">
                   <span className="inv-badge inv-badge--separado">APARTADO</span>
-                  {editingId && editingOriginalStatus === "separado" && cachedItems?.find((i) => i.id === editingId)?.active_reservation ? (
+                  {cachedItems?.find((i) => i.id === editingId)?.active_reservation ? (
                     <span>
                       Apartado activo · Abonado {formatPrice(cachedItems.find((i) => i.id === editingId).active_reservation.amount_paid)}
                       {" · "}Pendiente {formatPrice(cachedItems.find((i) => i.id === editingId).active_reservation.amount_due)}
+                      {" · "}
+                      <button
+                        type="button"
+                        className="inv-btn inv-btn--compact inv-btn--ghost"
+                        onClick={() => sellItem(cachedItems.find((i) => i.id === editingId))}
+                      >
+                        Gestionar en Ventas
+                      </button>
                     </span>
                   ) : (
-                    <span>Registra cliente y abono inicial. El cobro del apartado quedará en caja/informes.</span>
+                    <span>
+                      Este equipo está apartado. Usa Ventas para abonar o completar la venta.
+                    </span>
                   )}
                 </div>
-              )}
-
-              {form.status === "separado" && (editingOriginalStatus === "disponible" || !editingId) && (
-                <>
-                  <Field label="Cliente (apartado)">
-                    <input
-                      className="inv-field__input"
-                      value={reserveMeta.customer_name}
-                      onChange={(e) => setReserveMeta((s) => ({ ...s, customer_name: e.target.value }))}
-                      placeholder="Nombre del cliente"
-                    />
-                  </Field>
-                  <Field label="Teléfono cliente">
-                    <input
-                      className="inv-field__input"
-                      value={reserveMeta.customer_phone}
-                      onChange={(e) => setReserveMeta((s) => ({ ...s, customer_phone: e.target.value }))}
-                      placeholder="300 123 4567"
-                    />
-                  </Field>
-                  <Field label="Abono inicial (opcional)">
-                    <CurrencyInput
-                      value={reserveMeta.deposit_amount}
-                      onChange={(deposit_amount) => setReserveMeta((s) => ({ ...s, deposit_amount }))}
-                      placeholder="$ 0"
-                    />
-                  </Field>
-                  <Field label="Método abono">
-                    <select
-                      className="inv-field__input"
-                      value={reserveMeta.deposit_method}
-                      onChange={(e) => setReserveMeta((s) => ({ ...s, deposit_method: e.target.value }))}
-                    >
-                      <option value="efectivo">Efectivo</option>
-                      <option value="transferencia">Transferencia</option>
-                    </select>
-                  </Field>
-                </>
               )}
 
               <Field label="Observaciones" className="inv-field--span-all">
                 <textarea
                   className="inv-field__input inv-field__textarea"
-                  placeholder={
-                    form.status === "separado"
-                      ? "Condiciones del apartado, fecha límite, etc."
-                      : "PANTALLA FANTASMA, BATERIA, SOLO SIM MOVISTAR…"
-                  }
+                  placeholder="PANTALLA FANTASMA, BATERIA, SOLO SIM MOVISTAR…"
                   value={form.notes}
                   onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))}
                   rows={2}
                 />
-                {form.status === "separado" && (editingOriginalStatus === "disponible" || !editingId) && (
-                  <p className="inv-dash__muted" style={{ margin: "0.35rem 0 0", fontSize: "0.85rem" }}>
-                    El precio de venta acordado se usa como total del apartado. Ventas precargará el abono al cerrar.
-                  </p>
-                )}
               </Field>
 
               <div className="inv-modal__actions inv-field--span-all">
+                {canManageInventory(user) && (
+                  <button
+                    type="button"
+                    className="inv-btn inv-btn--ghost"
+                    onClick={() => { closeItemModal(); openEquipoModal(); }}
+                    disabled={submitting}
+                  >
+                    Administrar catálogo de modelos
+                  </button>
+                )}
                 <button type="button" className="inv-btn inv-btn--outline" onClick={closeItemModal} disabled={submitting}>
                   Cancelar
                 </button>
@@ -1412,7 +1695,7 @@ export default function InventarioAdmin() {
             </h3>
             <p className="inv-modal__text">
               {editingColorId
-                ? "Al renombrar un color se actualiza también en equipos y modelos que lo usen."
+                ? "Al renombrar un color se actualiza también en los equipos que lo usen."
                 : "Administra los colores que aparecen al registrar equipos en el inventario."}
             </p>
             <form onSubmit={handleSaveColor} className="inv-modal-form">
@@ -1474,6 +1757,86 @@ export default function InventarioAdmin() {
             )}
             <div className="inv-modal__actions inv-modal__actions--solo">
               <button type="button" className="inv-btn inv-btn--outline" onClick={() => { cancelColorEdit(); setColorModalOpen(false); }}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {brandModalOpen && (
+        <div className="inv-modal-overlay" role="presentation" onClick={() => !creatingBrand && setBrandModalOpen(false)}>
+          <div
+            className="inv-modal inv-modal--compact"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="inv-brand-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="inv-brand-title" className="inv-modal__title">
+              {editingBrandId ? "Editar marca" : "Marcas de equipo"}
+            </h3>
+            <p className="inv-modal__text">
+              {editingBrandId
+                ? "Al renombrar una marca se actualiza también en los modelos del catálogo que la usen."
+                : "Administra las marcas disponibles al crear modelos en el catálogo."}
+            </p>
+            <form onSubmit={handleSaveBrand} className="inv-modal-form">
+              <Field label={editingBrandId ? "Marca" : "Nueva marca"}>
+                <input
+                  className="inv-field__input"
+                  placeholder="IPHONE"
+                  value={brandForm.name}
+                  onChange={(e) => setBrandForm({ name: e.target.value.toUpperCase() })}
+                  required
+                  autoFocus
+                  autoComplete="off"
+                />
+              </Field>
+              <div className="inv-modal__actions">
+                {editingBrandId && (
+                  <button type="button" className="inv-btn inv-btn--outline" onClick={cancelBrandEdit} disabled={creatingBrand}>
+                    Cancelar edición
+                  </button>
+                )}
+                <button type="submit" className="inv-btn inv-btn--primary inv-btn--inline" disabled={creatingBrand}>
+                  {creatingBrand ? "Guardando…" : editingBrandId ? "Actualizar marca" : "Agregar marca"}
+                </button>
+              </div>
+            </form>
+            {deviceBrands.length > 0 && (
+              <div className="inv-supplier-list">
+                <p className="inv-supplier-list__title">Catálogo ({deviceBrands.length}) — clic para editar</p>
+                <ul className="inv-supplier-list__items inv-supplier-list__items--tall">
+                  {deviceBrands.map((b) => (
+                    <li
+                      key={b.id}
+                      className={`inv-supplier-list__item inv-supplier-list__item--clickable ${editingBrandId === b.id ? "is-selected" : ""}`}
+                    >
+                      <button
+                        type="button"
+                        className="inv-supplier-list__pick"
+                        onClick={() => startEditBrand(b)}
+                        disabled={creatingBrand}
+                      >
+                        {b.name}
+                      </button>
+                      <button
+                        type="button"
+                        className="inv-supplier-list__remove"
+                        onClick={() => removeBrand(b.id, b.name)}
+                        disabled={creatingBrand || deletingBrandId === b.id}
+                        aria-label={`Eliminar ${b.name}`}
+                      >
+                        {deletingBrandId === b.id ? "…" : "×"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="inv-modal__actions inv-modal__actions--solo">
+              <button type="button" className="inv-btn inv-btn--outline" onClick={() => { cancelBrandEdit(); setBrandModalOpen(false); }}>
                 Cerrar
               </button>
             </div>
@@ -1640,49 +2003,47 @@ export default function InventarioAdmin() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="inv-equipo-title" className="inv-modal__title">
-              {editingEquipoId ? "Editar modelo" : "Modelos de equipo (catálogo)"}
+              {editingEquipoId ? "Editar modelo" : "Catálogo de modelos"}
             </h3>
             <p className="inv-modal__text">
               {editingEquipoId
                 ? "Modifica los datos del modelo. El nombre se actualiza automáticamente."
-                : "Define marca, modelo, almacenamiento y color. El nombre se genera automáticamente como en tu hoja de inventario."}
+                : "Los modelos nuevos se crean al agregar equipos. Aquí puedes revisar y editar los existentes."}
             </p>
+
+            {editingEquipoId && (
             <form onSubmit={handleSaveEquipo} className="inv-modal-form inv-modal-form--grid">
-              <Field label="Marca">
-                <input
-                  className="inv-field__input"
-                  placeholder="Apple"
+              <Field label="Marca *">
+                <SearchSelect
                   value={equipoForm.brand}
-                  onChange={(e) => setEquipoForm((s) => ({ ...s, brand: e.target.value }))}
-                  autoFocus
-                  autoComplete="off"
+                  onChange={(brand) => setEquipoForm((s) => ({ ...s, brand }))}
+                  options={brandOptions}
+                  placeholder={deviceBrands.length === 0 ? "Crea marcas en Catálogos" : "Seleccionar marca…"}
+                  searchPlaceholder="Buscar marca…"
+                  allowClear={false}
+                  clearLabel=""
                 />
               </Field>
               <Field label="Modelo *">
-                <input
-                  className="inv-field__input"
-                  placeholder="13 PRO MAX"
+                <SearchSelect
                   value={equipoForm.model}
-                  onChange={(e) => setEquipoForm((s) => ({ ...s, model: e.target.value.toUpperCase() }))}
-                  required
-                  autoComplete="off"
+                  onChange={(model) => setEquipoForm((s) => ({ ...s, model }))}
+                  options={equipoCatalogModelOptions}
+                  placeholder={equipoForm.brand ? "Seleccionar o buscar modelo…" : "Selecciona la marca primero…"}
+                  searchPlaceholder="Ej. 15 PRO MAX, SE 2022…"
+                  allowClear={false}
+                  clearLabel=""
+                  creatable
                 />
               </Field>
               <Field label="Almacenamiento">
-                <input
-                  className="inv-field__input"
-                  placeholder="256GB"
+                <SearchSelect
                   value={equipoForm.storage}
-                  onChange={(e) => setEquipoForm((s) => ({ ...s, storage: e.target.value.toUpperCase() }))}
-                  autoComplete="off"
-                />
-              </Field>
-              <Field label="Color">
-                <ColorSelect
-                  value={equipoForm.color}
-                  onChange={(color) => setEquipoForm((s) => ({ ...s, color }))}
-                  colors={deviceColors}
-                  placeholder="Seleccionar color…"
+                  onChange={(storage) => setEquipoForm((s) => ({ ...s, storage }))}
+                  options={IPHONE_STORAGE_OPTIONS}
+                  placeholder="Seleccionar almacenamiento…"
+                  searchPlaceholder="Ej. 256GB, 512GB…"
+                  creatable
                 />
               </Field>
               <Field label="Categoría">
@@ -1712,25 +2073,24 @@ export default function InventarioAdmin() {
                   rows={2}
                 />
               </Field>
-              {equipoPreview && (
-                <p className="inv-product-preview inv-field--span-all">
-                  Vista previa: <strong>{equipoPreview}</strong>
-                </p>
-              )}
+              <p className="inv-product-preview inv-field--span-all">
+                Vista previa: <strong>{equipoPreview || "—"}</strong>
+              </p>
               <div className="inv-modal__actions inv-field--span-all">
                 <button
                   type="button"
                   className="inv-btn inv-btn--outline"
-                  onClick={editingEquipoId ? cancelEquipoEdit : closeEquipoModal}
+                  onClick={cancelEquipoEdit}
                   disabled={creatingEquipo}
                 >
-                  {editingEquipoId ? "Cancelar edición" : "Cerrar"}
+                  Cancelar edición
                 </button>
                 <button type="submit" className="inv-btn inv-btn--primary inv-btn--inline" disabled={creatingEquipo}>
-                  {creatingEquipo ? "Guardando…" : editingEquipoId ? "Actualizar modelo" : "Guardar modelo"}
+                  {creatingEquipo ? "Guardando…" : "Actualizar modelo"}
                 </button>
               </div>
             </form>
+            )}
 
             {catalogProducts.length > 0 && (
               <div className="inv-supplier-list">
@@ -1762,12 +2122,16 @@ export default function InventarioAdmin() {
                 </ul>
               </div>
             )}
+
+            {!editingEquipoId && (
+              <div className="inv-modal__actions inv-modal__actions--solo">
+                <button type="button" className="inv-btn inv-btn--outline" onClick={closeEquipoModal}>
+                  Cerrar
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      )}
-
-      {customerModalOpen && (
-        <CustomerCatalogModal open={customerModalOpen} onClose={() => setCustomerModalOpen(false)} />
       )}
 
       {toast && (
@@ -1795,18 +2159,27 @@ export default function InventarioAdmin() {
             <h3 className="inv-modal__title">Retomar equipo</h3>
             <p className="inv-dash__muted" style={{ marginTop: 0 }}>
               <strong>{retakeTarget.name}</strong>
-              {retakeTarget.imei && showSensitive ? ` · IMEI ${retakeTarget.imei}` : ""}
+              {retakeTarget.imei && showSensitive ? ` · IMEI ${retakeTarget.imei}` : retakeTarget.barcode ? ` · ${retakeTarget.barcode}` : ""}
             </p>
             {retakeTarget.latest_sale && (
               <div className="inv-separado-alert" role="status" style={{ marginBottom: "0.75rem" }}>
-                <span>Venta {retakeTarget.latest_sale.remission_number || "—"}</span>
-                {" · "}Precio vendido: <strong>{formatPrice(retakeTarget.latest_sale.sale_price)}</strong>
-                {retakeTarget.latest_sale.customer_name ? ` · ${retakeTarget.latest_sale.customer_name}` : ""}
-                {retakeTarget.latest_sale.amount_due > 0 && (
-                  <span style={{ color: "var(--inv-danger, #f87171)" }}>
-                    {" · "}Saldo pendiente: {formatPrice(retakeTarget.latest_sale.amount_due)}
-                  </span>
-                )}
+                <span className="inv-badge inv-badge--vendido">VENDIDO</span>
+                <span className="inv-separado-alert__text">
+                  Venta {retakeTarget.latest_sale.remission_number || "—"}
+                  {" · "}Precio vendido: <strong>{formatPrice(retakeTarget.latest_sale.sale_price)}</strong>
+                  {retakeTarget.latest_sale.payment_method ? (
+                    <> · Método: <PaymentMethodBadge method={retakeTarget.latest_sale.payment_method} /></>
+                  ) : null}
+                  {retakeTarget.latest_sale.customer_name ? ` · ${retakeTarget.latest_sale.customer_name}` : ""}
+                  {retakeTarget.latest_sale.amount_due > 0 && (
+                    <>
+                      {" · "}
+                      <span className="inv-badge inv-badge--pending">
+                        Saldo pendiente {formatPrice(retakeTarget.latest_sale.amount_due)}
+                      </span>
+                    </>
+                  )}
+                </span>
               </div>
             )}
             <form onSubmit={confirmRetake} className="inv-modal-form">
@@ -1822,15 +2195,12 @@ export default function InventarioAdmin() {
                 </p>
               </Field>
               <Field label="Método de pago retoma *">
-                <select
-                  className="inv-field__input"
+                <PaymentMethodSelect
                   value={retakePaymentMethod}
                   onChange={(e) => setRetakePaymentMethod(e.target.value)}
+                  groups={IMMEDIATE_PAYMENT_GROUPS}
                   required
-                >
-                  <option value="efectivo">Efectivo</option>
-                  <option value="transferencia">Transferencia</option>
-                </select>
+                />
               </Field>
               <div className="inv-modal__actions">
                 <button type="button" className="inv-btn inv-btn--outline" onClick={closeRetakeModal} disabled={Boolean(retakingId)}>
@@ -1873,7 +2243,9 @@ export default function InventarioAdmin() {
           title={
             catalogDeleteTarget.kind === "color"
               ? "¿Eliminar color?"
-              : "¿Eliminar proveedor?"
+              : catalogDeleteTarget.kind === "brand"
+                ? "¿Eliminar marca?"
+                : "¿Eliminar proveedor?"
           }
           itemName={catalogDeleteTarget.name}
           description={
@@ -1881,6 +2253,11 @@ export default function InventarioAdmin() {
               <>
                 Se eliminará el color <strong>{catalogDeleteTarget.name}</strong> del catálogo.
                 Los equipos existentes conservan su color actual.
+              </>
+            ) : catalogDeleteTarget.kind === "brand" ? (
+              <>
+                Se eliminará la marca <strong>{catalogDeleteTarget.name}</strong> del catálogo.
+                Los modelos existentes conservan el nombre de marca actual hasta que los edites.
               </>
             ) : (
               <>
@@ -1892,7 +2269,9 @@ export default function InventarioAdmin() {
           confirmLabel={
             catalogDeleteTarget.kind === "color"
               ? "Eliminar color"
-              : "Eliminar proveedor"
+              : catalogDeleteTarget.kind === "brand"
+                ? "Eliminar marca"
+                : "Eliminar proveedor"
           }
           loading={catalogDeleteLoading}
           onCancel={() => !catalogDeleteLoading && setCatalogDeleteTarget(null)}

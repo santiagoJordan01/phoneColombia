@@ -2,9 +2,18 @@ import React, { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import CurrencyInput from "../components/inventario/CurrencyInput.jsx";
 import api, { isApiConfigured } from "../lib/apiClient";
+import InvIcon from "../components/inventario/InvIcon.jsx";
 import { copToStorage, formatPrice } from "../lib/currencyCop.js";
 import { canAccessContent, canAccessInventory, getDefaultInventarioPath, isServiceTechnician } from "./inventario/shared.jsx";
 import "../styles.css";
+
+const ADMIN_TABS = [
+  { id: "productos", label: "Productos", icon: "package" },
+  { id: "promociones", label: "Promociones", icon: "tag" },
+  { id: "testimonios", label: "Testimonios", icon: "video" },
+  { id: "hero", label: "Hero", icon: "play" },
+  { id: "garantias", label: "Garantías", icon: "shield" },
+];
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -398,7 +407,10 @@ export default function Admin() {
             />
 
             <div className="admin-actions">
-              <button type="submit" className="btn-primary" disabled={loading}>{loading ? "Iniciando..." : "Iniciar sesión"}</button>
+              <button type="submit" className="btn-primary" disabled={loading}>
+                <InvIcon name="log-in" />
+                {loading ? "Iniciando..." : "Iniciar sesión"}
+              </button>
             </div>
           </form>
 
@@ -433,18 +445,30 @@ export default function Admin() {
         <h2 className="admin-title">Panel Admin — Gestión de contenido</h2>
         <div className="admin-actions admin-actions--split">
           {canAccessInventory(user) && (
-            <Link to="/admin/inventario" className="btn-secondary btn-admin-nav">Inventario</Link>
+            <Link to="/admin/inventario" className="btn-secondary btn-admin-nav">
+              <InvIcon name="inventario" />
+              Inventario
+            </Link>
           )}
-          <button type="button" className="btn-secondary btn-logout" onClick={signOut}>Cerrar sesión</button>
+          <button type="button" className="btn-secondary btn-logout" onClick={signOut}>
+            <InvIcon name="log-out" />
+            Cerrar sesión
+          </button>
         </div>
       </header>
 
       <nav className="admin-tabs" aria-label="Secciones del panel">
-        <button type="button" onClick={() => setActiveTab("productos")} className={`admin-tab ${activeTab === "productos" ? "active" : ""}`}>Productos</button>
-        <button type="button" onClick={() => setActiveTab("promociones")} className={`admin-tab ${activeTab === "promociones" ? "active" : ""}`}>Promociones</button>
-        <button type="button" onClick={() => setActiveTab("testimonios")} className={`admin-tab ${activeTab === "testimonios" ? "active" : ""}`}>Testimonios</button>
-        <button type="button" onClick={() => setActiveTab("hero")} className={`admin-tab ${activeTab === "hero" ? "active" : ""}`}>Hero</button>
-        <button type="button" onClick={() => setActiveTab("garantias")} className={`admin-tab ${activeTab === "garantias" ? "active" : ""}`}>Garantías</button>
+        {ADMIN_TABS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setActiveTab(item.id)}
+            className={`admin-tab ${activeTab === item.id ? "active" : ""}`}
+          >
+            <InvIcon name={item.icon} />
+            {item.label}
+          </button>
+        ))}
       </nav>
 
       {activeTab === "productos" && (

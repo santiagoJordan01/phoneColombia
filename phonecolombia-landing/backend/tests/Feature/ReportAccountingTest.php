@@ -225,6 +225,7 @@ class ReportAccountingTest extends TestCase
             ->assertJsonPath('by_payment_method.efectivo', 500000)
             ->assertJsonPath('by_collection_type.apartado', 500000)
             ->assertJsonCount(1, 'ledger')
+            ->assertJsonStructure(['total_cost', 'total_profit', 'margin_percent'])
             ->assertJsonPath('ledger.0.type', 'apartado')
             ->assertJsonPath('ledger.0.amount', 500000);
     }
@@ -265,7 +266,10 @@ class ReportAccountingTest extends TestCase
             ->assertJsonPath('totals.creditos_count', 1)
             ->assertJsonPath('totals.overdue_count', 1)
             ->assertJsonPath('totals.apartados_due', 2100000)
-            ->assertJsonPath('totals.creditos_due', 1500000);
+            ->assertJsonPath('totals.creditos_due', 1500000)
+            ->assertJsonStructure([
+                'totals' => ['total_cost', 'total_profit', 'margin_percent', 'revenue'],
+            ]);
     }
 
     public function test_dashboard_collected_today_uses_payment_date_not_sale_date(): void

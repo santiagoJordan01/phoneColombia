@@ -51,7 +51,7 @@ class InventoryProductController extends Controller
             'brand' => isset($data['brand']) ? strtoupper(trim($data['brand'])) : null,
             'model' => isset($data['model']) ? strtoupper(trim($data['model'])) : null,
             'storage' => isset($data['storage']) ? strtoupper(trim($data['storage'])) : null,
-            'color' => isset($data['color']) ? strtoupper(trim($data['color'])) : null,
+            'color' => null,
             'reference_price' => $data['reference_price'] ?? null,
             'notes' => $data['notes'] ?? null,
         ]);
@@ -88,7 +88,7 @@ class InventoryProductController extends Controller
             'brand' => isset($data['brand']) ? strtoupper(trim($data['brand'])) : null,
             'model' => isset($data['model']) ? strtoupper(trim($data['model'])) : null,
             'storage' => isset($data['storage']) ? strtoupper(trim($data['storage'])) : null,
-            'color' => isset($data['color']) ? strtoupper(trim($data['color'])) : null,
+            'color' => null,
             'reference_price' => $data['reference_price'] ?? null,
             'notes' => $data['notes'] ?? null,
         ]);
@@ -115,7 +115,6 @@ class InventoryProductController extends Controller
             isset($data['brand']) ? trim($data['brand']) : null,
             isset($data['model']) ? trim($data['model']) : null,
             isset($data['storage']) ? trim($data['storage']) : null,
-            isset($data['color']) ? trim($data['color']) : null,
         ]);
 
         return strtoupper(implode(' ', $parts));

@@ -12,6 +12,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use App\Support\PaymentMethods;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DailySalesReportExporter
@@ -27,13 +28,6 @@ class DailySalesReportExporter
     private const COLOR_ALT_ROW = 'FFF8FAFC';
 
     private const COLOR_BORDER = 'FFCBD5E1';
-
-    private const PAYMENT_LABELS = [
-        'efectivo' => 'Efectivo',
-        'transferencia' => 'Transferencia',
-        'credito' => 'Crédito',
-        'mixto' => 'Mixto',
-    ];
 
     /** @param array<string, mixed> $report */
     public function toPdf(array $report, string $dateLabel): StreamedResponse
@@ -320,7 +314,7 @@ class DailySalesReportExporter
             return '—';
         }
 
-        return self::PAYMENT_LABELS[$method] ?? ucfirst($method);
+        return PaymentMethods::label($method !== '' ? $method : ucfirst($method));
     }
 
     private function parseMoney(mixed $value): float

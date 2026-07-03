@@ -32,8 +32,10 @@ use App\Support\InventoryStatus;
 use App\Support\InventoryStatusGuard;
 
 use App\Support\MoneyFormatter;
+use App\Support\PaymentMethods;
 
 use App\Support\RemissionNumberGenerator;
+use App\Support\ServiceCustomerResolver;
 
 use Carbon\Carbon;
 
@@ -197,19 +199,7 @@ class SaleController extends Controller
 
 
 
-        if (! empty($data['service_customer_id'])) {
-
-            $customer = ServiceCustomer::find($data['service_customer_id']);
-
-            if ($customer) {
-
-                $data['customer_name'] = $customer->name;
-
-                $data['customer_phone'] = $customer->phone;
-
-            }
-
-        }
+        ServiceCustomerResolver::resolveIntoPayload($data);
 
 
 
@@ -299,11 +289,30 @@ class SaleController extends Controller
 
                 'sale_id' => $sale->id,
 
+                'remission_number' => $sale->remission_number,
+
                 'sale_price' => $data['sale_price'],
 
             ]);
 
             $this->audit->log($sale, 'created');
+
+            if ($amountPaid > 0) {
+                $this->audit->log($sale, 'payment_added', 'amount_paid', 0, $amountPaid, [
+                    'remission_number' => $sale->remission_number,
+                    'source' => 'initial_sale',
+                    'payments' => collect($payments)
+                        ->filter(fn (array $payment) => (float) ($payment['amount'] ?? 0) > 0)
+                        ->map(fn (array $payment) => [
+                            'method' => $payment['method'],
+                            'amount' => (float) $payment['amount'],
+                            'paid_at' => $soldAt->toIso8601String(),
+                            'notes' => $payment['notes'] ?? null,
+                        ])
+                        ->values()
+                        ->all(),
+                ]);
+            }
 
 
 
@@ -385,19 +394,7 @@ class SaleController extends Controller
 
 
 
-        if (! empty($data['service_customer_id'])) {
-
-            $customer = ServiceCustomer::find($data['service_customer_id']);
-
-            if ($customer) {
-
-                $data['customer_name'] = $customer->name;
-
-                $data['customer_phone'] = $customer->phone;
-
-            }
-
-        }
+        ServiceCustomerResolver::resolveIntoPayload($data);
 
 
 
@@ -408,6 +405,8 @@ class SaleController extends Controller
 
 
         DB::transaction(function () use ($sale, $data, $salePrice, $paymentMethod, $amountDue, $creditStatus, $soldAt, $creditDueAt) {
+
+            $original = $sale->getAttributes();
 
             if (array_key_exists('sale_price', $data)) {
 
@@ -473,9 +472,11 @@ class SaleController extends Controller
 
             $sale->save();
 
-
-
-            $this->audit->log($sale, 'updated');
+            $changes = $sale->getChanges();
+            unset($changes['updated_at']);
+            if ($changes !== []) {
+                $this->audit->logChanges($sale, $original, $changes);
+            }
 
         });
 
@@ -503,9 +504,15 @@ class SaleController extends Controller
 
         $data = $request->validate([
 
-            'method' => ['required', Rule::in(['efectivo', 'transferencia', 'credito'])],
+            'method' => ['required', Rule::in([...PaymentMethods::immediate(), PaymentMethods::MIXTO])],
 
-            'amount' => ['required', 'numeric', 'min:0.01'],
+            'amount' => ['required_unless:method,mixto', 'nullable', 'numeric', 'min:0.01'],
+
+            'payments' => ['nullable', 'array'],
+
+            'payments.*.method' => ['required_with:payments', Rule::in(PaymentMethods::mixedLine())],
+
+            'payments.*.amount' => ['required_with:payments', 'numeric', 'min:0.01'],
 
             'notes' => ['nullable', 'string'],
 
@@ -527,37 +534,44 @@ class SaleController extends Controller
 
         $amountDue = (float) $sale->amount_due;
 
-        if ((float) $data['amount'] > $amountDue + 0.009) {
+        $paymentLines = $this->resolveAbonoPaymentLines($data, $amountDue);
 
-            return response()->json([
-
-                'message' => 'El abono no puede superar el saldo pendiente.',
-
-                'errors' => ['amount' => ['Saldo pendiente: '.MoneyFormatter::format($amountDue)]],
-
-            ], 422);
-
-        }
+        $paidAt = isset($data['paid_at']) ? Carbon::parse($data['paid_at']) : now();
 
 
 
-        DB::transaction(function () use ($sale, $data, $user) {
+        DB::transaction(function () use ($sale, $paymentLines, $user, $paidAt) {
 
-            SalePayment::create([
+            $previousAmountPaid = (float) $sale->amount_paid;
+            $createdPayments = [];
 
-                'sale_id' => $sale->id,
+            foreach ($paymentLines as $line) {
 
-                'user_id' => $user->id,
+                $payment = SalePayment::create([
 
-                'method' => $data['method'],
+                    'sale_id' => $sale->id,
 
-                'amount' => $data['amount'],
+                    'user_id' => $user->id,
 
-                'notes' => $data['notes'] ?? null,
+                    'method' => $line['method'],
 
-                'paid_at' => $data['paid_at'] ?? now(),
+                    'amount' => $line['amount'],
 
-            ]);
+                    'notes' => $line['notes'] ?? null,
+
+                    'paid_at' => $paidAt,
+
+                ]);
+
+                $createdPayments[] = [
+                    'id' => $payment->id,
+                    'method' => $payment->method,
+                    'amount' => (float) $payment->amount,
+                    'paid_at' => $payment->paid_at?->toIso8601String(),
+                    'notes' => $payment->notes,
+                ];
+
+            }
 
 
 
@@ -569,7 +583,10 @@ class SaleController extends Controller
 
             $sale->save();
 
-            $this->audit->log($sale, 'payment_added', 'amount_paid', null, $sale->amount_paid);
+            $this->audit->log($sale, 'payment_added', 'amount_paid', $previousAmountPaid, (float) $sale->amount_paid, [
+                'remission_number' => $sale->remission_number,
+                'payments' => $createdPayments,
+            ]);
 
         });
 
@@ -635,17 +652,7 @@ class SaleController extends Controller
 
     {
 
-        $paymentLabels = [
-
-            'efectivo' => 'Efectivo',
-
-            'transferencia' => 'Transferencia',
-
-            'credito' => 'Crédito',
-
-            'mixto' => 'Mixto',
-
-        ];
+        $paymentLabels = PaymentMethods::labels();
 
 
 
@@ -715,7 +722,7 @@ class SaleController extends Controller
 
             'sale_price' => [$updating ? 'sometimes' : 'required', 'string', 'max:50'],
 
-            'payment_method' => [$updating ? 'sometimes' : 'required', Rule::in(['efectivo', 'transferencia', 'credito', 'mixto'])],
+            'payment_method' => [$updating ? 'sometimes' : 'required', Rule::in(PaymentMethods::salePrimary())],
 
             'customer_name' => ['nullable', 'string', 'max:120'],
 
@@ -735,7 +742,7 @@ class SaleController extends Controller
 
             'payments' => ['nullable', 'array'],
 
-            'payments.*.method' => ['required_with:payments', Rule::in(['efectivo', 'transferencia', 'credito'])],
+            'payments.*.method' => ['required_with:payments', Rule::in(PaymentMethods::mixedLine())],
 
             'payments.*.amount' => ['required_with:payments', 'numeric', 'min:0'],
 
@@ -777,7 +784,14 @@ class SaleController extends Controller
 
             }
 
-
+            foreach ($data['payments'] as $payment) {
+                if (($payment['method'] ?? '') === 'credito') {
+                    abort(response()->json([
+                        'message' => 'En pago mixto usa métodos de contado. El saldo pendiente se registra con medio de crédito.',
+                        'errors' => ['payments' => ['No uses crédito como línea del mixto.']],
+                    ], 422));
+                }
+            }
 
             return $data['payments'];
 
@@ -945,6 +959,60 @@ class SaleController extends Controller
 
         return [['method' => $method, 'amount' => $amount]];
 
+    }
+
+    /** @return list<array{method: string, amount: float|int|string, notes?: string|null}> */
+    private function resolveAbonoPaymentLines(array $data, float $amountDue): array
+    {
+        if ($data['method'] === 'mixto') {
+            if (empty($data['payments']) || count($data['payments']) < 2) {
+                abort(response()->json([
+                    'message' => 'El abono mixto requiere al menos dos líneas de pago.',
+                    'errors' => ['payments' => ['Indica al menos dos pagos para abono mixto.']],
+                ], 422));
+            }
+
+            $lines = collect($data['payments'])
+                ->filter(fn ($payment) => (float) ($payment['amount'] ?? 0) > 0)
+                ->values()
+                ->all();
+
+            if (count($lines) < 2) {
+                abort(response()->json([
+                    'message' => 'El abono mixto requiere al menos dos líneas con monto.',
+                    'errors' => ['payments' => ['Indica al menos dos pagos para abono mixto.']],
+                ], 422));
+            }
+
+            $total = collect($lines)->sum(fn ($payment) => (float) $payment['amount']);
+            if ($total > $amountDue + 0.009) {
+                abort(response()->json([
+                    'message' => 'El abono no puede superar el saldo pendiente.',
+                    'errors' => ['amount' => ['Saldo pendiente: '.MoneyFormatter::format($amountDue)]],
+                ], 422));
+            }
+
+            $notes = $data['notes'] ?? null;
+
+            return array_map(fn ($payment) => [
+                'method' => $payment['method'],
+                'amount' => $payment['amount'],
+                'notes' => $notes,
+            ], $lines);
+        }
+
+        if ((float) $data['amount'] > $amountDue + 0.009) {
+            abort(response()->json([
+                'message' => 'El abono no puede superar el saldo pendiente.',
+                'errors' => ['amount' => ['Saldo pendiente: '.MoneyFormatter::format($amountDue)]],
+            ], 422));
+        }
+
+        return [[
+            'method' => $data['method'],
+            'amount' => $data['amount'],
+            'notes' => $data['notes'] ?? null,
+        ]];
     }
 
 

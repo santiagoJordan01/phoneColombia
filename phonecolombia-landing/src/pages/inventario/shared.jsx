@@ -1,6 +1,9 @@
 import { formatDaneLocation, resolveLocationFromSupplier } from "../../lib/daneLocations.js";
+import { paymentLabel } from "../../lib/paymentMethods.js";
 
 export const EMPTY_COLOR_FORM = { name: "" };
+
+export const EMPTY_BRAND_FORM = { name: "" };
 
 export const EMPTY_FORM = {
   imei: "",
@@ -15,6 +18,9 @@ export const EMPTY_FORM = {
   status: "disponible",
   notes: "",
   inventory_product_id: "",
+  catalog_brand: "",
+  catalog_model: "",
+  catalog_storage: "",
   acquired_at: "",
 };
 
@@ -30,7 +36,6 @@ export const EMPTY_EQUIPO_FORM = {
   brand: "",
   model: "",
   storage: "",
-  color: "",
   category: "celular",
   reference_price: "",
   notes: "",
@@ -72,8 +77,67 @@ export function serviceCustomerSubtitle(c) {
   return [c.phone, c.document, c.email].filter(Boolean).join(" · ");
 }
 
-export function buildProductPreview({ brand, model, storage, color }) {
-  return [brand, model, storage, color].filter(Boolean).join(" ").trim().toUpperCase();
+/** Nombre del modelo en catálogo (sin color). */
+export function buildCatalogPreview({ brand, model, storage }) {
+  return [brand, model, storage].filter(Boolean).join(" ").trim().toUpperCase();
+}
+
+/** @deprecated Use buildCatalogPreview for catálogo o buildInventoryItemName para equipos. */
+export function buildProductPreview(fields) {
+  if (fields.color !== undefined && fields.color !== "") {
+    return buildInventoryItemName(fields, fields.color);
+  }
+  return buildCatalogPreview(fields);
+}
+
+export function catalogBaseName(product) {
+  if (!product) return "";
+  return buildCatalogPreview(product) || String(product.name || "").trim().toUpperCase();
+}
+
+/** Nombre visible del equipo: modelo de catálogo + color de la unidad. */
+export function buildInventoryItemName(productOrBase, color) {
+  const base = typeof productOrBase === "string"
+    ? productOrBase.trim().toUpperCase()
+    : catalogBaseName(productOrBase);
+  const tone = String(color || "").trim().toUpperCase();
+  if (!base) return tone;
+  if (!tone) return base;
+  if (base.endsWith(` ${tone}`) || base === tone) return base;
+  return `${base} ${tone}`;
+}
+
+/** Muestra IMEI o código de barras en un solo campo. */
+export function formatInventoryIdentifier(imei, barcode, { showImei = true } = {}) {
+  const imeiVal = String(imei || "").trim();
+  const barcodeVal = String(barcode || "").trim();
+  if (showImei && imeiVal) return imeiVal;
+  return barcodeVal || imeiVal || "";
+}
+
+/** Clasifica un valor escaneado o escrito en IMEI vs código de barras. */
+export function applyInventoryIdentifierInput(value, { allowImei = true } = {}) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return { imei: "", barcode: "" };
+  if (!allowImei) return { imei: "", barcode: trimmed };
+
+  const compact = trimmed.replace(/\s/g, "");
+  if (/^\d{14,16}$/.test(compact)) {
+    return { imei: compact, barcode: "" };
+  }
+
+  return { imei: "", barcode: trimmed };
+}
+
+export function productToItemCatalogFields(product) {
+  if (!product) {
+    return { catalog_brand: "", catalog_model: "", catalog_storage: "" };
+  }
+  return {
+    catalog_brand: product.brand || "",
+    catalog_model: product.model || "",
+    catalog_storage: product.storage || "",
+  };
 }
 
 export function productToEquipoForm(product) {
@@ -81,7 +145,6 @@ export function productToEquipoForm(product) {
     brand: product.brand || "",
     model: product.model || "",
     storage: product.storage || "",
-    color: product.color || "",
     category: product.category || "celular",
     reference_price: product.reference_price || "",
     notes: product.notes || "",
@@ -113,7 +176,9 @@ export function supplierSubtitle(s) {
   return parts.join(" · ");
 }
 
-export { parseCop, formatCopInput, copToStorage, formatPrice } from "../../lib/currencyCop.js";
+import { parseCop, formatCopInput, copToStorage, formatPrice } from "../../lib/currencyCop.js";
+
+export { parseCop, formatCopInput, copToStorage, formatPrice };
 
 export const CREDIT_TERM_OPTIONS = [
   { value: "8_days", label: "8 días" },
@@ -155,18 +220,21 @@ export const AJUSTES_MENU = [
     id: "usuarios",
     path: "/admin/inventario/ajustes/usuarios",
     label: "Usuarios",
+    icon: "users",
     description: "Cuentas, roles y contraseñas del panel",
   },
   {
     id: "auditoria",
     path: "/admin/inventario/ajustes/auditoria",
     label: "Auditoría",
+    icon: "clipboard-list",
     description: "Quién cambió qué y cuándo",
   },
   {
     id: "credito",
     path: "/admin/inventario/ajustes/credito",
     label: "Crédito y cobranza",
+    icon: "credit-card",
     description: "Addi, Sistecredito y plazos de vencimiento",
   },
 ];
@@ -213,7 +281,7 @@ export const STATUS_LABELS = {
 };
 
 /** Estados que el usuario puede elegir al crear o editar manualmente. */
-export const MANUAL_INVENTORY_STATUSES = ["disponible", "separado"];
+export const MANUAL_INVENTORY_STATUSES = ["disponible"];
 
 export function editableInventoryStatuses(currentStatus) {
   if (MANUAL_INVENTORY_STATUSES.includes(currentStatus)) {
@@ -265,26 +333,39 @@ export function describeInventoryMovement(movement) {
   const fieldLabel = field ? MOVEMENT_FIELD_LABELS[field] || field : null;
   const oldVal = formatMovementValue(field, movement?.old_value);
   const newVal = formatMovementValue(field, movement?.new_value);
+  const meta = movement?.meta || {};
+
+  const saleRef = meta.remission_number
+    ? ` · ${meta.remission_number}`
+    : meta.sale_id
+      ? ` · venta ${String(meta.sale_id).slice(0, 8)}…`
+      : "";
 
   if (movement?.notes && !field) return movement.notes;
 
   if (type === "ingreso") return movement.notes || "Equipo ingresado al inventario";
   if (type === "venta") {
-    const price = movement.meta?.sale_price ? formatPrice(movement.meta.sale_price) : null;
-    return price ? `Venta registrada · ${price}` : movement.notes || "Venta registrada";
+    const price = meta.sale_price ? formatPrice(meta.sale_price) : null;
+    return price ? `Venta registrada · ${price}${saleRef}` : (movement.notes || "Venta registrada") + saleRef;
   }
   if (type === "retoma") {
-    const retakePrice = movement.meta?.retake_price ? formatPrice(movement.meta.retake_price) : null;
-    const method = movement.meta?.retake_payment_method;
-    const methodPart = method ? ` · ${method === "transferencia" ? "Transferencia" : "Efectivo"}` : "";
+    const retakePrice = meta.retake_price ? formatPrice(meta.retake_price) : null;
+    const method = meta.retake_payment_method;
+    const methodPart = method ? ` · ${paymentLabel(method)}` : "";
     const pricePart = retakePrice ? ` · valor retoma ${retakePrice}${methodPart}` : "";
-    const saleRef = movement.meta?.sale_id ? ` · venta ${movement.meta.sale_id.slice(0, 8)}…` : "";
     return (movement.notes || `Retoma · ${oldVal} → ${newVal}`) + pricePart + saleRef;
   }
   if (type === "reingreso") return movement.notes || `Reingreso · ${oldVal} → ${newVal}`;
   if (type === "archived") return movement.notes || "Equipo archivado";
-  if (type === "status_change" && movement.meta?.ticket_id) {
+  if (type === "status_change" && meta.ticket_id) {
     return movement.notes || `Servicio técnico · ${oldVal} → ${newVal}`;
+  }
+  if (type === "status_change" && meta.sale_id && newVal === "separado") {
+    const depositPart = Number(meta.deposit) > 0 ? ` · abono ${formatPrice(meta.deposit)}` : "";
+    return (movement.notes || `Apartado · ${oldVal} → ${newVal}`) + depositPart + saleRef;
+  }
+  if (type === "status_change" && meta.sale_id) {
+    return (movement.notes || `Estado · ${oldVal} → ${newVal}`) + saleRef;
   }
 
   if (field && oldVal !== "—" && newVal !== "—") {

@@ -11,7 +11,6 @@ final class InventoryStatusGuard
     /** @var list<string> */
     public const MANUAL_CREATE_STATUSES = [
         InventoryStatus::DISPONIBLE,
-        InventoryStatus::SEPARADO,
     ];
 
     /** @var list<string> */
@@ -32,7 +31,7 @@ final class InventoryStatusGuard
 
         if (! in_array($status, self::MANUAL_CREATE_STATUSES, true)) {
             throw ValidationException::withMessages([
-                'status' => ['Al ingresar un equipo solo puede quedar disponible o separado.'],
+                'status' => ['Al ingresar un equipo solo puede quedar disponible. Use apartado formal para separarlo.'],
             ]);
         }
     }
@@ -89,15 +88,9 @@ final class InventoryStatusGuard
             }
         }
 
-        if ($newStatus === InventoryStatus::SEPARADO && $current !== InventoryStatus::DISPONIBLE) {
+        if ($newStatus === InventoryStatus::SEPARADO) {
             throw ValidationException::withMessages([
-                'status' => ['Solo equipos disponibles pueden marcarse como separados.'],
-            ]);
-        }
-
-        if ($current === InventoryStatus::SERVICIO_TECNICO && $newStatus === InventoryStatus::SEPARADO) {
-            throw ValidationException::withMessages([
-                'status' => ['No puede apartar un equipo que está en servicio técnico.'],
+                'status' => ['Para apartar un equipo use Ventas → Apartado con abono.'],
             ]);
         }
     }

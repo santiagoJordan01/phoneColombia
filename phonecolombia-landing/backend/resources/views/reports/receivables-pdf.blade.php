@@ -28,6 +28,12 @@
         if (($totals['overdue_count'] ?? 0) > 0) {
             $kpis[] = ['label' => 'Vencidos ('.($totals['overdue_count'] ?? 0).')', 'value' => MoneyFormatter::format($totals['overdue_amount'] ?? 0), 'tone' => 'orange'];
         }
+        $kpis[] = ['label' => 'Valor ventas', 'value' => MoneyFormatter::format($totals['revenue'] ?? 0), 'tone' => 'purple'];
+        $kpis[] = ['label' => 'Costo total', 'value' => MoneyFormatter::format($totals['total_cost'] ?? 0), 'tone' => 'slate'];
+        $kpis[] = ['label' => 'Utilidad bruta', 'value' => MoneyFormatter::format($totals['total_profit'] ?? 0), 'tone' => 'green'];
+        if (($totals['margin_percent'] ?? null) !== null) {
+            $kpis[] = ['label' => 'Margen', 'value' => ($totals['margin_percent'] ?? 0).'%', 'tone' => 'amber'];
+        }
     @endphp
 
     @include('reports.partials.pdf-header', [

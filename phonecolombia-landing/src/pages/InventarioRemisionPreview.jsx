@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import RemissionDocument from "../components/inventario/RemissionDocument.jsx";
 import api, { isApiConfigured } from "../lib/apiClient";
+import InvIcon from "../components/inventario/InvIcon.jsx";
 import { canViewRemissions } from "./inventario/shared.jsx";
 import "../styles.css";
 
@@ -95,7 +96,8 @@ export default function InventarioRemisionPreview() {
       <div className="inv-report-preview__toolbar">
         <div className="inv-report-preview__toolbar-start">
           <button type="button" className="inv-btn inv-btn--ghost" onClick={goBack}>
-            ← Volver
+            <InvIcon name="arrow-left" />
+            Volver
           </button>
           <span className="inv-report-preview__hint">
             Vista previa de remisión
@@ -109,6 +111,7 @@ export default function InventarioRemisionPreview() {
             onClick={() => window.print()}
             disabled={loading || !remission}
           >
+            <InvIcon name="printer" />
             Imprimir
           </button>
           <button
@@ -117,6 +120,7 @@ export default function InventarioRemisionPreview() {
             onClick={exportPdf}
             disabled={loading || exporting || !remission}
           >
+            <InvIcon name="file-text" />
             Guardar PDF
           </button>
         </div>

@@ -46,6 +46,13 @@ export default function CashReportDocument({ report, from, to, generatedAt }) {
     },
     { label: "Pendiente (ventas)", value: reportMoney(report?.pending_credits), tone: "amber" },
     { label: "Conciliación ventas", value: reportMoney(report?.difference), tone: "slate" },
+    { label: "Costo total", value: reportMoney(report?.total_cost), tone: "slate" },
+    { label: "Utilidad bruta", value: reportMoney(report?.total_profit), tone: "green" },
+    {
+      label: "Margen",
+      value: report?.margin_percent != null ? `${report.margin_percent}%` : "—",
+      tone: "amber",
+    },
     { label: "Cobros ventas período", value: reportMoney(report?.collections_on_period_sales), tone: "green" },
     { label: "Apartados/abonos previos", value: reportMoney(report?.collections_on_other_sales), tone: "purple" },
   ];

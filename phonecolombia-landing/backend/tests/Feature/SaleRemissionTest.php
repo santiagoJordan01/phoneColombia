@@ -154,6 +154,9 @@ class SaleRemissionTest extends TestCase
             ->getJson("/api/reports/by-remission?from={$date}&to={$date}")
             ->assertOk()
             ->assertJsonPath('totals.count', 1)
+            ->assertJsonStructure([
+                'totals' => ['cost', 'profit', 'margin_percent'],
+            ])
             ->assertJsonPath('remissions.0.status', 'apartado')
             ->assertJsonPath('remissions.0.payments.0.amount', 600000)
             ->assertJsonStructure([

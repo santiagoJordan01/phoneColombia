@@ -2,13 +2,17 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import CashReportDocument from "../components/inventario/CashReportDocument.jsx";
 import DailyReportDocument from "../components/inventario/DailyReportDocument.jsx";
+import InventoryIntakeReportDocument from "../components/inventario/InventoryIntakeReportDocument.jsx";
 import ReceivablesReportDocument from "../components/inventario/ReceivablesReportDocument.jsx";
+import RemissionReportDocument from "../components/inventario/RemissionReportDocument.jsx";
 import SellerReportDocument from "../components/inventario/SellerReportDocument.jsx";
+import ServiceTicketsReportDocument from "../components/inventario/ServiceTicketsReportDocument.jsx";
 import api, { isApiConfigured } from "../lib/apiClient";
+import InvIcon from "../components/inventario/InvIcon.jsx";
 import { canViewReports } from "./inventario/shared.jsx";
 import "../styles.css";
 
-const FILTER_KEYS = ["user_id", "supplier_id", "q", "payment_method", "credit_status"];
+const FILTER_KEYS = ["user_id", "supplier_id", "q", "payment_method", "credit_status", "service_status", "workshop"];
 
 function paramsFromSearch(searchParams) {
   const today = new Date().toISOString().slice(0, 10);
@@ -35,8 +39,11 @@ function receivablesParamsFromSearch(searchParams) {
 function resolveReportType(searchParams) {
   const type = searchParams.get("type");
   if (type === "by_seller") return "by_seller";
+  if (type === "by_remission") return "by_remission";
   if (type === "cash_register") return "cash_register";
   if (type === "receivables") return "receivables";
+  if (type === "inventory_intake") return "inventory_intake";
+  if (type === "service_tickets") return "service_tickets";
   return "daily";
 }
 
@@ -51,8 +58,11 @@ export default function InventarioInformePreview() {
 
   const reportType = resolveReportType(searchParams);
   const isBySeller = reportType === "by_seller";
+  const isByRemission = reportType === "by_remission";
   const isCashRegister = reportType === "cash_register";
   const isReceivables = reportType === "receivables";
+  const isInventoryIntake = reportType === "inventory_intake";
+  const isServiceTickets = reportType === "service_tickets";
   const queryParams = useMemo(
     () => (isReceivables ? receivablesParamsFromSearch(searchParams) : paramsFromSearch(searchParams)),
     [isReceivables, searchParams],
@@ -73,9 +83,15 @@ export default function InventarioInformePreview() {
     ? "Vista previa del informe de cartera"
     : isCashRegister
       ? "Vista previa del cuadre de caja"
-      : isBySeller
-        ? "Vista previa del informe por vendedor"
-        : "Vista previa del informe diario";
+      : isByRemission
+        ? "Vista previa del informe por remisión"
+        : isInventoryIntake
+          ? "Vista previa del informe de ingresos"
+          : isServiceTickets
+            ? "Vista previa de servicio técnico"
+            : isBySeller
+              ? "Vista previa del informe por vendedor"
+              : "Vista previa del informe diario";
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -87,6 +103,12 @@ export default function InventarioInformePreview() {
         setReport(await api.getCashRegisterReport(queryParams));
       } else if (isBySeller) {
         setReport(await api.getBySellerReport(queryParams));
+      } else if (isByRemission) {
+        setReport(await api.getByRemissionReport(queryParams));
+      } else if (isInventoryIntake) {
+        setReport(await api.getInventoryIntakeReport(queryParams));
+      } else if (isServiceTickets) {
+        setReport(await api.getServiceTicketsReport(queryParams));
       } else {
         setReport(await api.getDailyReport(queryParams));
       }
@@ -95,7 +117,7 @@ export default function InventarioInformePreview() {
     } finally {
       setLoading(false);
     }
-  }, [isBySeller, isCashRegister, isReceivables, queryParams]);
+  }, [isBySeller, isByRemission, isCashRegister, isReceivables, isInventoryIntake, isServiceTickets, queryParams]);
 
   useEffect(() => {
     if (!isApiConfigured) return;
@@ -129,6 +151,15 @@ export default function InventarioInformePreview() {
       } else if (isBySeller) {
         url = api.exportBySellerReportPdfUrl(queryParams);
         prefix = "informe_por_vendedor";
+      } else if (isByRemission) {
+        url = api.exportByRemissionReportPdfUrl(queryParams);
+        prefix = "informe_por_remision";
+      } else if (isInventoryIntake) {
+        url = api.exportInventoryIntakeReportPdfUrl(queryParams);
+        prefix = "ingresos_inventario";
+      } else if (isServiceTickets) {
+        url = api.exportServiceTicketsReportPdfUrl(queryParams);
+        prefix = "servicio_tecnico";
       } else {
         url = api.exportDailyReportPdfUrl(queryParams);
         prefix = "informe_diario";
@@ -155,11 +186,21 @@ export default function InventarioInformePreview() {
       } else if (isBySeller) {
         url = api.exportBySellerReportExcelUrl(queryParams);
         prefix = "informe_por_vendedor";
+      } else if (isByRemission) {
+        url = api.exportByRemissionReportXlsUrl(queryParams);
+        prefix = "Reporte de remisiones de venta";
+      } else if (isInventoryIntake) {
+        url = api.exportInventoryIntakeReportExcelUrl(queryParams);
+        prefix = "ingresos_inventario";
+      } else if (isServiceTickets) {
+        url = api.exportServiceTicketsReportExcelUrl(queryParams);
+        prefix = "servicio_tecnico";
       } else {
         url = api.exportDailyReportExcelUrl(queryParams);
         prefix = "informe_diario";
       }
-      await api.downloadAuthenticated(url, `${prefix}_${exportFileLabel}.xlsx`);
+      const extension = isByRemission ? "xls" : "xlsx";
+      await api.downloadAuthenticated(url, `${prefix}_${exportFileLabel}.${extension}`);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -192,7 +233,8 @@ export default function InventarioInformePreview() {
       <div className="inv-report-preview__toolbar">
         <div className="inv-report-preview__toolbar-start">
           <button type="button" className="inv-btn inv-btn--ghost" onClick={goBack}>
-            ← Volver a informes
+            <InvIcon name="arrow-left" />
+            Volver a informes
           </button>
           <span className="inv-report-preview__hint">{previewHint}</span>
         </div>
@@ -203,6 +245,7 @@ export default function InventarioInformePreview() {
             onClick={() => window.print()}
             disabled={loading || !report}
           >
+            <InvIcon name="printer" />
             Imprimir
           </button>
           <button
@@ -211,6 +254,7 @@ export default function InventarioInformePreview() {
             onClick={exportPdf}
             disabled={loading || exporting || !report}
           >
+            <InvIcon name="file-text" />
             Guardar PDF
           </button>
           <button
@@ -219,7 +263,8 @@ export default function InventarioInformePreview() {
             onClick={exportExcel}
             disabled={loading || exporting || !report}
           >
-            Excel
+            <InvIcon name="spreadsheet" />
+            {isByRemission ? "Excel (.xls)" : "Excel"}
           </button>
         </div>
       </div>
@@ -254,6 +299,17 @@ export default function InventarioInformePreview() {
                 to={queryParams.to}
                 generatedAt={generatedAt}
               />
+            ) : isByRemission ? (
+              <RemissionReportDocument
+                report={report}
+                from={queryParams.from}
+                to={queryParams.to}
+                generatedAt={generatedAt}
+              />
+            ) : isInventoryIntake ? (
+              <InventoryIntakeReportDocument report={report} generatedAt={generatedAt} />
+            ) : isServiceTickets ? (
+              <ServiceTicketsReportDocument report={report} generatedAt={generatedAt} />
             ) : (
               <DailyReportDocument
                 report={report}

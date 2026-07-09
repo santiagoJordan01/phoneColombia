@@ -28,10 +28,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'reports' => EnsureCanViewReports::class,
             'service_tickets' => EnsureCanAccessServiceTickets::class,
         ]);
-
-        $middleware->api(prepend: [
-            \Illuminate\Http\Middleware\HandleCors::class,
-        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

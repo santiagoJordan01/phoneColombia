@@ -19,7 +19,13 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    'allowed_origins' => env('APP_ENV') === 'production'
+        ? array_values(array_filter([
+            env('FRONTEND_URL'),
+            'https://phonecolombia.com',
+            'https://www.phonecolombia.com',
+        ]))
+        : ['*'],
 
     'allowed_origins_patterns' => [],
 

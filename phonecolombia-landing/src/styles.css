@@ -743,115 +743,116 @@ html, body {
 }
 
 @media (min-width: 1024px) {
-  /* ========== HERO FULLSCREEN COHERENTE CON EL PROYECTO ========== */
+  /* ========== HERO ESCRITORIO ========== */
   .hero--fullscreen {
     position: relative;
     overflow: hidden !important;
     min-height: 100vh !important;
     display: flex;
     align-items: center;
-    /* Gradiente corporativo del proyecto */
-    background: linear-gradient(120deg, #fcd901 0%, #ea580c 20%, #E12F01 70%, #000000 100%);
-    background-size: 200% 200%;
-    animation: heroGradientShift 12s ease infinite;
+    background: linear-gradient(120deg, #fcd901 0%, #ea580c 22%, #E12F01 68%, #1a0500 100%);
+    background-size: 100% 100%;
+    animation: none;
   }
 
-
-  @keyframes heroGradientShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+  .hero--fullscreen::after {
+    display: none !important;
   }
 
-  /* Overlay sutil (patrón de puntos, similar a otros fondos) */
   .hero--fullscreen .hero-overlay {
     position: absolute;
-    top: 0;
-    left: 0;
+    inset: 0;
     width: 100%;
     height: 100%;
-    background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
     background-size: 40px 40px;
     pointer-events: none;
-    z-index: 1 !important;
+    z-index: 5 !important;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 120px 7% 60px;
+    box-sizing: border-box;
   }
 
-  /* Layout en fila: texto izquierda, video derecha */
   .hero--fullscreen .hero-container {
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
-    justify-content: space-between !important;
-    gap: 5rem !important;
-    padding: 120px 7% 60px !important;
+    justify-content: flex-start !important;
+    gap: clamp(2rem, 4vw, 4rem) !important;
+    padding: 0 !important;
     width: 100%;
-    max-width: 1400px !important;
-    margin: 0 auto;
+    max-width: 1320px !important;
+    height: auto !important;
+    margin: 0 !important;
     z-index: 5 !important;
     box-sizing: border-box !important;
     position: relative;
+    pointer-events: auto;
   }
 
-  /* Bloque de texto: forzado a la izquierda */
   .hero--fullscreen .hero-text {
-    width: 50% !important;
+    flex: 1 1 52% !important;
+    width: auto !important;
+    max-width: 620px !important;
     text-align: left !important;
     order: 1 !important;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    margin-left: 50px !important;
+    align-items: flex-start !important;
+    margin-left: 0 !important;
   }
 
-  /* Contenido interno del texto */
   .hero--fullscreen .page-hero-content {
-    align-items: flex-end !important;
-    text-align: center !important;
+    align-items: flex-start !important;
+    text-align: left !important;
     width: 100%;
   }
 
-  /* Título principal (coherente con .section-title pero adaptado) */
   .hero--fullscreen .page-hero-content h1,
   .hero--fullscreen .hero-text h1 {
-    font-size: clamp(3rem, 5vw, 4.5rem) !important;
+    font-size: clamp(2.75rem, 4.2vw, 4.25rem) !important;
     font-weight: 800 !important;
-    margin-bottom: 1.5rem !important;
-    line-height: 1.1 !important;
+    margin-bottom: 1rem !important;
+    line-height: 1.08 !important;
     letter-spacing: -0.02em !important;
     text-transform: uppercase;
     color: #ffffff !important;
-    text-shadow: 0 4px 18px rgba(0,0,0,0.32);
+    text-shadow: 0 4px 18px rgba(0, 0, 0, 0.32);
   }
 
-  /* Descripción (coherente con .contacto-subtitle, .clientes-subtitle) */
-  .hero--fullscreen .hero-text p {
-    font-size: 1.2rem !important;
-    line-height: 1.5 !important;
-    max-width: 85% !important;
-    margin-bottom: 2rem !important;
-    color: rgba(255, 255, 255, 0.88) !important;
+  .hero--fullscreen .hero-subtitle {
+    display: block !important;
+    font-size: clamp(1.05rem, 1.35vw, 1.25rem) !important;
+    line-height: 1.55 !important;
+    max-width: 34rem !important;
+    margin: 0 0 1.75rem !important;
+    color: rgba(255, 255, 255, 0.92) !important;
     font-weight: 400;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
   }
 
-  /* Botones con los estilos exactos del proyecto */
   .hero--fullscreen .hero-buttons {
     display: flex !important;
     flex-direction: row !important;
     justify-content: flex-start !important;
-    gap: 1.5rem !important;
+    flex-wrap: wrap;
+    gap: 1rem !important;
     width: 100%;
-    transform: translateX(110px);
+    margin-top: 0 !important;
+    transform: none !important;
   }
 
   .hero--fullscreen .hero-buttons .btn-primary {
     background: linear-gradient(120deg, #fcd901 0%, #ea580c 45%, #e12f01 100%) !important;
     color: white !important;
-    border: 2px solid rgba(255,255,255,0.24) !important;
-    box-shadow: 0 10px 26px rgba(225,47,1,0.36) !important;
-    padding: 1rem 2.5rem !important;
+    border: 2px solid rgba(255, 255, 255, 0.24) !important;
+    box-shadow: 0 10px 26px rgba(225, 47, 1, 0.36) !important;
+    padding: 0.95rem 2.25rem !important;
     border-radius: 999px !important;
     font-weight: 600 !important;
-    font-size: 1.1rem !important;
+    font-size: 1.05rem !important;
     transition: transform 0.26s ease, box-shadow 0.26s ease !important;
     text-decoration: none !important;
     display: inline-flex !important;
@@ -861,19 +862,19 @@ html, body {
 
   .hero--fullscreen .hero-buttons .btn-primary:hover {
     transform: translateY(-2px) !important;
-    box-shadow: 0 14px 30px rgba(225,47,1,0.46) !important;
+    box-shadow: 0 14px 30px rgba(225, 47, 1, 0.46) !important;
   }
 
   .hero--fullscreen .hero-buttons .btn-secondary {
-    background: linear-gradient(120deg, var(--pc-orange-500) 0%, var(--pc-red-600) 100%) !important;
-    color: white !important;
-    border: 2px solid rgba(252,217,1,0.5) !important;
-    box-shadow: 0 10px 26px rgba(225,47,1,0.32) !important;
-    padding: 1rem 2.5rem !important;
+    background: transparent !important;
+    color: #ffffff !important;
+    border: 2px solid rgba(255, 255, 255, 0.82) !important;
+    box-shadow: none !important;
+    padding: 0.95rem 2.25rem !important;
     border-radius: 999px !important;
     font-weight: 600 !important;
-    font-size: 1.1rem !important;
-    transition: transform 0.26s ease, box-shadow 0.26s ease !important;
+    font-size: 1.05rem !important;
+    transition: transform 0.26s ease, background 0.26s ease, border-color 0.26s ease !important;
     text-decoration: none !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -881,34 +882,59 @@ html, body {
   }
 
   .hero--fullscreen .hero-buttons .btn-secondary:hover {
-    box-shadow: 0 14px 30px rgba(225,47,1,0.42) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: #ffffff !important;
+    transform: translateY(-2px) !important;
   }
 
-  /* ========== VIDEO LATERAL (estilo tarjeta producto) ========== */
-  .hero--fullscreen .hero-video,
-  .hero-video {
-    position: relative !important;
+  .hero--fullscreen .hero-video-wrap {
+    position: absolute !important;
+    inset: auto !important;
+    top: 50% !important;
+    right: 7% !important;
+    left: auto !important;
+    bottom: auto !important;
+    transform: translateY(-50%) !important;
+    flex: 0 0 auto;
     order: 2 !important;
-    width: 35% !important;
-    max-width: 380px !important;
-    aspect-ratio: 9 / 16 !important;
-    height: 85% !important;
+    width: min(380px, 38vw) !important;
+    max-height: 78vh;
+    aspect-ratio: 9 / 16;
+    z-index: 4 !important;
+    pointer-events: auto;
+  }
+
+  .hero--fullscreen .hero-video-wrap .hero-video {
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
     object-fit: cover !important;
-    border-radius: 20px !important; /* mismo que --pc-radius-card */
+    border-radius: 20px !important;
     border: 1px solid var(--pc-border-soft) !important;
     box-shadow: var(--pc-shadow-soft) !important;
-    z-index: 10 !important;
     background: #000 !important;
-    transition: transform 0.28s ease, box-shadow 0.28s ease !important;
-    transform: translate(-225px, 30px);
-    
+    transition: box-shadow 0.28s ease, border-color 0.28s ease !important;
+    transform: none !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
   }
 
-  /* Efecto hover similar a las tarjetas del proyecto */
-  .hero--fullscreen .hero-video:hover,
-  .hero-video:hover {
+  .hero--fullscreen .hero-video-wrap .hero-video:hover {
     box-shadow: var(--pc-shadow-strong) !important;
-    border-color: rgba(252,217,1,0.5) !important;
+    border-color: rgba(252, 217, 1, 0.5) !important;
+  }
+
+  .hero--fullscreen .hero-video-wrap .hero-sound-control {
+    position: absolute !important;
+    bottom: 14px !important;
+    right: 14px !important;
+    left: auto !important;
+    top: auto !important;
+    z-index: 12 !important;
   }
 
   /* Header flotante coherente con el proyecto (igual al nav.scrolled) */
@@ -2468,12 +2494,28 @@ body.mobile-menu-open header.header {
   position: relative;
 }
 
+.hero-subtitle {
+  display: none;
+}
+
 .hero--fullscreen::before {
   display: none !important;
   content: none !important;
 }
 
-.hero--fullscreen .hero-video {
+.hero--fullscreen .hero-video-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hero--fullscreen .hero-video-wrap .hero-video,
+.hero--fullscreen .hero-video-wrap .hero-sound-control {
+  pointer-events: auto;
+}
+
+.hero--fullscreen .hero-video-wrap .hero-video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -2482,6 +2524,8 @@ body.mobile-menu-open header.header {
   z-index: 0;
   border-radius: 0;
   box-shadow: none;
+  border: none;
+  background: #000;
 }
 
 /* Degradado inferior para mejorar legibilidad del texto */
@@ -2567,12 +2611,17 @@ header.header.scrolled {
   width: 100%;
   padding: 2rem;
   box-sizing: border-box;
-  height: 100vh; /* ocupar el alto completo */
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end; /* posicionar al fondo del viewport */
-  align-items: center; /* centrar horizontalmente */
-  padding-bottom: 1.5rem; /* reducido para bajar los botones más cerca del borde */
+  justify-content: flex-end;
+  align-items: center;
+  padding-bottom: 1.5rem;
+}
+
+.hero--fullscreen .hero-text {
+  position: relative;
+  z-index: 2;
 }
 
 /* ===================== HERO MINIMALISTA (TEXTO) ===================== */
@@ -2596,7 +2645,7 @@ header.header.scrolled {
   line-height: 1.05;
 }
 
-.hero--fullscreen .hero-text p {
+.hero--fullscreen .hero-text p:not(.hero-subtitle) {
   display: none !important;
 }
 
@@ -2619,7 +2668,7 @@ header.header.scrolled {
 }
 
 /* Ensure hero video sits at the very top of the viewport (covers any gap) */
-.hero--fullscreen .hero-video {
+.hero--fullscreen .hero-video-wrap .hero-video {
   top: 0;
   left: 0;
   right: 0;
@@ -8356,40 +8405,11 @@ select.inv-field__input { cursor: pointer; }
 
 
 
-/* Asegurar que el contenedor del hero tenga posición relativa */
-.hero--fullscreen {
-  position: relative;
-}
-
-/* Botón flotante sobre el video, en la parte inferior derecha */
+/* Botón de sonido sobre el video */
 .hero-sound-control {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
-  z-index: 25; /* mayor que el video (z-index:0) y que el overlay (z-index:1) */
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.hero-sound-control:hover {
-  background: rgba(0, 0, 0, 0.8);
-  transform: scale(1.05);
-}
-
-.hero-sound-control {
-  position: absolute;
-  bottom: 25px;
-  right: 240px;
+  bottom: 130px;
+  right: 12px;
   z-index: 20;
   width: 44px;
   height: 44px;
@@ -8403,7 +8423,7 @@ select.inv-field__input { cursor: pointer; }
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   padding: 0;
 }
 
@@ -8413,7 +8433,6 @@ select.inv-field__input { cursor: pointer; }
   border-color: rgba(255, 255, 255, 0.6);
 }
 
-/* Ajuste para móviles (opcional, más pequeño) */
 @media (max-width: 768px) {
   .hero-sound-control {
     bottom: 130px;
@@ -8421,6 +8440,7 @@ select.inv-field__input { cursor: pointer; }
     width: 38px;
     height: 38px;
   }
+
   .hero-sound-control svg {
     width: 18px;
     height: 18px;

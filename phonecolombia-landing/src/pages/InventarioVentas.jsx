@@ -22,6 +22,7 @@ import {
   paymentLabel,
 } from "../lib/paymentMethods.js";
 import { invalidateInventarioCache } from "../lib/inventarioCache.js";
+import { localDateInputValue } from "../lib/localDate.js";
 import { useInventarioPage } from "./inventario/useInventarioPage.js";
 import {
   Field,
@@ -38,7 +39,14 @@ import {
 } from "./inventario/shared.jsx";
 import "../styles.css";
 
-const EMPTY_MIXED_PAYMENT = { method: "efectivo", amount: "" };
+const EMPTY_CASH_FORM = {
+  type: "ingreso",
+  method: "efectivo",
+  amount: "",
+  concept: "",
+  notes: "",
+  occurred_at: "",
+};
 
 const EMPTY_RESERVE_FORM = {
   inventory_item_id: "",
@@ -145,8 +153,16 @@ export default function InventarioVentas() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSale, setEditingSale] = useState(null);
   const [completingReservationId, setCompletingReservationId] = useState(null);
+  const [cancellingReservationId, setCancellingReservationId] = useState(null);
   const [paymentModal, setPaymentModal] = useState(null);
   const [reserveModalOpen, setReserveModalOpen] = useState(false);
+  const [cashModalOpen, setCashModalOpen] = useState(false);
+  const [cashForm, setCashForm] = useState(() => ({
+    ...EMPTY_CASH_FORM,
+    occurred_at: localDateInputValue(),
+  }));
+  const [cashMovements, setCashMovements] = useState([]);
+  const [cashLoading, setCashLoading] = useState(false);
   const [reserveForm, setReserveForm] = useState(EMPTY_RESERVE_FORM);
   const [mixedPayments, setMixedPayments] = useState([
     { ...EMPTY_MIXED_PAYMENT },
@@ -312,6 +328,73 @@ export default function InventarioVentas() {
   useEffect(() => {
     if (salesEnabled) fetchCustomers();
   }, [salesEnabled, fetchCustomers]);
+
+  const loadCashMovements = useCallback(async () => {
+    if (!salesEnabled) return;
+    setCashLoading(true);
+    try {
+      const today = localDateInputValue();
+      const res = await api.getCashMovements({ from: today, to: today });
+      setCashMovements(res?.data || []);
+    } catch {
+      setCashMovements([]);
+    } finally {
+      setCashLoading(false);
+    }
+  }, [salesEnabled]);
+
+  useEffect(() => {
+    loadCashMovements();
+  }, [loadCashMovements]);
+
+  const openCashModal = (type = "ingreso") => {
+    setCashForm({
+      ...EMPTY_CASH_FORM,
+      type,
+      occurred_at: localDateInputValue(),
+    });
+    setCashModalOpen(true);
+  };
+
+  const handleCashSubmit = async (e) => {
+    e.preventDefault();
+    const amount = parseCop(cashForm.amount);
+    if (amount <= 0) {
+      showToast("Ingresa un monto válido", "error");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.createCashMovement({
+        type: cashForm.type,
+        method: cashForm.method,
+        amount,
+        concept: cashForm.concept.trim() || null,
+        notes: cashForm.notes.trim() || null,
+        occurred_at: cashForm.occurred_at || localDateInputValue(),
+      });
+      showToast(cashForm.type === "egreso" ? "Egreso registrado" : "Ingreso registrado");
+      setCashModalOpen(false);
+      await loadCashMovements();
+      invalidateInventarioCache("reports");
+    } catch (err) {
+      showToast(err.message || "No se pudo registrar el movimiento", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteCashMovement = async (id) => {
+    if (!window.confirm("¿Eliminar este movimiento de caja?")) return;
+    try {
+      await api.deleteCashMovement(id);
+      showToast("Movimiento eliminado");
+      await loadCashMovements();
+      invalidateInventarioCache("reports");
+    } catch (err) {
+      showToast(err.message || "No se pudo eliminar", "error");
+    }
+  };
 
   const applyPreselectedItem = useCallback((item) => {
     if (!item || preselectHandled.current) return;
@@ -614,6 +697,41 @@ export default function InventarioVentas() {
     }
   };
 
+  const handleCancelReservation = async (sale) => {
+    const itemName = sale.inventory_item?.name || "este equipo";
+    const paid = Number(sale.amount_paid) || 0;
+    const paidNote = paid > 0
+      ? `\n\nSe registraron abonos por ${formatPrice(paid)}. El historial se conserva.`
+      : "";
+    if (!window.confirm(`¿Cancelar el apartado de ${itemName}?${paidNote}\n\nEl equipo volverá a Disponible.`)) {
+      return;
+    }
+
+    setCancellingReservationId(sale.id);
+    try {
+      const updated = await api.cancelReservation(sale.id);
+      showToast("Apartado cancelado");
+      const availableItem = updated.inventory_item;
+      patchSalesAfterMutation((prev) => {
+        const next = {
+          ...prev,
+          sales: (prev.sales || []).map((s) => (s.id === updated.id ? updated : s)),
+        };
+        if (availableItem?.id && availableItem.status === "disponible") {
+          const items = next.available_items || [];
+          if (!items.some((i) => i.id === availableItem.id)) {
+            next.available_items = [...items, availableItem];
+          }
+        }
+        return next;
+      });
+    } catch (err) {
+      showToast(err.message, "error");
+    } finally {
+      setCancellingReservationId(null);
+    }
+  };
+
   const handleAddPayment = async (e) => {
     e.preventDefault();
     if (!paymentModal) return;
@@ -755,6 +873,10 @@ export default function InventarioVentas() {
                   Cliente
                 </button>
               )}
+              <button type="button" className="inv-btn inv-btn--outline" onClick={() => openCashModal("ingreso")}>
+                <InvIcon name="wallet" />
+                Ingreso / Egreso
+              </button>
               <button type="button" className="inv-btn inv-btn--outline" onClick={openReserveModal}>
                 <InvIcon name="bookmark" />
                 Apartar equipo
@@ -837,25 +959,14 @@ export default function InventarioVentas() {
                             Editar
                           </button>
                           {sale.reservation_status === "active" && (
-                            <button
-                              type="button"
-                              className="inv-btn inv-btn--compact inv-btn--primary"
-                              onClick={() => {
-                                const item = sale.inventory_item;
-                                if (item) {
-                                  addAvailableItem({ ...item, active_reservation: {
-                                    sale_id: sale.id,
-                                    sale_price: sale.sale_price,
-                                    amount_paid: sale.amount_paid,
-                                    amount_due: sale.amount_due,
-                                    customer_name: sale.customer_name,
-                                    customer_phone: sale.customer_phone,
-                                    service_customer_id: sale.service_customer_id,
-                                    notes: sale.notes,
-                                  } });
-                                  applyItemToSaleForm({
-                                    ...item,
-                                    active_reservation: {
+                            <>
+                              <button
+                                type="button"
+                                className="inv-btn inv-btn--compact inv-btn--primary"
+                                onClick={() => {
+                                  const item = sale.inventory_item;
+                                  if (item) {
+                                    addAvailableItem({ ...item, active_reservation: {
                                       sale_id: sale.id,
                                       sale_price: sale.sale_price,
                                       amount_paid: sale.amount_paid,
@@ -864,16 +975,38 @@ export default function InventarioVentas() {
                                       customer_phone: sale.customer_phone,
                                       service_customer_id: sale.service_customer_id,
                                       notes: sale.notes,
-                                    },
-                                  });
-                                  setScannedItem(item);
-                                  setModalOpen(true);
-                                }
-                              }}
-                            >
-                              <InvIcon name="check-circle" />
-                              Completar
-                            </button>
+                                    } });
+                                    applyItemToSaleForm({
+                                      ...item,
+                                      active_reservation: {
+                                        sale_id: sale.id,
+                                        sale_price: sale.sale_price,
+                                        amount_paid: sale.amount_paid,
+                                        amount_due: sale.amount_due,
+                                        customer_name: sale.customer_name,
+                                        customer_phone: sale.customer_phone,
+                                        service_customer_id: sale.service_customer_id,
+                                        notes: sale.notes,
+                                      },
+                                    });
+                                    setScannedItem(item);
+                                    setModalOpen(true);
+                                  }
+                                }}
+                              >
+                                <InvIcon name="check-circle" />
+                                Completar
+                              </button>
+                              <button
+                                type="button"
+                                className="inv-btn inv-btn--compact inv-btn--danger"
+                                onClick={() => handleCancelReservation(sale)}
+                                disabled={cancellingReservationId === sale.id}
+                              >
+                                <InvIcon name="x-circle" spin={cancellingReservationId === sale.id} />
+                                Cancelar
+                              </button>
+                            </>
                           )}
                           {canReceiveAbono(sale) && (
                             <button
@@ -886,6 +1019,90 @@ export default function InventarioVentas() {
                             </button>
                           )}
                         </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="inv-panel inv-panel--sheet" style={{ marginTop: "1rem" }}>
+          <div className="inv-sheet-toolbar">
+            <div className="inv-sheet-toolbar__main">
+              <h2 className="inv-panel__title inv-panel__title--toolbar" style={{ margin: 0 }}>
+                Ingresos y egresos de caja (hoy)
+              </h2>
+            </div>
+            <div className="inv-sheet-actions">
+              <button type="button" className="inv-btn inv-btn--outline" onClick={() => openCashModal("ingreso")}>
+                <InvIcon name="plus" />
+                Registrar ingreso
+              </button>
+              <button type="button" className="inv-btn inv-btn--outline" onClick={() => openCashModal("egreso")}>
+                <InvIcon name="wallet" />
+                Registrar egreso
+              </button>
+            </div>
+          </div>
+          <p className="inv-dash__muted" style={{ margin: "0 0 0.75rem", padding: "0 1rem" }}>
+            Movimientos manuales del día. También aparecen en el Cuadre de caja con origen <strong>Manual</strong>
+            (los cobros de venta y retomas se agregan solos).
+          </p>
+          <div className="inv-table-wrap inv-table-wrap--sheet">
+            <table className="inv-table inv-table--sheet">
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th>Tipo</th>
+                  <th>Concepto</th>
+                  <th>Método</th>
+                  <th>Monto</th>
+                  <th>Responsable</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cashLoading && cashMovements.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="inv-empty">Cargando…</td>
+                  </tr>
+                ) : cashMovements.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="inv-empty">Sin movimientos manuales hoy.</td>
+                  </tr>
+                ) : (
+                  cashMovements.map((mov) => (
+                    <tr key={mov.id} className="inv-sheet-row">
+                      <td data-label="Hora">
+                        {mov.occurred_at
+                          ? new Date(mov.occurred_at.replace(" ", "T")).toLocaleTimeString("es-CO", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "—"}
+                      </td>
+                      <td data-label="Tipo">
+                        <span className={`inv-badge inv-badge--${mov.type === "egreso" ? "amber" : "disponible"}`}>
+                          {mov.type_label}
+                        </span>
+                      </td>
+                      <td data-label="Concepto">{mov.concept || "—"}</td>
+                      <td data-label="Método"><PaymentMethodBadge method={mov.method} /></td>
+                      <td data-label="Monto" className={mov.type === "egreso" ? "inv-amount--out" : "inv-amount--in"}>
+                        {formatPrice(mov.amount)}
+                      </td>
+                      <td data-label="Responsable">{mov.user?.name || "—"}</td>
+                      <td data-label="Acciones">
+                        <button
+                          type="button"
+                          className="inv-btn inv-btn--compact inv-btn--danger"
+                          onClick={() => handleDeleteCashMovement(mov.id)}
+                        >
+                          <InvIcon name="trash" />
+                          Eliminar
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -1330,6 +1547,77 @@ export default function InventarioVentas() {
                 </button>
                 <button type="submit" className="inv-btn inv-btn--primary inv-btn--inline" disabled={submitting}>
                   Guardar abono
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {cashModalOpen && (
+        <div className="inv-modal-overlay" onClick={() => !submitting && setCashModalOpen(false)}>
+          <div className="inv-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="inv-modal__title">
+              {cashForm.type === "egreso" ? "Registrar egreso" : "Registrar ingreso"}
+            </h3>
+            <p className="inv-dash__muted" style={{ marginTop: 0 }}>
+              Quedará en el cuadre de caja con origen Manual.
+            </p>
+            <form onSubmit={handleCashSubmit} className="inv-modal-form">
+              <Field label="Tipo">
+                <select
+                  className="inv-field__input"
+                  value={cashForm.type}
+                  onChange={(e) => setCashForm((s) => ({ ...s, type: e.target.value }))}
+                >
+                  <option value="ingreso">Ingreso</option>
+                  <option value="egreso">Egreso</option>
+                </select>
+              </Field>
+              <Field label="Monto">
+                <CurrencyInput
+                  value={cashForm.amount}
+                  onChange={(v) => setCashForm((s) => ({ ...s, amount: v }))}
+                  required
+                />
+              </Field>
+              <Field label="Método">
+                <PaymentMethodSelect
+                  value={cashForm.method}
+                  onChange={(e) => setCashForm((s) => ({ ...s, method: e.target.value }))}
+                  groups={IMMEDIATE_PAYMENT_GROUPS}
+                />
+              </Field>
+              <Field label="Concepto">
+                <input
+                  className="inv-field__input"
+                  value={cashForm.concept}
+                  onChange={(e) => setCashForm((s) => ({ ...s, concept: e.target.value }))}
+                  placeholder="Ej. Abono proveedor, ajuste de caja…"
+                />
+              </Field>
+              <Field label="Fecha">
+                <input
+                  type="date"
+                  className="inv-field__input"
+                  value={cashForm.occurred_at}
+                  onChange={(e) => setCashForm((s) => ({ ...s, occurred_at: e.target.value }))}
+                />
+              </Field>
+              <Field label="Notas">
+                <textarea
+                  className="inv-field__input"
+                  rows={2}
+                  value={cashForm.notes}
+                  onChange={(e) => setCashForm((s) => ({ ...s, notes: e.target.value }))}
+                />
+              </Field>
+              <div className="inv-modal__actions">
+                <button type="button" className="inv-btn inv-btn--ghost" onClick={() => setCashModalOpen(false)} disabled={submitting}>
+                  Cancelar
+                </button>
+                <button type="submit" className="inv-btn inv-btn--primary" disabled={submitting}>
+                  {submitting ? "Guardando…" : "Guardar"}
                 </button>
               </div>
             </form>

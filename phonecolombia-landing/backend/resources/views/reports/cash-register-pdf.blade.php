@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <title>Cuadre de caja — {{ $dateLabel }}</title>
+    <title>Libro de caja — {{ $dateLabel }}</title>
     @include('reports.partials.pdf-styles')
     <style>
         .data-table--ledger { font-size: 7.5px; }
@@ -62,8 +62,8 @@
     @endphp
 
     @include('reports.partials.pdf-header', [
-        'docLabel' => 'Cuadre de caja',
-        'docSubtitle' => $isRange ? 'Período múltiple' : 'Cierre diario',
+        'docLabel' => 'Libro de caja',
+        'docSubtitle' => $isRange ? 'Período múltiple' : 'Cobros y retomas del día',
         'periodLabel' => $periodLabel,
         'generatedAt' => $generatedAt,
     ])

@@ -4,7 +4,7 @@ import CurrencyInput from "../components/inventario/CurrencyInput.jsx";
 import api, { isApiConfigured } from "../lib/apiClient";
 import InvIcon from "../components/inventario/InvIcon.jsx";
 import { copToStorage, formatPrice } from "../lib/currencyCop.js";
-import { canAccessContent, canAccessInventory, getDefaultInventarioPath, isServiceTechnician } from "./inventario/shared.jsx";
+import { canAccessContent, canAccessInventory, isAccountant, isServiceTechnician } from "./inventario/shared.jsx";
 import "../styles.css";
 
 const ADMIN_TABS = [
@@ -30,6 +30,17 @@ export default function Admin() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingProductImages, setEditingProductImages] = useState([]);
   const [password, setPassword] = useState("");
+
+  const redirectAfterLogin = (loggedUser) => {
+    if (!loggedUser) return;
+    if (isServiceTechnician(loggedUser)) {
+      navigate("/admin/inventario/servicio-tecnico");
+      return;
+    }
+    if (canAccessInventory(loggedUser) || isAccountant(loggedUser)) {
+      navigate("/admin/inventario");
+    }
+  };
 
   const [promociones, setPromociones] = useState([]);
   const [promoForm, setPromoForm] = useState({ nombre: "", precio: "", bundle: "", alt: "" });
@@ -69,8 +80,8 @@ export default function Admin() {
         setUser(me);
         if (isServiceTechnician(me)) {
           navigate("/admin/inventario/servicio-tecnico");
-        } else if (canAccessInventory(me) && !canAccessContent(me)) {
-          navigate(getDefaultInventarioPath(me));
+        } else if ((canAccessInventory(me) && !canAccessContent(me)) || isAccountant(me)) {
+          navigate("/admin/inventario");
         }
       } catch {
         api.clearToken();
@@ -351,11 +362,7 @@ export default function Admin() {
       const data = await api.login(trimmedEmail, password);
       setUser(data.user);
       setMessage("Sesión iniciada");
-      if (data.user && isServiceTechnician(data.user)) {
-        navigate("/admin/inventario/servicio-tecnico");
-      } else if (data.user && canAccessInventory(data.user) && !canAccessContent(data.user)) {
-        navigate(getDefaultInventarioPath(data.user));
-      }
+      redirectAfterLogin(data.user);
     } catch (err) {
       setMessage(err.message || String(err));
     } finally {
@@ -426,7 +433,10 @@ export default function Admin() {
       return <Navigate to="/admin/inventario/servicio-tecnico" replace />;
     }
     if (canAccessInventory(user)) {
-      return <Navigate to={getDefaultInventarioPath(user)} replace />;
+      return <Navigate to="/admin/inventario" replace />;
+    }
+    if (isAccountant(user)) {
+      return <Navigate to="/admin/inventario" replace />;
     }
     return (
       <div className="admin-dash">

@@ -2,20 +2,36 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import CashReportDocument from "../components/inventario/CashReportDocument.jsx";
 import DailyReportDocument from "../components/inventario/DailyReportDocument.jsx";
+import DailySettlementDocument from "../components/inventario/DailySettlementDocument.jsx";
 import InventoryIntakeReportDocument from "../components/inventario/InventoryIntakeReportDocument.jsx";
 import ReceivablesReportDocument from "../components/inventario/ReceivablesReportDocument.jsx";
 import RemissionReportDocument from "../components/inventario/RemissionReportDocument.jsx";
 import SellerReportDocument from "../components/inventario/SellerReportDocument.jsx";
 import ServiceTicketsReportDocument from "../components/inventario/ServiceTicketsReportDocument.jsx";
 import api, { isApiConfigured } from "../lib/apiClient";
+import { localDateInputValue } from "../lib/localDate.js";
 import InvIcon from "../components/inventario/InvIcon.jsx";
 import { canViewReports } from "./inventario/shared.jsx";
 import "../styles.css";
 
-const FILTER_KEYS = ["user_id", "supplier_id", "q", "payment_method", "credit_status", "service_status", "workshop"];
+const FILTER_KEYS = [
+  "user_id",
+  "supplier_id",
+  "q",
+  "payment_method",
+  "credit_status",
+  "service_status",
+  "workshop",
+  "brand",
+  "model",
+  "storage",
+  "color",
+  "battery",
+  "battery_status",
+];
 
 function paramsFromSearch(searchParams) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateInputValue();
   const params = {
     from: searchParams.get("from") || searchParams.get("date") || today,
     to: searchParams.get("to") || searchParams.get("date") || today,
@@ -41,6 +57,7 @@ function resolveReportType(searchParams) {
   if (type === "by_seller") return "by_seller";
   if (type === "by_remission") return "by_remission";
   if (type === "cash_register") return "cash_register";
+  if (type === "daily_settlement") return "daily_settlement";
   if (type === "receivables") return "receivables";
   if (type === "inventory_intake") return "inventory_intake";
   if (type === "service_tickets") return "service_tickets";
@@ -60,6 +77,7 @@ export default function InventarioInformePreview() {
   const isBySeller = reportType === "by_seller";
   const isByRemission = reportType === "by_remission";
   const isCashRegister = reportType === "cash_register";
+  const isDailySettlement = reportType === "daily_settlement";
   const isReceivables = reportType === "receivables";
   const isInventoryIntake = reportType === "inventory_intake";
   const isServiceTickets = reportType === "service_tickets";
@@ -71,7 +89,7 @@ export default function InventarioInformePreview() {
     ? queryParams.to
     : `${queryParams.from}_${queryParams.to}`;
   const exportFileLabel = isReceivables
-    ? new Date().toISOString().slice(0, 10)
+    ? localDateInputValue()
     : periodLabel;
 
   const generatedAt = useMemo(
@@ -81,17 +99,19 @@ export default function InventarioInformePreview() {
 
   const previewHint = isReceivables
     ? "Vista previa del informe de cartera"
-    : isCashRegister
+    : isDailySettlement
       ? "Vista previa del cuadre de caja"
-      : isByRemission
-        ? "Vista previa del informe por remisión"
-        : isInventoryIntake
-          ? "Vista previa del informe de ingresos"
-          : isServiceTickets
-            ? "Vista previa de servicio técnico"
-            : isBySeller
-              ? "Vista previa del informe por vendedor"
-              : "Vista previa del informe diario";
+      : isCashRegister
+        ? "Vista previa del libro de caja"
+        : isByRemission
+          ? "Vista previa del informe por remisión"
+          : isInventoryIntake
+            ? "Vista previa del informe de ingresos"
+            : isServiceTickets
+              ? "Vista previa de servicio técnico"
+              : isBySeller
+                ? "Vista previa del informe por vendedor"
+                : "Vista previa del informe diario";
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -99,6 +119,8 @@ export default function InventarioInformePreview() {
     try {
       if (isReceivables) {
         setReport(await api.getReceivablesReport(queryParams));
+      } else if (isDailySettlement) {
+        setReport(await api.getDailySettlementReport(queryParams));
       } else if (isCashRegister) {
         setReport(await api.getCashRegisterReport(queryParams));
       } else if (isBySeller) {
@@ -117,7 +139,7 @@ export default function InventarioInformePreview() {
     } finally {
       setLoading(false);
     }
-  }, [isBySeller, isByRemission, isCashRegister, isReceivables, isInventoryIntake, isServiceTickets, queryParams]);
+  }, [isBySeller, isByRemission, isCashRegister, isDailySettlement, isReceivables, isInventoryIntake, isServiceTickets, queryParams]);
 
   useEffect(() => {
     if (!isApiConfigured) return;
@@ -145,9 +167,12 @@ export default function InventarioInformePreview() {
       if (isReceivables) {
         url = api.exportReceivablesReportPdfUrl(queryParams);
         prefix = "cartera";
+      } else if (isDailySettlement) {
+        url = api.exportDailySettlementReportPdfUrl(queryParams);
+        prefix = "cuadre_caja";
       } else if (isCashRegister) {
         url = api.exportCashRegisterReportPdfUrl(queryParams);
-        prefix = "cuadre_caja";
+        prefix = "libro_caja";
       } else if (isBySeller) {
         url = api.exportBySellerReportPdfUrl(queryParams);
         prefix = "informe_por_vendedor";
@@ -180,9 +205,12 @@ export default function InventarioInformePreview() {
       if (isReceivables) {
         url = api.exportReceivablesReportExcelUrl(queryParams);
         prefix = "cartera";
+      } else if (isDailySettlement) {
+        url = api.exportDailySettlementReportExcelUrl(queryParams);
+        prefix = "cuadre_caja";
       } else if (isCashRegister) {
         url = api.exportCashRegisterReportExcelUrl(queryParams);
-        prefix = "cuadre_caja";
+        prefix = "libro_caja";
       } else if (isBySeller) {
         url = api.exportBySellerReportExcelUrl(queryParams);
         prefix = "informe_por_vendedor";
@@ -285,6 +313,13 @@ export default function InventarioInformePreview() {
           <article className="inv-report-preview__paper">
             {isReceivables ? (
               <ReceivablesReportDocument report={report} generatedAt={generatedAt} />
+            ) : isDailySettlement ? (
+              <DailySettlementDocument
+                report={report}
+                from={queryParams.from}
+                to={queryParams.to}
+                generatedAt={generatedAt}
+              />
             ) : isCashRegister ? (
               <CashReportDocument
                 report={report}

@@ -253,11 +253,21 @@ export default function InventarioAdmin() {
   const [sortDirection, setSortDirection] = useState("desc");
 
   const viewingArchived = listScope === "archived";
+  const viewingSold = listScope === "sold";
+  const canViewSold = canManageInventory(user);
 
   const switchListScope = (scope) => {
+    if (scope === "sold" && !canManageInventory(user)) return;
     setListScope(scope);
-    if (scope === "archived") setViewMode("list");
+    setFilters((prev) => ({ ...prev, status: "" }));
+    if (scope === "archived" || scope === "sold") setViewMode("list");
   };
+
+  useEffect(() => {
+    if (listScope === "sold" && user && !canManageInventory(user)) {
+      setListScope("active");
+    }
+  }, [listScope, user]);
 
   const showToast = useCallback((text, type = "success") => {
     setToast({ text, type });
@@ -307,8 +317,13 @@ export default function InventarioAdmin() {
   }, [showToast]);
 
   const inventoryCacheKey = useMemo(
-    () => ["inventory", { q: filters.q, status: filters.status, archived: listScope === "archived" }],
-    [filters.q, filters.status, listScope],
+    () => ["inventory", {
+      q: filters.q,
+      status: viewingSold ? "vendido" : filters.status,
+      archived: viewingArchived,
+      scope: listScope,
+    }],
+    [filters.q, filters.status, listScope, viewingArchived, viewingSold],
   );
 
   const {
@@ -321,10 +336,11 @@ export default function InventarioAdmin() {
     inventoryCacheKey,
     () => api.getInventory({
       q: filters.q || undefined,
-      status: filters.status || undefined,
-      archived: listScope === "archived",
+      status: viewingSold ? "vendido" : (filters.status || undefined),
+      exclude_status: !viewingSold && !viewingArchived && !filters.status ? "vendido" : undefined,
+      archived: viewingArchived,
     }),
-    { enabled: Boolean(user) },
+    { enabled: Boolean(user) && (listScope !== "sold" || canManageInventory(user)) },
   );
 
   useEffect(() => {
@@ -571,7 +587,7 @@ export default function InventarioAdmin() {
 
   const cancelEquipoEdit = () => {
     setEditingEquipoId(null);
-    setEquipoForm(EMPTY_EQUIPO_FORM);
+    setEquipoForm({ ...EMPTY_EQUIPO_FORM, brand: defaultCatalogBrand() });
   };
 
   const handleSaveEquipo = async (e) => {
@@ -600,8 +616,13 @@ export default function InventarioAdmin() {
         const updated = await api.updateInventoryProduct(editingEquipoId, payload);
         await fetchCatalogProducts();
         setEditingEquipoId(null);
-        setEquipoForm(EMPTY_EQUIPO_FORM);
+        setEquipoForm({ ...EMPTY_EQUIPO_FORM, brand: defaultCatalogBrand() });
         showToast(`Modelo "${updated.name}" actualizado`);
+      } else {
+        const created = await api.createInventoryProduct(payload);
+        await fetchCatalogProducts();
+        setEquipoForm({ ...EMPTY_EQUIPO_FORM, brand: defaultCatalogBrand() });
+        showToast(`Modelo "${created.name}" creado`);
       }
     } catch (err) {
       showToast(err.message || String(err), "error");
@@ -1005,7 +1026,11 @@ export default function InventarioAdmin() {
 
   const countByStatus = (status) => items.filter((i) => i.status === status).length;
   const hasActiveFilters = Boolean(filters.q || filters.status);
-  const filterableStatuses = Object.entries(STATUS_LABELS).filter(([value]) => value !== "archived");
+  const filterableStatuses = Object.entries(STATUS_LABELS).filter(([value]) => {
+    if (value === "archived") return false;
+    if (value === "vendido") return false; // se consultan en el apartado Vendidos
+    return true;
+  });
   const isInitialLoad = listLoading && items.length === 0;
   const isFilteredEmpty = !listLoading && items.length === 0 && hasActiveFilters;
   const catalogProductOptions = useMemo(
@@ -1041,6 +1066,11 @@ export default function InventarioAdmin() {
               <span className="inv-stat__label">Archivados</span>
               <strong className="inv-stat__value">{listLoading ? "…" : items.length}</strong>
             </article>
+          ) : viewingSold ? (
+            <article className="inv-stat inv-stat--slate">
+              <span className="inv-stat__label">Vendidos</span>
+              <strong className="inv-stat__value">{listLoading ? "…" : items.length}</strong>
+            </article>
           ) : (
             <>
           <article className="inv-stat inv-stat--blue">
@@ -1058,10 +1088,6 @@ export default function InventarioAdmin() {
           <article className="inv-stat inv-stat--purple">
             <span className="inv-stat__label">Separado</span>
             <strong className="inv-stat__value">{listLoading ? "…" : countByStatus("separado")}</strong>
-          </article>
-          <article className="inv-stat inv-stat--slate">
-            <span className="inv-stat__label">Vendido</span>
-            <strong className="inv-stat__value">{listLoading ? "…" : countByStatus("vendido")}</strong>
           </article>
           <article className="inv-stat inv-stat--purple">
             <span className="inv-stat__label">Retomado</span>
@@ -1100,9 +1126,10 @@ export default function InventarioAdmin() {
                 value={filters.status}
                 onChange={(e) => setFilters((s) => ({ ...s, status: e.target.value }))}
                 aria-label="Filtrar por estado"
+                disabled={viewingSold || viewingArchived}
               >
-                <option value="">Todos los estados</option>
-                {filterableStatuses.map(([v, l]) => (
+                <option value="">{viewingSold ? "Vendido" : "Todos los estados"}</option>
+                {!viewingSold && filterableStatuses.map(([v, l]) => (
                   <option key={v} value={v}>{l}</option>
                 ))}
               </select>
@@ -1123,6 +1150,16 @@ export default function InventarioAdmin() {
                 <InvIcon name="folder" />
                 Activos
               </button>
+              {canViewSold && (
+                <button
+                  type="button"
+                  className={`inv-btn inv-btn--ghost${listScope === "sold" ? " is-active" : ""}`}
+                  onClick={() => switchListScope("sold")}
+                >
+                  <InvIcon name="cart-plus" />
+                  Vendidos
+                </button>
+              )}
               <button
                 type="button"
                 className={`inv-btn inv-btn--ghost${listScope === "archived" ? " is-active" : ""}`}
@@ -1139,7 +1176,7 @@ export default function InventarioAdmin() {
                 <InvIcon name="list" />
                 Lista
               </button>
-              {!viewingArchived && (
+              {!viewingArchived && !viewingSold && (
               <button
                 type="button"
                 className={`inv-btn inv-btn--ghost${viewMode === "grouped" ? " is-active" : ""}`}
@@ -1149,7 +1186,7 @@ export default function InventarioAdmin() {
                 Por modelo
               </button>
               )}
-              {canManageInventory(user) && !viewingArchived && (
+              {canManageInventory(user) && !viewingArchived && !viewingSold && (
                 <>
                   <div className="inv-catalog-menu" style={{ position: "relative" }}>
                     <button
@@ -1255,7 +1292,7 @@ export default function InventarioAdmin() {
           </div>
 
           <div className="inv-table-wrap inv-table-wrap--sheet">
-            {viewMode === "grouped" && !viewingArchived ? (
+            {viewMode === "grouped" && !viewingArchived && !viewingSold ? (
               <div className="inv-grouped-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "1rem", padding: "1rem" }}>
                 {groupedSummary.length === 0 ? (
                   <p className="inv-sheet-empty">Sin datos agrupados.</p>
@@ -1304,9 +1341,11 @@ export default function InventarioAdmin() {
                       <p>
                         {viewingArchived
                           ? (isFilteredEmpty ? "Sin archivados para los filtros aplicados." : "No hay equipos archivados.")
-                          : (isFilteredEmpty ? "Sin resultados para los filtros aplicados." : "No hay equipos registrados.")}
+                          : viewingSold
+                            ? (isFilteredEmpty ? "Sin vendidos para los filtros aplicados." : "No hay equipos vendidos para consultar.")
+                            : (isFilteredEmpty ? "Sin resultados para los filtros aplicados." : "No hay equipos registrados.")}
                       </p>
-                      {!isFilteredEmpty && !viewingArchived && (
+                      {!isFilteredEmpty && !viewingArchived && !viewingSold && (
                         <button type="button" className="inv-btn inv-btn--primary inv-btn--inline" onClick={openNewItemModal}>
                           <InvIcon name="plus" />
                           Agregar primer equipo
@@ -1320,10 +1359,10 @@ export default function InventarioAdmin() {
                   {sortedItems.map((item) => (
                     <tr
                       key={item.id}
-                      className={`inv-sheet-row ${viewingArchived ? "" : "is-clickable"} ${editingId === item.id ? "is-editing" : ""} ${item.color ? "has-color" : ""} ${item.is_archived ? "is-archived" : ""}`}
+                      className={`inv-sheet-row ${viewingArchived || viewingSold ? "" : "is-clickable"} ${editingId === item.id ? "is-editing" : ""} ${item.color ? "has-color" : ""} ${item.is_archived ? "is-archived" : ""}`}
                       style={item.color ? { "--inv-row-accent": getDeviceColorHex(item.color) } : undefined}
-                      onClick={viewingArchived ? undefined : () => startEdit(item)}
-                      title={viewingArchived ? undefined : "Clic para editar"}
+                      onClick={viewingArchived || viewingSold ? undefined : () => startEdit(item)}
+                      title={viewingArchived || viewingSold ? undefined : "Clic para editar"}
                     >
                       <td data-label="Cód. barras / IMEI">
                         <span className="inv-sheet-imei">
@@ -1385,12 +1424,12 @@ export default function InventarioAdmin() {
                           <button type="button" className="inv-icon-btn" title="Historial" onClick={() => showHistory(item)}>
                             <InvIcon name="history" className="" />
                           </button>
-                          {!viewingArchived && canManageInventory(user) && (
+                          {!viewingArchived && !viewingSold && canManageInventory(user) && (
                             <button type="button" className="inv-icon-btn" title="Editar" onClick={() => startEdit(item)}>
                               <InvIcon name="pencil" className="" />
                             </button>
                           )}
-                          {!viewingArchived && (item.status === "disponible" || item.status === "separado") && canManageSales(user) && (
+                          {!viewingArchived && !viewingSold && (item.status === "disponible" || item.status === "separado") && canManageSales(user) && (
                             <button
                               type="button"
                               className="inv-icon-btn"
@@ -1400,7 +1439,7 @@ export default function InventarioAdmin() {
                               <InvIcon name="ventas" className="" />
                             </button>
                           )}
-                          {!viewingArchived && item.status === "vendido" && canManageInventory(user) && (
+                          {(viewingSold || (!viewingArchived && item.status === "vendido")) && canManageInventory(user) && (
                             <button
                               type="button"
                               className="inv-icon-btn"
@@ -1411,7 +1450,7 @@ export default function InventarioAdmin() {
                               <InvIcon name="rotate-ccw" className="" />
                             </button>
                           )}
-                          {!viewingArchived && item.status === "retomado" && canManageInventory(user) && (
+                          {!viewingArchived && !viewingSold && item.status === "retomado" && canManageInventory(user) && (
                             <button
                               type="button"
                               className="inv-icon-btn"
@@ -1422,7 +1461,7 @@ export default function InventarioAdmin() {
                               <InvIcon name="check-circle" className="" />
                             </button>
                           )}
-                          {!viewingArchived && canManageInventory(user) && item.status !== "vendido" && item.status !== "retomado" && (
+                          {!viewingArchived && !viewingSold && canManageInventory(user) && item.status !== "vendido" && item.status !== "retomado" && (
                           <button
                             type="button"
                             className="inv-icon-btn inv-icon-btn--danger"
@@ -2008,10 +2047,9 @@ export default function InventarioAdmin() {
             <p className="inv-modal__text">
               {editingEquipoId
                 ? "Modifica los datos del modelo. El nombre se actualiza automáticamente."
-                : "Los modelos nuevos se crean al agregar equipos. Aquí puedes revisar y editar los existentes."}
+                : "Agrega modelos al catálogo o selecciona uno existente abajo para editarlo."}
             </p>
 
-            {editingEquipoId && (
             <form onSubmit={handleSaveEquipo} className="inv-modal-form inv-modal-form--grid">
               <Field label="Marca *">
                 <SearchSelect
@@ -2024,13 +2062,13 @@ export default function InventarioAdmin() {
                   clearLabel=""
                 />
               </Field>
-              <Field label="Modelo *">
+              <Field label={editingEquipoId ? "Modelo *" : "Nuevo modelo *"}>
                 <SearchSelect
                   value={equipoForm.model}
                   onChange={(model) => setEquipoForm((s) => ({ ...s, model }))}
                   options={equipoCatalogModelOptions}
                   placeholder={equipoForm.brand ? "Seleccionar o buscar modelo…" : "Selecciona la marca primero…"}
-                  searchPlaceholder="Ej. 15 PRO MAX, SE 2022…"
+                  searchPlaceholder="Ej. 15 PRO MAX, A54, NOTE 13…"
                   allowClear={false}
                   clearLabel=""
                   creatable
@@ -2077,20 +2115,21 @@ export default function InventarioAdmin() {
                 Vista previa: <strong>{equipoPreview || "—"}</strong>
               </p>
               <div className="inv-modal__actions inv-field--span-all">
-                <button
-                  type="button"
-                  className="inv-btn inv-btn--outline"
-                  onClick={cancelEquipoEdit}
-                  disabled={creatingEquipo}
-                >
-                  Cancelar edición
-                </button>
+                {editingEquipoId && (
+                  <button
+                    type="button"
+                    className="inv-btn inv-btn--outline"
+                    onClick={cancelEquipoEdit}
+                    disabled={creatingEquipo}
+                  >
+                    Cancelar edición
+                  </button>
+                )}
                 <button type="submit" className="inv-btn inv-btn--primary inv-btn--inline" disabled={creatingEquipo}>
-                  {creatingEquipo ? "Guardando…" : "Actualizar modelo"}
+                  {creatingEquipo ? "Guardando…" : editingEquipoId ? "Actualizar modelo" : "Agregar modelo"}
                 </button>
               </div>
             </form>
-            )}
 
             {catalogProducts.length > 0 && (
               <div className="inv-supplier-list">
@@ -2120,14 +2159,6 @@ export default function InventarioAdmin() {
                     </li>
                   ))}
                 </ul>
-              </div>
-            )}
-
-            {!editingEquipoId && (
-              <div className="inv-modal__actions inv-modal__actions--solo">
-                <button type="button" className="inv-btn inv-btn--outline" onClick={closeEquipoModal}>
-                  Cerrar
-                </button>
               </div>
             )}
           </div>

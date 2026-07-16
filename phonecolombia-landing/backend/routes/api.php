@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\CashMovementController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BootstrapController;
@@ -131,6 +132,9 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::post('/sales/{sale}/complete-reservation', [SaleReservationController::class, 'complete']);
         Route::post('/sales/{sale}/cancel-reservation', [SaleReservationController::class, 'cancel']);
         Route::get('/credit-config', [CreditConfigController::class, 'index']);
+        Route::get('/cash-movements', [CashMovementController::class, 'index']);
+        Route::post('/cash-movements', [CashMovementController::class, 'store']);
+        Route::delete('/cash-movements/{cashMovement}', [CashMovementController::class, 'destroy']);
     });
 
     Route::middleware('reports')->group(function () {
@@ -149,6 +153,9 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::get('/reports/cash-register', [ReportController::class, 'cashRegister']);
         Route::get('/reports/cash-register/export/pdf', [ReportController::class, 'exportCashRegisterPdf']);
         Route::get('/reports/cash-register/export/xlsx', [ReportController::class, 'exportCashRegisterExcel']);
+        Route::get('/reports/daily-settlement', [ReportController::class, 'dailySettlement']);
+        Route::get('/reports/daily-settlement/export/pdf', [ReportController::class, 'exportDailySettlementPdf']);
+        Route::get('/reports/daily-settlement/export/xlsx', [ReportController::class, 'exportDailySettlementExcel']);
         Route::get('/reports/receivables', [ReportController::class, 'receivables']);
         Route::get('/reports/receivables/export/pdf', [ReportController::class, 'exportReceivablesPdf']);
         Route::get('/reports/receivables/export/xlsx', [ReportController::class, 'exportReceivablesExcel']);

@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CreditPaymentMethod;
 use App\Models\CreditSetting;
+use App\Models\DeviceColor;
+use App\Models\InventoryProduct;
 use App\Models\ServiceTechnician;
 use App\Models\User;
 use App\Support\ServiceTicketStateCatalog;
@@ -128,6 +130,42 @@ class BootstrapController extends Controller
                 ->orderBy('workshop')
                 ->distinct()
                 ->pluck('workshop')
+                ->values()
+                ->all();
+            $payload['filter_brands'] = InventoryProduct::query()
+                ->whereNotNull('brand')
+                ->where('brand', '!=', '')
+                ->distinct()
+                ->orderBy('brand')
+                ->pluck('brand')
+                ->values()
+                ->all();
+            $payload['filter_models'] = InventoryProduct::query()
+                ->whereNotNull('model')
+                ->where('model', '!=', '')
+                ->distinct()
+                ->orderBy('model')
+                ->get(['brand', 'model'])
+                ->map(fn (InventoryProduct $p) => [
+                    'brand' => $p->brand,
+                    'model' => $p->model,
+                    'label' => trim(($p->brand ? $p->brand.' ' : '').$p->model),
+                ])
+                ->unique(fn (array $row) => mb_strtolower(($row['brand'] ?? '').'|'.($row['model'] ?? '')))
+                ->values()
+                ->all();
+            $payload['filter_storages'] = InventoryProduct::query()
+                ->whereNotNull('storage')
+                ->where('storage', '!=', '')
+                ->distinct()
+                ->orderBy('storage')
+                ->pluck('storage')
+                ->values()
+                ->all();
+            $payload['filter_colors'] = DeviceColor::query()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (DeviceColor $c) => ['id' => $c->id, 'name' => $c->name])
                 ->values()
                 ->all();
         }

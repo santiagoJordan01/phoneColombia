@@ -14,9 +14,10 @@ import {
 import { ReportExcelButton, ReportPdfButton, ReportPreviewButton } from "../components/inventario/ReportExportButtons.jsx";
 import InvIcon from "../components/inventario/InvIcon.jsx";
 import { useInventarioPage } from "./inventario/useInventarioPage.js";
-import { supplierSelectOptions, userSelectOptions } from "../lib/inventarioSelectOptions.js";
+import { supplierSelectOptions, userSelectOptions, brandSelectOptions, catalogModelSelectOptions, IPHONE_STORAGE_OPTIONS } from "../lib/inventarioSelectOptions.js";
 import { Field, canManageInventory, canViewReports, formatPrice, isAccountant, isServiceTechnician } from "./inventario/shared.jsx";
 import { SALE_PAYMENT_METHODS, paymentLabel } from "../lib/paymentMethods.js";
+import { localDateInputValue, localMonthInputValue, startOfLocalMonth } from "../lib/localDate.js";
 import "../styles.css";
 
 const REPORT_TABS = [
@@ -24,7 +25,8 @@ const REPORT_TABS = [
   { id: "monthly", label: "Mensual", icon: "calendar" },
   { id: "sellers", label: "Por vendedor", icon: "users" },
   { id: "remissions", label: "Por remisión", icon: "file-text" },
-  { id: "cash", label: "Cuadre de caja", icon: "cash-register" },
+  { id: "settlement", label: "Cuadre de caja", icon: "cash-register" },
+  { id: "cash", label: "Libro de caja", icon: "wallet" },
   { id: "receivables", label: "Cartera", icon: "wallet" },
   { id: "intake", label: "Ingresos", icon: "package" },
   { id: "service", label: "Servicio técnico", icon: "servicio" },
@@ -39,7 +41,45 @@ const FILTER_DEFAULTS = {
   credit_status: "",
   service_status: "",
   workshop: "",
+  brand: "",
+  model: "",
+  storage: "",
+  color: "",
+  battery: "",
+  battery_status: "",
 };
+
+const BATTERY_FILTER_OPTIONS = [
+  { value: "status:ok", label: "≥ 85%", searchText: "ok alta 85" },
+  { value: "status:baja", label: "< 85%", searchText: "baja baja 85" },
+  { value: "status:sin_dato", label: "Sin dato", searchText: "sin dato" },
+  ...Array.from({ length: 101 }, (_, i) => {
+    const pct = 100 - i;
+    return {
+      value: String(pct),
+      label: `${pct}%`,
+      searchText: String(pct),
+    };
+  }),
+];
+
+function batteryFilterValue(filters) {
+  if (filters.battery !== "" && filters.battery != null) return String(filters.battery);
+  if (filters.battery_status) return `status:${filters.battery_status}`;
+  return "";
+}
+
+function batteryFilterChange(value, onChange) {
+  if (!value) {
+    onChange({ battery: "", battery_status: "" });
+    return;
+  }
+  if (String(value).startsWith("status:")) {
+    onChange({ battery: "", battery_status: String(value).slice(7) });
+    return;
+  }
+  onChange({ battery: String(value), battery_status: "" });
+}
 
 const COLLECTION_TYPE_LABELS = {
   venta: "Cobro venta",
@@ -75,8 +115,7 @@ function formatSoldAt(soldAt, { includeDate = false } = {}) {
 }
 
 function defaultExportFrom() {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  return startOfLocalMonth();
 }
 
 function monthDateBounds(year, month) {
@@ -762,6 +801,10 @@ function ReportFilters({
   onChange,
   users,
   suppliers,
+  filterBrands = [],
+  filterModels = [],
+  filterStorages = [],
+  filterColors = [],
   serviceStates = [],
   workshops = [],
   dateRange,
@@ -771,9 +814,46 @@ function ReportFilters({
 }) {
   const userOptions = useMemo(() => userSelectOptions(users), [users]);
   const supplierOptions = useMemo(() => supplierSelectOptions(suppliers), [suppliers]);
+  const brandOptions = useMemo(
+    () => brandSelectOptions((filterBrands || []).map((name) => ({ name }))),
+    [filterBrands],
+  );
+  const modelOptions = useMemo(
+    () => catalogModelSelectOptions(
+      [],
+      (filterModels || []).map((row) => ({ brand: row.brand, model: row.model })),
+      filters.brand,
+    ),
+    [filterModels, filters.brand],
+  );
+  const storageOptions = useMemo(() => {
+    const fromCatalog = (filterStorages || []).map((storage) => ({
+      value: storage,
+      label: storage,
+      searchText: storage,
+    }));
+    const merged = new Map();
+    [...IPHONE_STORAGE_OPTIONS, ...fromCatalog].forEach((opt) => {
+      merged.set(String(opt.value).toUpperCase(), {
+        value: String(opt.value).toUpperCase(),
+        label: String(opt.label).toUpperCase(),
+        searchText: String(opt.searchText || opt.label).toUpperCase(),
+      });
+    });
+    return [...merged.values()];
+  }, [filterStorages]);
+  const colorOptions = useMemo(
+    () => (filterColors || []).map((color) => ({
+      value: color.name,
+      label: color.name,
+      searchText: color.name,
+    })),
+    [filterColors],
+  );
   const showSalesFilters = mode === "sales";
   const showIntakeFilters = mode === "intake";
   const showServiceFilters = mode === "service";
+  const showDeviceFilters = showSalesFilters || showIntakeFilters || showServiceFilters;
 
   return (
     <MobileCollapsible summary="Filtros del informe" className="inv-mobile-fold--inline">
@@ -832,6 +912,61 @@ function ReportFilters({
               clearLabel="Todos"
             />
           </Field>
+        )}
+        {showDeviceFilters && (
+          <>
+            <Field label="Marca">
+              <SearchSelect
+                value={filters.brand}
+                onChange={(brand) => onChange({ brand, model: "" })}
+                options={brandOptions}
+                placeholder="Todas las marcas"
+                searchPlaceholder="Buscar marca…"
+                clearLabel="Todas"
+              />
+            </Field>
+            <Field label="Modelo">
+              <SearchSelect
+                value={filters.model}
+                onChange={(model) => onChange({ model })}
+                options={modelOptions}
+                placeholder={filters.brand ? "Todos los modelos" : "Elige una marca"}
+                searchPlaceholder="Buscar modelo…"
+                clearLabel="Todos"
+                disabled={!filters.brand}
+              />
+            </Field>
+            <Field label="Almacenamiento">
+              <SearchSelect
+                value={filters.storage}
+                onChange={(storage) => onChange({ storage })}
+                options={storageOptions}
+                placeholder="Todos"
+                searchPlaceholder="Buscar almacenamiento…"
+                clearLabel="Todos"
+              />
+            </Field>
+            <Field label="Color">
+              <SearchSelect
+                value={filters.color}
+                onChange={(color) => onChange({ color })}
+                options={colorOptions}
+                placeholder="Todos los colores"
+                searchPlaceholder="Buscar color…"
+                clearLabel="Todos"
+              />
+            </Field>
+            <Field label="Batería">
+              <SearchSelect
+                value={batteryFilterValue(filters)}
+                onChange={(value) => batteryFilterChange(value, onChange)}
+                options={BATTERY_FILTER_OPTIONS}
+                placeholder="Todas"
+                searchPlaceholder="Buscar % o rango…"
+                clearLabel="Todas"
+              />
+            </Field>
+          </>
         )}
         <Field label={showServiceFilters ? "Equipo / cliente" : showIntakeFilters ? "Equipo / proveedor" : "Equipo / remisión"}>
           <input className="inv-field__input" value={filters.q} onChange={(e) => onChange({ q: e.target.value })} placeholder={searchPlaceholder || "Equipo, IMEI o R-2026-000001…"} />
@@ -893,13 +1028,13 @@ function ReportFilterActions({ children }) {
 export default function InventarioInformes() {
   const { user, authChecked, signOut } = useInventarioPage();
   const [tab, setTab] = useState("daily");
-  const [dailyFrom, setDailyFrom] = useState(() => new Date().toISOString().slice(0, 10));
-  const [dailyTo, setDailyTo] = useState(() => new Date().toISOString().slice(0, 10));
-  const [monthPeriod, setMonthPeriod] = useState(() => new Date().toISOString().slice(0, 7));
-  const [from, setFrom] = useState(new Date().toISOString().slice(0, 10));
-  const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
+  const [dailyFrom, setDailyFrom] = useState(() => localDateInputValue());
+  const [dailyTo, setDailyTo] = useState(() => localDateInputValue());
+  const [monthPeriod, setMonthPeriod] = useState(() => localMonthInputValue());
+  const [from, setFrom] = useState(() => localDateInputValue());
+  const [to, setTo] = useState(() => localDateInputValue());
   const [exportFrom, setExportFrom] = useState(defaultExportFrom);
-  const [exportTo, setExportTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [exportTo, setExportTo] = useState(() => localDateInputValue());
   const [filters, setFilters] = useState(FILTER_DEFAULTS);
   const [toast, setToast] = useState(null);
   const [importing, setImporting] = useState(false);
@@ -920,6 +1055,10 @@ export default function InventarioInformes() {
         filter_users: data.filter_users || [],
         service_ticket_states: data.service_ticket_states || [],
         workshops: data.workshops || [],
+        filter_brands: data.filter_brands || [],
+        filter_models: data.filter_models || [],
+        filter_storages: data.filter_storages || [],
+        filter_colors: data.filter_colors || [],
       };
     },
     { enabled: reportsEnabled },
@@ -929,6 +1068,16 @@ export default function InventarioInformes() {
   const users = catalogs?.filter_users || [];
   const serviceStates = catalogs?.service_ticket_states || [];
   const workshops = catalogs?.workshops || [];
+  const filterBrands = catalogs?.filter_brands || [];
+  const filterModels = catalogs?.filter_models || [];
+  const filterStorages = catalogs?.filter_storages || [];
+  const filterColors = catalogs?.filter_colors || [];
+  const deviceFilterProps = {
+    filterBrands,
+    filterModels,
+    filterStorages,
+    filterColors,
+  };
 
   const { data: daily, loading: dailyLoading, refreshing: dailyRefreshing } = useCachedQuery(
     ["reports", "daily", { from: dailyFrom, to: dailyTo, ...filterKey }],
@@ -948,6 +1097,12 @@ export default function InventarioInformes() {
     ["reports", "cash", { from, to, ...filterKey }],
     () => api.getCashRegisterReport({ from, to, ...filterKey }),
     { enabled: reportsEnabled && tab === "cash" },
+  );
+
+  const { data: settlement, loading: settlementLoading, refreshing: settlementRefreshing } = useCachedQuery(
+    ["reports", "settlement", { from, to, ...filterKey }],
+    () => api.getDailySettlementReport({ from, to, ...filterKey }),
+    { enabled: reportsEnabled && tab === "settlement" },
   );
 
   const { data: receivables, loading: receivablesLoading } = useCachedQuery(
@@ -999,6 +1154,7 @@ export default function InventarioInformes() {
   const intakeExportParams = () => ({ from, to, ...filterParams() });
   const serviceExportParams = () => ({ from, to, ...filterParams() });
   const cashExportParams = () => ({ from, to, ...filterParams() });
+  const settlementExportParams = () => ({ from, to, ...filterParams() });
   const receivablesExportParams = () => ({ ...filterParams() });
 
   const openReportPreview = (params, type = "daily") => {
@@ -1192,6 +1348,7 @@ export default function InventarioInformes() {
   };
 
   const openCashPreview = () => openReportPreview(cashExportParams(), "cash_register");
+  const openSettlementPreview = () => openReportPreview(settlementExportParams(), "daily_settlement");
 
   const exportCashPdf = async () => {
     setExporting(true);
@@ -1200,7 +1357,7 @@ export default function InventarioInformes() {
       const label = params.from === params.to ? params.to : `${params.from}_${params.to}`;
       await api.downloadAuthenticated(
         api.exportCashRegisterReportPdfUrl(params),
-        `cuadre_caja_${label}.pdf`,
+        `libro_caja_${label}.pdf`,
       );
       showToast("PDF descargado");
     } catch (e) {
@@ -1217,6 +1374,40 @@ export default function InventarioInformes() {
       const label = params.from === params.to ? params.to : `${params.from}_${params.to}`;
       await api.downloadAuthenticated(
         api.exportCashRegisterReportExcelUrl(params),
+        `libro_caja_${label}.xlsx`,
+      );
+      showToast("Excel descargado");
+    } catch (e) {
+      showToast(e.message, "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportSettlementPdf = async () => {
+    setExporting(true);
+    try {
+      const params = settlementExportParams();
+      const label = params.from === params.to ? params.to : `${params.from}_${params.to}`;
+      await api.downloadAuthenticated(
+        api.exportDailySettlementReportPdfUrl(params),
+        `cuadre_caja_${label}.pdf`,
+      );
+      showToast("PDF descargado");
+    } catch (e) {
+      showToast(e.message, "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportSettlementExcel = async () => {
+    setExporting(true);
+    try {
+      const params = settlementExportParams();
+      const label = params.from === params.to ? params.to : `${params.from}_${params.to}`;
+      await api.downloadAuthenticated(
+        api.exportDailySettlementReportExcelUrl(params),
         `cuadre_caja_${label}.xlsx`,
       );
       showToast("Excel descargado");
@@ -1232,7 +1423,7 @@ export default function InventarioInformes() {
   const exportReceivablesPdf = async () => {
     setExporting(true);
     try {
-      const label = new Date().toISOString().slice(0, 10);
+      const label = localDateInputValue();
       await api.downloadAuthenticated(
         api.exportReceivablesReportPdfUrl(receivablesExportParams()),
         `cartera_${label}.pdf`,
@@ -1248,7 +1439,7 @@ export default function InventarioInformes() {
   const exportReceivablesExcel = async () => {
     setExporting(true);
     try {
-      const label = new Date().toISOString().slice(0, 10);
+      const label = localDateInputValue();
       await api.downloadAuthenticated(
         api.exportReceivablesReportExcelUrl(receivablesExportParams()),
         `cartera_${label}.xlsx`,
@@ -1263,7 +1454,7 @@ export default function InventarioInformes() {
 
   const exportInventory = async () => {
     try {
-      await api.downloadAuthenticated(api.exportInventoryUrl(), `inventario_${new Date().toISOString().slice(0, 10)}.csv`);
+      await api.downloadAuthenticated(api.exportInventoryUrl(), `inventario_${localDateInputValue()}.csv`);
     } catch (e) {
       showToast(e.message, "error");
     }
@@ -1333,6 +1524,7 @@ export default function InventarioInformes() {
               onChange={(p) => setFilters((s) => ({ ...s, ...p }))}
               users={users}
               suppliers={suppliers}
+              {...deviceFilterProps}
               dateRange={{ from: dailyFrom, to: dailyTo, onFromChange: setDailyFrom, onToChange: setDailyTo }}
             />
             <ReportFilterActions>
@@ -1365,6 +1557,7 @@ export default function InventarioInformes() {
               onChange={(p) => setFilters((s) => ({ ...s, ...p }))}
               users={users}
               suppliers={suppliers}
+              {...deviceFilterProps}
               monthRange={{ value: monthPeriod, onChange: setMonthPeriod }}
             />
             <ReportFilterActions>
@@ -1405,6 +1598,7 @@ export default function InventarioInformes() {
               onChange={(p) => setFilters((s) => ({ ...s, ...p }))}
               users={users}
               suppliers={suppliers}
+              {...deviceFilterProps}
               dateRange={{ from, to, onFromChange: setFrom, onToChange: setTo }}
             />
             <ReportFilterActions>
@@ -1441,6 +1635,7 @@ export default function InventarioInformes() {
               onChange={(p) => setFilters((s) => ({ ...s, ...p }))}
               users={users}
               suppliers={suppliers}
+              {...deviceFilterProps}
               dateRange={{ from, to, onFromChange: setFrom, onToChange: setTo }}
               searchPlaceholder="Remisión, equipo o IMEI…"
             />
@@ -1468,6 +1663,225 @@ export default function InventarioInformes() {
           </section>
         )}
 
+        {tab === "settlement" && (
+          <section className="inv-panel">
+            <ReportFilters
+              filters={filters}
+              onChange={(p) => setFilters((s) => ({ ...s, ...p }))}
+              users={users}
+              suppliers={suppliers}
+              {...deviceFilterProps}
+              dateRange={{ from, to, onFromChange: setFrom, onToChange: setTo }}
+            />
+            <ReportFilterActions>
+              <ReportPreviewButton onClick={openSettlementPreview} disabled={settlementLoading || !settlement} />
+              <ReportPdfButton onClick={exportSettlementPdf} disabled={settlementLoading || exporting || !settlement} />
+              <ReportExcelButton onClick={exportSettlementExcel} disabled={settlementLoading || exporting || !settlement} />
+            </ReportFilterActions>
+            {settlementLoading && !settlement ? <ReportLoader /> : null}
+            {settlement && (
+              <div className="inv-panel__body">
+                <p className="inv-dash__muted inv-report-methodology" style={{ marginTop: 0 }}>
+                  {settlement.methodology}
+                </p>
+                <MobileCollapsible summary="Resumen del cuadre de caja">
+                  <div className="inv-stats inv-stats--5 inv-report-stats">
+                    <article className="inv-stat inv-stat--blue">
+                      <span className="inv-stat__label">Fecha</span>
+                      <strong className="inv-stat__value" style={{ fontSize: "1rem" }}>{settlement.fecha}</strong>
+                    </article>
+                    <article className="inv-stat inv-stat--purple">
+                      <span className="inv-stat__label">Ventas netas</span>
+                      <strong className="inv-stat__value">{formatPrice(settlement.ventas_netas)}</strong>
+                    </article>
+                    <article className="inv-stat inv-stat--slate">
+                      <span className="inv-stat__label">Costo</span>
+                      <strong className="inv-stat__value">{formatPrice(settlement.total_costo ?? 0)}</strong>
+                    </article>
+                    <article className="inv-stat inv-stat--green">
+                      <span className="inv-stat__label">Utilidad bruta</span>
+                      <strong className="inv-stat__value">{formatPrice(settlement.utilidad_bruta ?? 0)}</strong>
+                    </article>
+                    <article className="inv-stat inv-stat--green">
+                      <span className="inv-stat__label">Ingresos de caja</span>
+                      <strong className="inv-stat__value">{formatPrice(settlement.total_ingresos)}</strong>
+                    </article>
+                    <article className="inv-stat inv-stat--amber">
+                      <span className="inv-stat__label">Egresos de caja</span>
+                      <strong className="inv-stat__value">{formatPrice(settlement.total_egresos)}</strong>
+                    </article>
+                    <article className="inv-stat inv-stat--slate">
+                      <span className="inv-stat__label">Neto de caja</span>
+                      <strong className="inv-stat__value">{formatPrice(settlement.neto_caja ?? (settlement.total_ingresos - settlement.total_egresos))}</strong>
+                    </article>
+                  </div>
+                  <p className="inv-dash__muted" style={{ margin: "0.5rem 0 0", fontSize: "0.85rem" }}>
+                    Ingresos: cobros {formatPrice(settlement.ingresos_cobros ?? settlement.ingresos_venta)} + manual {formatPrice(settlement.ingresos_manuales)}
+                    {" · "}
+                    Egresos: retoma {formatPrice(settlement.egresos_retoma)} + manual {formatPrice(settlement.egresos_manuales)}
+                    {" · "}
+                    Cobrado acum. ventas {formatPrice(settlement.cobrado_acumulado_ventas ?? settlement.cobrado_ventas_del_dia)}
+                    {" + "}
+                    pendiente {formatPrice(settlement.pendiente_ventas ?? settlement.credito_del_dia)}
+                    {" · "}
+                    Dif. ventas {formatPrice(settlement.diferencia)}
+                  </p>
+                </MobileCollapsible>
+
+                <h3 className="inv-panel__subtitle" style={{ marginTop: "1.25rem" }}>Formas de pago</h3>
+                <div className="inv-table-wrap">
+                  <table className="inv-table inv-table--sheet inv-table--report">
+                    <thead>
+                      <tr>
+                        <th>Método</th>
+                        <th>Monto</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(settlement.formas_de_pago || []).map((forma) => (
+                        <tr key={forma.key || forma.label} className="inv-sheet-row">
+                          <td data-label="Método">{forma.label}</td>
+                          <td data-label="Monto">{formatPrice(forma.amount)}</td>
+                        </tr>
+                      ))}
+                      <tr className="inv-sheet-row">
+                        <td data-label="Método"><strong>Formas de caja (sin crédito)</strong></td>
+                        <td data-label="Monto"><strong>{formatPrice(settlement.total_formas_caja ?? 0)}</strong></td>
+                      </tr>
+                      <tr className="inv-sheet-row">
+                        <td data-label="Método"><strong>Neto de caja (ingresos − egresos)</strong></td>
+                        <td data-label="Monto"><strong>{formatPrice(settlement.neto_caja)}</strong></td>
+                      </tr>
+                      <tr className="inv-sheet-row">
+                        <td data-label="Método"><strong>Diferencia ventas (precio − cobrado − pendiente)</strong></td>
+                        <td data-label="Monto"><strong>{formatPrice(settlement.diferencia)}</strong></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <h3 className="inv-panel__subtitle" style={{ marginTop: "1.25rem" }}>
+                  Equipos vendidos ({settlement.equipos_count || 0})
+                </h3>
+                <div className="inv-table-wrap">
+                  <table className="inv-table inv-table--sheet inv-table--report">
+                    <thead>
+                      <tr>
+                        <th>Origen</th>
+                        <th>Equipo</th>
+                        <th>IMEI</th>
+                        <th>Proveedor</th>
+                        <th>Costo</th>
+                        <th>Valor</th>
+                        <th>Utilidad</th>
+                        <th>Cobrado hoy</th>
+                        <th>Pendiente</th>
+                        <th>Responsable</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(settlement.equipos_vendidos || []).length === 0 ? (
+                        <tr>
+                          <td colSpan={10} className="inv-empty">Sin equipos en el período.</td>
+                        </tr>
+                      ) : (
+                        (settlement.equipos_vendidos || []).map((row) => (
+                          <tr key={row.id} className="inv-sheet-row">
+                            <td data-label="Origen">{row.origen_label || "Venta"}</td>
+                            <td data-label="Equipo">{row.equipo || "—"}</td>
+                            <td data-label="IMEI" className="inv-cell-mono">{row.imei || "—"}</td>
+                            <td data-label="Proveedor">{row.proveedor || "—"}</td>
+                            <td data-label="Costo">{formatPrice(row.costo ?? 0)}</td>
+                            <td data-label="Valor">{formatPrice(row.valor)}</td>
+                            <td data-label="Utilidad">{formatPrice(row.utilidad ?? ((row.valor || 0) - (row.costo || 0)))}</td>
+                            <td data-label="Cobrado hoy">{formatPrice(row.ingreso)}</td>
+                            <td data-label="Pendiente">{formatPrice(row.pendiente ?? 0)}</td>
+                            <td data-label="Responsable">{row.responsable || "—"}</td>
+                          </tr>
+                        ))
+                      )}
+                      {(settlement.equipos_vendidos || []).length > 0 && (
+                        <tr className="inv-sheet-row">
+                          <td data-label="" colSpan={4}><strong>Totales equipos</strong></td>
+                          <td data-label="Costo"><strong>{formatPrice(settlement.total_costo ?? 0)}</strong></td>
+                          <td data-label="Valor"><strong>{formatPrice(settlement.ventas_netas)}</strong></td>
+                          <td data-label="Utilidad"><strong>{formatPrice(settlement.utilidad_bruta ?? 0)}</strong></td>
+                          <td data-label="Cobrado hoy"><strong>{formatPrice(settlement.cobrado_ventas_del_dia)}</strong></td>
+                          <td data-label="Pendiente"><strong>{formatPrice(settlement.pendiente_ventas ?? settlement.credito_del_dia)}</strong></td>
+                          <td data-label="" />
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <h3 className="inv-panel__subtitle" style={{ marginTop: "1.25rem" }}>
+                  Movimientos de caja ({settlement.movimientos_count || 0})
+                </h3>
+                <div className="inv-table-wrap">
+                  <table className="inv-table inv-table--sheet inv-table--report">
+                    <thead>
+                      <tr>
+                        <th>Origen</th>
+                        <th>Tipo</th>
+                        <th>Concepto</th>
+                        <th>Método</th>
+                        <th>Costo</th>
+                        <th>Monto</th>
+                        <th>Responsable</th>
+                        <th>Notas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(settlement.movimientos_caja || []).length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="inv-empty">Sin movimientos en el período.</td>
+                        </tr>
+                      ) : (
+                        (settlement.movimientos_caja || []).map((row) => (
+                          <tr key={row.id} className="inv-sheet-row">
+                            <td data-label="Origen">
+                              <span className={`inv-badge inv-badge--${
+                                row.origen === "manual" ? "amber"
+                                  : row.origen === "retoma" ? "retomado"
+                                    : row.origen === "abono" || row.origen === "apartado" ? "separado"
+                                      : "disponible"
+                              }`}>
+                                {row.origen_label || row.origen}
+                              </span>
+                            </td>
+                            <td data-label="Tipo">{row.type_label || "—"}</td>
+                            <td data-label="Concepto">{row.concept || "—"}</td>
+                            <td data-label="Método">{row.method_label || "—"}</td>
+                            <td data-label="Costo">{row.costo != null ? formatPrice(row.costo) : "—"}</td>
+                            <td data-label="Monto" className={row.type === "egreso" ? "inv-amount--out" : "inv-amount--in"}>
+                              {formatPrice(row.amount)}
+                            </td>
+                            <td data-label="Responsable">{row.responsable || "—"}</td>
+                            <td data-label="Notas">{row.notes || "—"}</td>
+                          </tr>
+                        ))
+                      )}
+                      {(settlement.movimientos_caja || []).length > 0 && (
+                        <tr className="inv-sheet-row">
+                          <td data-label="" colSpan={4}><strong>Totales</strong></td>
+                          <td data-label="Costo"><strong>{formatPrice(settlement.movimientos_costo_total ?? 0)}</strong></td>
+                          <td data-label="Monto">
+                            <strong className="inv-amount--in">{formatPrice(settlement.total_ingresos)}</strong>
+                            {" / "}
+                            <strong className="inv-amount--out">{formatPrice(settlement.total_egresos)}</strong>
+                          </td>
+                          <td colSpan={2} />
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
         {tab === "cash" && (
           <section className="inv-panel">
             <ReportFilters
@@ -1475,6 +1889,7 @@ export default function InventarioInformes() {
               onChange={(p) => setFilters((s) => ({ ...s, ...p }))}
               users={users}
               suppliers={suppliers}
+              {...deviceFilterProps}
               dateRange={{ from, to, onFromChange: setFrom, onToChange: setTo }}
             />
             <ReportFilterActions>
@@ -1488,7 +1903,7 @@ export default function InventarioInformes() {
                 <p className="inv-dash__muted inv-report-methodology" style={{ marginTop: 0 }}>
                   {cash.methodology || "Cobros según fecha de pago. Las retomas aparecen como egresos. Las ventas devueltas no entran en ingresos del período."}
                 </p>
-                <MobileCollapsible summary="Resumen del cuadre de caja">
+                <MobileCollapsible summary="Resumen del libro de caja">
                 <div className="inv-stats inv-stats--5 inv-report-stats">
                   <article className="inv-stat inv-stat--blue">
                     <span className="inv-stat__label">Ventas del período</span>
@@ -1559,6 +1974,7 @@ export default function InventarioInformes() {
               onChange={(p) => setFilters((s) => ({ ...s, ...p }))}
               users={users}
               suppliers={suppliers}
+              {...deviceFilterProps}
             />
             <ReportFilterActions>
               <ReportPreviewButton onClick={openReceivablesPreview} disabled={receivablesLoading || !receivables} />
@@ -1581,6 +1997,7 @@ export default function InventarioInformes() {
               filters={filters}
               onChange={(p) => setFilters((s) => ({ ...s, ...p }))}
               suppliers={suppliers}
+              {...deviceFilterProps}
               dateRange={{ from, to, onFromChange: setFrom, onToChange: setTo }}
               searchPlaceholder="Equipo, IMEI o proveedor…"
               mode="intake"
@@ -1608,6 +2025,7 @@ export default function InventarioInformes() {
             <ReportFilters
               filters={filters}
               onChange={(p) => setFilters((s) => ({ ...s, ...p }))}
+              {...deviceFilterProps}
               serviceStates={serviceStates}
               workshops={workshops}
               dateRange={{ from, to, onFromChange: setFrom, onToChange: setTo }}

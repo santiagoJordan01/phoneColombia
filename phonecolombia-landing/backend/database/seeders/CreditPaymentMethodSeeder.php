@@ -14,8 +14,10 @@ class CreditPaymentMethodSeeder extends Seeder
         CreditSetting::query()->firstOrCreate([], ['billing_day' => 15]);
 
         $defaults = [
-            ['name' => 'Addi', 'slug' => 'addi'],
+            ['name' => 'Crédito Addi', 'slug' => 'addi'],
             ['name' => 'Sistecredito', 'slug' => 'sistecredito'],
+            ['name' => 'Banco de Bogotá', 'slug' => 'banco_de_bogota'],
+            ['name' => 'Gora', 'slug' => 'gora'],
             ['name' => 'Cupón', 'slug' => 'cupon'],
             ['name' => 'Transferencia', 'slug' => 'transferencia'],
             ['name' => 'Tarjeta corporativa', 'slug' => 'tarjeta_corporativa'],

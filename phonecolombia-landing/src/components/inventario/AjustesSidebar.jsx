@@ -4,11 +4,10 @@ import { AJUSTES_MENU } from "../../pages/inventario/shared.jsx";
 
 export default function AjustesSidebar() {
   const { pathname } = useLocation();
-  const isHub = pathname === "/admin/inventario/ajustes" || pathname === "/admin/inventario/ajustes/";
 
   return (
     <nav className="inv-ajustes-sidebar" aria-label="Opciones de ajustes">
-      <p className="inv-ajustes-sidebar__label">Opciones</p>
+      <p className="inv-ajustes-sidebar__label">Secciones</p>
       <ul className="inv-ajustes-sidebar__list">
         {AJUSTES_MENU.map((item) => {
           const isActive = pathname === item.path || pathname.startsWith(`${item.path}/`);
@@ -29,9 +28,6 @@ export default function AjustesSidebar() {
           );
         })}
       </ul>
-      {isHub && (
-        <p className="inv-ajustes-sidebar__hint">Elige una opción para configurar el sistema.</p>
-      )}
     </nav>
   );
 }

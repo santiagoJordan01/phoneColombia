@@ -387,6 +387,21 @@ export const api = {
     return request(`/sales/${saleId}/payments`, { method: "POST", body: data });
   },
 
+  async getCashMovements(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return request(`/cash-movements${qs ? `?${qs}` : ""}`);
+  },
+
+  async createCashMovement(data) {
+    return request("/cash-movements", { method: "POST", body: data });
+  },
+
+  async deleteCashMovement(id) {
+    return request(`/cash-movements/${id}`, { method: "DELETE" });
+  },
+
   async reserveInventoryItem(id, data) {
     return request(`/inventory/${id}/reserve`, { method: "POST", body: data });
   },
@@ -422,6 +437,13 @@ export const api = {
       Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
     ).toString();
     return request(`/reports/cash-register${qs ? `?${qs}` : ""}`);
+  },
+
+  async getDailySettlementReport(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return request(`/reports/daily-settlement${qs ? `?${qs}` : ""}`);
   },
 
   async getReceivablesReport(params = {}) {
@@ -635,6 +657,20 @@ export const api = {
       Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
     ).toString();
     return `${rawUrl}/reports/cash-register/export/xlsx${qs ? `?${qs}` : ""}`;
+  },
+
+  exportDailySettlementReportPdfUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/daily-settlement/export/pdf${qs ? `?${qs}` : ""}`;
+  },
+
+  exportDailySettlementReportExcelUrl(params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== "")),
+    ).toString();
+    return `${rawUrl}/reports/daily-settlement/export/xlsx${qs ? `?${qs}` : ""}`;
   },
 
   exportReceivablesReportPdfUrl(params = {}) {

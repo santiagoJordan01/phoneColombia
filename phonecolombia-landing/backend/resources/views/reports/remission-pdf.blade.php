@@ -8,35 +8,34 @@
         body {
             font-family: DejaVu Sans, sans-serif;
             font-size: 9.5px;
-            color: #1e293b;
+            color: #374151;
             margin: 0;
             padding: 0;
-            line-height: 1.45;
+            line-height: 1.5;
         }
 
         .page {
             margin: 14px 16px;
-            border: 1px solid #e2e8f0;
+            border: 1px solid #d1d5db;
             background: #ffffff;
         }
         .page__accent {
-            height: 5px;
-            background: #ea580c;
+            height: 2px;
+            background: #374151;
         }
         .page__body { padding: 18px 22px 16px; }
 
-        /* Header */
         .header {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 12px;
-            border: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e5e7eb;
         }
-        .header td { vertical-align: middle; padding: 0; }
+        .header td { vertical-align: middle; padding: 0 0 12px; }
         .header-brand {
-            background: #0f172a;
-            color: #ffffff;
-            padding: 14px 16px;
+            background: transparent;
+            color: #111827;
+            padding: 0 12px 0 0;
             width: 56%;
         }
         .header-brand-layout {
@@ -48,87 +47,66 @@
             padding: 0;
         }
         .header-brand__logo-wrap {
-            width: 58px;
-            padding-right: 12px;
+            width: 48px;
+            padding-right: 10px;
         }
         .header-brand__logo {
             display: block;
-            width: 52px;
-            height: 52px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.18);
+            width: 42px;
+            height: 42px;
+            border-radius: 4px;
+            border: 1px solid #e5e7eb;
             object-fit: cover;
         }
-        .header-brand__content {
-            vertical-align: middle;
-        }
-        .header-brand__eyebrow {
-            font-size: 7px;
-            text-transform: uppercase;
-            letter-spacing: 0.16em;
-            color: #fb923c;
-            margin: 0 0 5px;
-            font-weight: bold;
-        }
         .header-brand__name {
-            font-size: 20px;
+            font-size: 15px;
             font-weight: bold;
-            letter-spacing: 0.08em;
-            margin: 0 0 4px;
+            margin: 0 0 2px;
+            color: #111827;
         }
         .header-brand__tagline {
             font-size: 8.5px;
-            margin: 0 0 8px;
-            color: #cbd5e1;
-        }
-        .header-brand__rule {
-            height: 2px;
-            width: 48px;
-            background: #ea580c;
-            margin-bottom: 6px;
-        }
-        .header-brand__contact {
-            font-size: 7.5px;
             margin: 0;
-            color: #94a3b8;
+            color: #6b7280;
         }
         .header-doc {
-            background: #fafafa;
-            padding: 14px 16px;
-            text-align: center;
+            background: transparent;
+            padding: 0 0 0 12px;
+            text-align: right;
             width: 44%;
-            border-left: 1px solid #e2e8f0;
         }
         .header-doc__label {
             font-size: 7px;
             text-transform: uppercase;
-            letter-spacing: 0.16em;
-            color: #64748b;
-            margin: 0 0 5px;
-            font-weight: bold;
+            letter-spacing: 0.08em;
+            color: #6b7280;
+            margin: 0 0 4px;
+            font-weight: normal;
         }
         .header-doc__number {
-            font-size: 17px;
+            font-size: 14px;
             font-weight: bold;
-            color: #0f172a;
-            margin: 0 0 8px;
-            letter-spacing: 0.04em;
+            color: #111827;
+            margin: 0 0 6px;
+            letter-spacing: 0.02em;
             font-family: DejaVu Sans Mono, monospace;
         }
         .badge {
             display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 7.5px;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 7px;
             font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.05em;
+            background: #f9fafb;
+            color: #4b5563;
+            border: 1px solid #d1d5db;
         }
-        .badge--apartado { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
-        .badge--entregado { background: #d1fae5; color: #047857; border: 1px solid #6ee7b7; }
-        .badge--registrado { background: #e2e8f0; color: #475569; border: 1px solid #cbd5e1; }
+        .badge--apartado { color: #4b5563; border-color: #d1d5db; }
+        .badge--entregado { color: #374151; border-color: #9ca3af; }
+        .badge--registrado { color: #6b7280; border-color: #e5e7eb; }
 
-        /* Meta */
         .meta-row {
             width: 100%;
             border-collapse: collapse;
@@ -141,106 +119,80 @@
         }
         .meta-row td:last-child { padding-right: 0; }
         .meta-cell {
-            border: 1px solid #e2e8f0;
-            border-top: 2px solid #ea580c;
-            background: #f8fafc;
-            padding: 8px 10px;
+            border: 1px solid #e5e7eb;
+            background: #fafafa;
+            padding: 7px 10px;
         }
         .meta-cell__label {
             display: block;
             font-size: 6.5px;
-            font-weight: bold;
+            font-weight: normal;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: #94a3b8;
-            margin-bottom: 3px;
+            letter-spacing: 0.06em;
+            color: #9ca3af;
+            margin-bottom: 2px;
         }
         .meta-cell__value {
             font-size: 9.5px;
             font-weight: bold;
-            color: #0f172a;
+            color: #111827;
         }
 
-        /* Sections */
         .section { margin-bottom: 14px; page-break-inside: avoid; }
         .section-head {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 8px;
-        }
-        .section-head td { vertical-align: middle; padding: 0; }
-        .section-head__num {
-            width: 22px;
-            height: 22px;
-            background: #ea580c;
-            color: #ffffff;
-            font-size: 8px;
-            font-weight: bold;
-            text-align: center;
-            line-height: 22px;
+            margin-bottom: 7px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #e5e7eb;
         }
         .section-head__title {
-            padding-left: 8px;
-            font-size: 8.5px;
+            font-size: 8px;
             font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 0.12em;
-            color: #0f172a;
-        }
-        .section-head__line {
-            border-bottom: 1px solid #e2e8f0;
-            width: 100%;
+            letter-spacing: 0.08em;
+            color: #374151;
+            margin: 0;
         }
 
-        /* Info panels */
         .grid-2 { width: 100%; border-collapse: collapse; }
         .grid-2 td { width: 50%; vertical-align: top; padding: 0 5px 0 0; }
         .grid-2 td + td { padding: 0 0 0 5px; }
-        .info-box { border: 1px solid #e2e8f0; background: #ffffff; }
+        .info-box { border: 1px solid #e5e7eb; background: #ffffff; }
         .info-box__head {
-            background: #0f172a;
-            color: #f8fafc;
+            background: #f9fafb;
+            color: #374151;
             padding: 5px 10px;
             font-size: 7px;
             font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.06em;
+            border-bottom: 1px solid #e5e7eb;
         }
         .info-table { width: 100%; border-collapse: collapse; }
         .info-table td {
-            padding: 7px 10px;
+            padding: 6px 10px;
             vertical-align: top;
-            font-size: 9.5px;
-            border-bottom: 1px solid #f1f5f9;
+            font-size: 9px;
+            border-bottom: 1px solid #f3f4f6;
         }
         .info-table tr:last-child td { border-bottom: none; }
-        .info-table td.label { width: 34%; color: #64748b; font-size: 8px; }
-        .info-table td.value { color: #0f172a; font-weight: bold; }
+        .info-table td.label { width: 34%; color: #6b7280; font-size: 8px; }
+        .info-table td.value { color: #111827; font-weight: bold; }
 
-        /* Product */
         .product-box {
-            border: 1px solid #e2e8f0;
+            border: 1px solid #e5e7eb;
             background: #ffffff;
         }
         .product-box__head {
-            background: #fff7ed;
-            border-bottom: 1px solid #fed7aa;
+            background: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
             padding: 8px 12px;
         }
-        .product-box__tag {
-            font-size: 6.5px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            color: #9a3412;
-            margin: 0 0 3px;
-        }
         .product-name {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
-            color: #0f172a;
+            color: #111827;
             margin: 0;
-            line-height: 1.25;
+            line-height: 1.3;
         }
         .product-specs {
             width: 100%;
@@ -249,140 +201,101 @@
         .product-specs td {
             padding: 7px 12px;
             font-size: 8.5px;
-            border-top: 1px solid #f1f5f9;
+            border-top: 1px solid #f3f4f6;
             vertical-align: top;
         }
         .product-specs td.label {
             width: 22%;
-            color: #64748b;
+            color: #6b7280;
             font-size: 7.5px;
             text-transform: uppercase;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.04em;
             font-weight: bold;
         }
         .product-specs td.value {
-            color: #0f172a;
+            color: #111827;
             font-weight: bold;
             font-family: DejaVu Sans Mono, monospace;
             font-size: 8.5px;
         }
 
-        /* Finance */
         .finance-wrap {
-            border: 1px solid #e2e8f0;
+            border: 1px solid #e5e7eb;
             background: #ffffff;
-        }
-        .finance-progress {
-            padding: 10px 12px 8px;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .finance-progress__row {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 5px;
-        }
-        .finance-progress__row td { padding: 0; vertical-align: middle; }
-        .finance-progress__label {
-            font-size: 7.5px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: #64748b;
-        }
-        .finance-progress__pct {
-            text-align: right;
-            font-size: 9px;
-            font-weight: bold;
-            color: #047857;
-        }
-        .progress-track {
-            width: 100%;
-            height: 7px;
-            background: #e2e8f0;
-            border: 1px solid #cbd5e1;
-        }
-        .progress-fill {
-            height: 100%;
-            background: #059669;
         }
         .summary-table {
             width: 100%;
             border-collapse: collapse;
         }
         .summary-table td {
-            padding: 8px 12px;
+            padding: 7px 12px;
             font-size: 9px;
-            border-bottom: 1px solid #f1f5f9;
+            border-bottom: 1px solid #f3f4f6;
             vertical-align: middle;
         }
-        .summary-table td.label { color: #64748b; }
+        .summary-table td.label { color: #6b7280; }
         .summary-table td.amount {
             text-align: right;
             font-weight: bold;
-            color: #0f172a;
+            color: #111827;
             width: 38%;
-            font-size: 10px;
+            font-size: 9.5px;
         }
-        .summary-table tr.row-price td { background: #fff7ed; }
-        .summary-table tr.row-price td.amount { font-size: 11px; }
-        .summary-table tr.row-paid td.amount { color: #047857; }
         .summary-table tr.row-due td {
-            background: #fef2f2;
+            background: #fafafa;
+            border-top: 1px solid #d1d5db;
             border-bottom: none;
         }
-        .summary-table tr.row-due td.label { color: #991b1b; font-weight: bold; }
-        .summary-table tr.row-due td.amount { color: #b91c1c; font-size: 12px; }
+        .summary-table tr.row-due td.label { color: #374151; font-weight: bold; }
+        .summary-table tr.row-due td.amount { font-size: 10px; }
         .payment-method {
-            padding: 8px 12px;
+            padding: 7px 12px;
             background: #fafafa;
-            border-top: 1px solid #e2e8f0;
+            border-top: 1px solid #e5e7eb;
             font-size: 8.5px;
-            color: #475569;
+            color: #6b7280;
         }
-        .payment-method strong { color: #0f172a; }
+        .payment-method strong { color: #111827; }
 
-        /* Payments */
-        .payments-wrap { border: 1px solid #e2e8f0; }
+        .payments-wrap { border: 1px solid #e5e7eb; }
         .payments { width: 100%; border-collapse: collapse; }
         .payments th {
-            background: #0f172a;
-            color: #f8fafc;
+            background: #f9fafb;
+            color: #374151;
             text-align: left;
-            padding: 7px 10px;
+            padding: 6px 10px;
             font-size: 7px;
             text-transform: uppercase;
-            letter-spacing: 0.07em;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #d1d5db;
         }
         .payments th.right, .payments td.right { text-align: right; }
         .payments td {
-            border-bottom: 1px solid #e2e8f0;
-            padding: 7px 10px;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 6px 10px;
             font-size: 8.5px;
             vertical-align: top;
-            color: #334155;
+            color: #374151;
         }
-        .payments tbody tr:nth-child(even) td { background: #f8fafc; }
+        .payments tbody tr:nth-child(even) td { background: #fafafa; }
         .payments tfoot td {
-            background: #fff7ed;
+            background: #f9fafb;
             font-weight: bold;
-            border-top: 2px solid #ea580c;
+            border-top: 1px solid #d1d5db;
             border-bottom: none;
-            color: #0f172a;
+            color: #111827;
             font-size: 9px;
         }
 
-        /* Notes */
         .notes-box {
-            border: 1px solid #e2e8f0;
+            border: 1px solid #e5e7eb;
             background: #fafafa;
-            padding: 10px 12px;
+            padding: 9px 12px;
             font-size: 8.5px;
-            color: #334155;
+            color: #374151;
             line-height: 1.55;
         }
 
-        /* Signatures */
         .signatures {
             width: 100%;
             border-collapse: collapse;
@@ -396,62 +309,43 @@
             vertical-align: bottom;
         }
         .sign-area {
-            height: 46px;
-            border: 1px dashed #94a3b8;
-            background: #fafafa;
-            margin-bottom: 5px;
+            height: 42px;
+            border: 1px solid #e5e7eb;
+            background: #ffffff;
+            margin-bottom: 4px;
         }
         .sign-line {
-            border-top: 1px solid #334155;
-            padding-top: 5px;
-            font-size: 8.5px;
-            color: #0f172a;
+            border-top: 1px solid #9ca3af;
+            padding-top: 4px;
+            font-size: 8px;
+            color: #374151;
             font-weight: bold;
         }
         .sign-hint {
             font-size: 7px;
-            color: #94a3b8;
+            color: #9ca3af;
             margin-top: 2px;
             font-weight: normal;
         }
 
-        /* Footer */
         .footer {
-            margin-top: 18px;
+            margin-top: 16px;
+            padding-top: 10px;
+            border-top: 1px solid #e5e7eb;
             page-break-inside: avoid;
-        }
-        .footer__bar {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 8px;
-        }
-        .footer__bar td {
-            height: 3px;
-            padding: 0;
-        }
-        .footer__bar td.orange { background: #ea580c; width: 35%; }
-        .footer__bar td.slate { background: #0f172a; }
-        .footer__title {
-            margin: 0 0 3px;
-            font-size: 8px;
-            font-weight: bold;
-            color: #334155;
-            text-align: center;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
         }
         .footer__note {
             margin: 0;
             font-size: 7.5px;
-            color: #64748b;
+            color: #6b7280;
             line-height: 1.5;
             text-align: center;
         }
         .footer__ref {
-            margin: 6px 0 0;
+            margin: 5px 0 0;
             font-size: 7px;
-            color: #94a3b8;
-            letter-spacing: 0.05em;
+            color: #9ca3af;
+            letter-spacing: 0.03em;
             text-align: center;
             font-family: DejaVu Sans Mono, monospace;
         }
@@ -465,7 +359,6 @@
     $statusClass = $sale['status_class'] ?? 'badge--registrado';
     $salePrice = (float) ($sale['sale_price'] ?? 0);
     $amountPaid = (float) ($sale['amount_paid'] ?? 0);
-    $paidPct = $salePrice > 0 ? min(100, (int) round(($amountPaid / $salePrice) * 100)) : 0;
 @endphp
 <div class="page">
     <div class="page__accent"></div>
@@ -480,12 +373,9 @@
                                     <img src="{{ $logoDataUri }}" alt="Phone Colombia" class="header-brand__logo">
                                 </td>
                             @endif
-                            <td class="header-brand__content">
-                                <p class="header-brand__eyebrow">Comprobante oficial</p>
-                                <p class="header-brand__name">PHONE COLOMBIA</p>
-                                <p class="header-brand__tagline">Venta y entrega de equipos móviles</p>
-                                <div class="header-brand__rule"></div>
-                                <p class="header-brand__contact">Documento interno · Respaldo de operación comercial</p>
+                            <td>
+                                <p class="header-brand__name">Phone Colombia</p>
+                                <p class="header-brand__tagline">Equipos móviles · Venta y entrega</p>
                             </td>
                         </tr>
                     </table>
@@ -522,13 +412,9 @@
         </table>
 
         <div class="section">
-            <table class="section-head">
-                <tr>
-                    <td style="width: 22px;"><div class="section-head__num">01</div></td>
-                    <td class="section-head__title">Datos del cliente</td>
-                    <td class="section-head__line"></td>
-                </tr>
-            </table>
+            <div class="section-head">
+                <p class="section-head__title">Cliente</p>
+            </div>
             <table class="grid-2">
                 <tr>
                     <td>
@@ -566,16 +452,11 @@
         </div>
 
         <div class="section">
-            <table class="section-head">
-                <tr>
-                    <td style="width: 22px;"><div class="section-head__num">02</div></td>
-                    <td class="section-head__title">Equipo entregado / reservado</td>
-                    <td class="section-head__line"></td>
-                </tr>
-            </table>
+            <div class="section-head">
+                <p class="section-head__title">Equipo</p>
+            </div>
             <div class="product-box">
                 <div class="product-box__head">
-                    <p class="product-box__tag">Detalle del producto</p>
                     <p class="product-name">{{ $sale['item'] ?: '—' }}</p>
                 </div>
                 <table class="product-specs">
@@ -590,30 +471,10 @@
         </div>
 
         <div class="section">
-            <table class="section-head">
-                <tr>
-                    <td style="width: 22px;"><div class="section-head__num">03</div></td>
-                    <td class="section-head__title">Resumen financiero</td>
-                    <td class="section-head__line"></td>
-                </tr>
-            </table>
+            <div class="section-head">
+                <p class="section-head__title">Resumen financiero</p>
+            </div>
             <div class="finance-wrap">
-                <div class="finance-progress">
-                    <table class="finance-progress__row">
-                        <tr>
-                            <td class="finance-progress__label">Avance de pago</td>
-                            <td class="finance-progress__pct">{{ $paidPct }}% abonado</td>
-                        </tr>
-                    </table>
-                    <table class="progress-track" cellpadding="0" cellspacing="0">
-                        <tr>
-                            <td class="progress-fill" style="width: {{ $paidPct }}%;"></td>
-                            @if ($paidPct < 100)
-                                <td style="width: {{ 100 - $paidPct }}%;"></td>
-                            @endif
-                        </tr>
-                    </table>
-                </div>
                 <table class="summary-table">
                     <tr class="row-price">
                         <td class="label">Precio acordado</td>
@@ -639,13 +500,9 @@
 
         @if ($payments->isNotEmpty())
             <div class="section">
-                <table class="section-head">
-                    <tr>
-                        <td style="width: 22px;"><div class="section-head__num">04</div></td>
-                        <td class="section-head__title">Detalle de pagos</td>
-                        <td class="section-head__line"></td>
-                    </tr>
-                </table>
+                <div class="section-head">
+                    <p class="section-head__title">Detalle de pagos</p>
+                </div>
                 <div class="payments-wrap">
                     <table class="payments">
                         <thead>
@@ -680,13 +537,9 @@
 
         @if (!empty($sale['notes']))
             <div class="section">
-                <table class="section-head">
-                    <tr>
-                        <td style="width: 22px;"><div class="section-head__num">{{ $payments->isNotEmpty() ? '05' : '04' }}</div></td>
-                        <td class="section-head__title">Observaciones</td>
-                        <td class="section-head__line"></td>
-                    </tr>
-                </table>
+                <div class="section-head">
+                    <p class="section-head__title">Observaciones</p>
+                </div>
                 <div class="notes-box">{{ $sale['notes'] }}</div>
             </div>
         @endif
@@ -707,14 +560,7 @@
         </table>
 
         <div class="footer">
-            <table class="footer__bar">
-                <tr>
-                    <td class="orange"></td>
-                    <td class="slate"></td>
-                </tr>
-            </table>
-            <p class="footer__title">Comprobante interno de venta o apartado</p>
-            <p class="footer__note">No sustituye factura electrónica DIAN. Conserve este documento como respaldo de la operación comercial.</p>
+            <p class="footer__note">Documento interno de respaldo comercial. No sustituye factura electrónica DIAN.</p>
             <p class="footer__ref">{{ $sale['remission_number'] }} · Generado {{ $generatedAt }}</p>
         </div>
     </div>

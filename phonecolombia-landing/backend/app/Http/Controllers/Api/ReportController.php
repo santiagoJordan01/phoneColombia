@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Concerns\ScopesInventoryForUser;
 use App\Http\Controllers\Controller;
+use App\Models\CashMovement;
 use App\Models\InventoryItem;
 use App\Models\Sale;
 use App\Models\SalePayment;
@@ -12,12 +13,15 @@ use App\Models\User;
 use App\Services\BySellerReportExporter;
 use App\Services\CashRegisterReportExporter;
 use App\Services\DailySalesReportExporter;
+use App\Services\DailySettlementReportExporter;
 use App\Services\InventoryIntakeReportExporter;
 use App\Services\ReceivablesReportExporter;
 use App\Services\RemissionSalesReportExporter;
 use App\Services\ServiceTicketsReportExporter;
 use App\Support\InventoryStatus;
 use App\Support\MoneyFormatter;
+use App\Support\PaymentMethods;
+use App\Support\ReportPeriod;
 use App\Support\SaleCostResolver;
 use App\Support\SaleReservationStatus;
 use App\Support\ServiceTicketAccess;
@@ -37,6 +41,7 @@ class ReportController extends Controller
         private DailySalesReportExporter $dailyExporter,
         private BySellerReportExporter $bySellerExporter,
         private CashRegisterReportExporter $cashExporter,
+        private DailySettlementReportExporter $dailySettlementExporter,
         private ReceivablesReportExporter $receivablesExporter,
         private RemissionSalesReportExporter $remissionSalesExporter,
         private InventoryIntakeReportExporter $inventoryIntakeExporter,
@@ -127,10 +132,10 @@ class ReportController extends Controller
     public function monthly(Request $request): JsonResponse
     {
         $user = $this->authorizeReports($request);
-        $year = (int) ($request->input('year') ?? now()->year);
-        $month = (int) ($request->input('month') ?? now()->month);
-        $start = now()->setDate($year, $month, 1)->startOfDay();
-        $end = $start->copy()->endOfMonth();
+        $now = now(ReportPeriod::TIMEZONE);
+        $year = (int) ($request->input('year') ?? $now->year);
+        $month = (int) ($request->input('month') ?? $now->month);
+        [$start, $end] = ReportPeriod::monthBounds($year, $month);
 
         $sales = $this->reportSalesQuery($user, $request)
             ->whereBetween('sold_at', [$start, $end])
@@ -180,6 +185,25 @@ class ReportController extends Controller
         return response()->json($this->resolveCashRegisterReport($request));
     }
 
+    public function dailySettlement(Request $request): JsonResponse
+    {
+        return response()->json($this->resolveDailySettlementReport($request));
+    }
+
+    public function exportDailySettlementPdf(Request $request): StreamedResponse
+    {
+        [$label, $report] = $this->resolveDailySettlementReportForExport($request);
+
+        return $this->dailySettlementExporter->toPdf($report, $label);
+    }
+
+    public function exportDailySettlementExcel(Request $request): StreamedResponse
+    {
+        [$label, $report] = $this->resolveDailySettlementReportForExport($request);
+
+        return $this->dailySettlementExporter->toExcel($report, $label);
+    }
+
     public function inventoryIntake(Request $request): JsonResponse
     {
         return response()->json($this->resolveInventoryIntakeReport($request));
@@ -222,23 +246,16 @@ class ReportController extends Controller
     private function resolveCashRegisterReport(Request $request): array
     {
         $user = $this->authorizeReports($request);
-        $from = $request->date('from') ?? now()->startOfDay();
-        $to = $request->date('to') ?? now()->endOfDay();
-
-        if ($from->gt($to)) {
-            [$from, $to] = [$to->copy(), $from->copy()];
-        }
+        [$periodStart, $periodEnd, $from, $to] = ReportPeriod::resolve($request);
 
         $salesQuery = $this->reportSalesQuery($user, $request);
         $allSalesQuery = $this->applySalesFilters($this->scopedSales($user), $request);
         $sales = (clone $salesQuery)
-            ->whereBetween('sold_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+            ->whereBetween('sold_at', [$periodStart, $periodEnd])
             ->get();
 
         $periodSaleIds = $sales->pluck('id')->all();
         $scopedSaleIds = (clone $allSalesQuery)->pluck('id');
-        $periodStart = $from->copy()->startOfDay();
-        $periodEnd = $to->copy()->endOfDay();
 
         $paymentsInPeriod = SalePayment::query()
             ->whereIn('sale_id', $scopedSaleIds)
@@ -333,6 +350,315 @@ class ReportController extends Controller
     private function resolveCashRegisterReportForExport(Request $request): array
     {
         $report = $this->resolveCashRegisterReport($request);
+        $from = $report['period_from'];
+        $to = $report['period_to'];
+        $label = $from === $to ? $to : $from.'_'.$to;
+
+        return [$label, $report];
+    }
+
+    /** @return array<string, mixed> */
+    private function resolveDailySettlementReport(Request $request): array
+    {
+        $user = $this->authorizeReports($request);
+        [$periodStart, $periodEnd, $from, $to] = ReportPeriod::resolve($request);
+
+        // Capa comercial: ventas cerradas en el período (devengo).
+        $sales = $this->reportSalesQuery($user, $request)
+            ->whereBetween('sold_at', [$periodStart, $periodEnd])
+            ->with(['inventoryItem.supplierRelation', 'user', 'payments', 'creditPaymentMethod', 'serviceCustomer'])
+            ->orderBy('sold_at')
+            ->get();
+
+        $periodSaleIds = $sales->pluck('id')->all();
+        $scopedSaleIds = $this->applySalesFilters($this->scopedSales($user), $request)->pluck('id');
+
+        // Capa de caja: dinero que entró/salió en el período (caja).
+        $paymentsInPeriod = SalePayment::query()
+            ->whereIn('sale_id', $scopedSaleIds)
+            ->whereBetween('paid_at', [$periodStart, $periodEnd])
+            ->with(['sale.inventoryItem', 'sale.user', 'sale.creditPaymentMethod', 'user'])
+            ->orderBy('paid_at')
+            ->get();
+
+        $manualMovements = CashMovement::query()
+            ->with('user:id,name')
+            ->whereBetween('occurred_at', [$periodStart, $periodEnd])
+            ->orderBy('occurred_at')
+            ->get();
+
+        $retakes = $this->applySalesFilters($this->scopedSales($user), $request)
+            ->whereNotNull('returned_at')
+            ->whereBetween('returned_at', [$periodStart, $periodEnd])
+            ->with(['inventoryItem', 'user'])
+            ->orderBy('returned_at')
+            ->get();
+
+        $buckets = [];
+        $addBucket = function (string $key, string $label, float $amount) use (&$buckets): void {
+            if ($amount == 0.0) {
+                return;
+            }
+            if (! isset($buckets[$key])) {
+                $buckets[$key] = ['key' => $key, 'label' => $label, 'amount' => 0.0];
+            }
+            $buckets[$key]['amount'] = round($buckets[$key]['amount'] + $amount, 2);
+        };
+
+        $bucketForImmediate = function (string $method): string {
+            return match ($method) {
+                PaymentMethods::EFECTIVO => 'efectivo',
+                PaymentMethods::TARJETA => 'datafono',
+                PaymentMethods::TRANSFERENCIA,
+                PaymentMethods::NEQUI,
+                PaymentMethods::DAVIPLATA,
+                PaymentMethods::BANCOLOMBIA => 'transferencia',
+                default => 'otros',
+            };
+        };
+
+        $immediateLabels = [
+            'efectivo' => 'Efectivo',
+            'transferencia' => 'Transferencia',
+            'datafono' => 'Datáfono',
+            'otros' => 'Otros',
+        ];
+
+        // Formas de pago = cobros reales del período (fecha de pago), no cartera.
+        foreach ($paymentsInPeriod as $payment) {
+            $method = (string) $payment->method;
+            $key = $bucketForImmediate($method);
+            $addBucket($key, $immediateLabels[$key] ?? PaymentMethods::label($method), (float) $payment->amount);
+        }
+
+        foreach ($manualMovements->where('type', CashMovement::TYPE_INGRESO) as $movement) {
+            $method = (string) $movement->method;
+            $key = $bucketForImmediate($method);
+            $addBucket($key, $immediateLabels[$key] ?? PaymentMethods::label($method), (float) $movement->amount);
+        }
+
+        // Crédito/financiación abierta en ventas del día (no es ingreso de caja).
+        $creditoDelDia = 0.0;
+        foreach ($sales as $sale) {
+            $due = (float) $sale->amount_due;
+            if ($due <= 0) {
+                continue;
+            }
+            $creditName = $sale->creditPaymentMethod?->name ?: 'Crédito';
+            $creditKey = 'credito_'.($sale->creditPaymentMethod?->slug ?: 'general');
+            $addBucket($creditKey, $creditName, $due);
+            $creditoDelDia += $due;
+        }
+        $creditoDelDia = round($creditoDelDia, 2);
+
+        $preferredOrder = ['efectivo', 'transferencia', 'datafono'];
+        $formas = [];
+        foreach ($preferredOrder as $key) {
+            if (isset($buckets[$key])) {
+                $formas[] = $buckets[$key];
+                unset($buckets[$key]);
+            } else {
+                $formas[] = ['key' => $key, 'label' => $immediateLabels[$key], 'amount' => 0.0];
+            }
+        }
+
+        $creditDefaults = [
+            ['key' => 'credito_addi', 'label' => 'Crédito Addi'],
+            ['key' => 'credito_sistecredito', 'label' => 'Sistecredito'],
+            ['key' => 'credito_banco_de_bogota', 'label' => 'Banco de Bogotá'],
+            ['key' => 'credito_gora', 'label' => 'Gora'],
+        ];
+        foreach ($creditDefaults as $credit) {
+            $key = $credit['key'];
+            if (isset($buckets[$key])) {
+                $formas[] = [
+                    'key' => $key,
+                    'label' => $credit['label'],
+                    'amount' => $buckets[$key]['amount'],
+                ];
+                unset($buckets[$key]);
+            } else {
+                $formas[] = ['key' => $key, 'label' => $credit['label'], 'amount' => 0.0];
+            }
+        }
+
+        foreach ($buckets as $bucket) {
+            $formas[] = $bucket;
+        }
+
+        $totalFormasCaja = round(collect($formas)
+            ->filter(fn (array $f) => ! str_starts_with((string) ($f['key'] ?? ''), 'credito_'))
+            ->sum('amount'), 2);
+        $totalFormas = round(collect($formas)->sum('amount'), 2);
+        $ventasNetas = round($sales->sum(fn (Sale $s) => MoneyFormatter::parse($s->sale_price)), 2);
+        $totalCosto = round($sales->sum(fn (Sale $s) => SaleCostResolver::purchasePriceAtSale($s)), 2);
+        $utilidadBruta = round($ventasNetas - $totalCosto, 2);
+
+        $paymentsBySaleInPeriod = $paymentsInPeriod->groupBy('sale_id');
+
+        $equipos = $sales->map(function (Sale $sale) use ($paymentsBySaleInPeriod) {
+            $item = $sale->inventoryItem;
+            $cobradoHoy = round((float) ($paymentsBySaleInPeriod->get($sale->id)?->sum('amount') ?? 0), 2);
+            $valor = MoneyFormatter::parse($sale->sale_price);
+            $costo = SaleCostResolver::purchasePriceAtSale($sale);
+
+            return [
+                'id' => $sale->id,
+                'remission_number' => $sale->remission_number,
+                'sold_at' => $sale->sold_at?->format('Y-m-d H:i:s'),
+                'origen' => 'venta',
+                'origen_label' => 'Venta',
+                'equipo' => $item?->name ?? '—',
+                'imei' => $item?->imei,
+                'proveedor' => $item?->supplierRelation?->name ?? $item?->supplier,
+                'valor' => $valor,
+                'costo' => $costo,
+                'utilidad' => round($valor - $costo, 2),
+                'egreso' => 0.0,
+                'ingreso' => $cobradoHoy,
+                'cobrado_acumulado' => (float) $sale->amount_paid,
+                'pendiente' => (float) $sale->amount_due,
+                'responsable' => $sale->user?->name,
+                'payment_method' => $sale->payment_method,
+                'credit_payment_method' => $sale->creditPaymentMethod?->name,
+            ];
+        })->values()->all();
+
+        $movimientos = [];
+
+        foreach ($paymentsInPeriod as $payment) {
+            $sale = $payment->sale;
+            $classification = $this->classifyCollectionType($sale, $payment);
+            $itemName = $sale?->inventoryItem?->name;
+            $movimientos[] = [
+                'id' => 'cobro-'.$payment->id,
+                'sale_id' => $sale?->id,
+                'origen' => $classification['type'] === 'apartado' ? 'apartado' : ($classification['type'] === 'abono' ? 'abono' : 'venta'),
+                'origen_label' => $classification['label'],
+                'type' => CashMovement::TYPE_INGRESO,
+                'type_label' => 'Ingreso',
+                'concept' => $itemName ?: ($classification['label']),
+                'method' => $payment->method,
+                'method_label' => PaymentMethods::label((string) $payment->method),
+                'costo' => $sale ? SaleCostResolver::purchasePriceAtSale($sale) : null,
+                'amount' => (float) $payment->amount,
+                'occurred_at' => $payment->paid_at?->format('Y-m-d H:i:s'),
+                'responsable' => $payment->user?->name ?? $sale?->user?->name,
+                'notes' => $sale?->remission_number
+                    ? trim(($payment->notes ? $payment->notes.' · ' : '').'Remisión '.$sale->remission_number)
+                    : $payment->notes,
+                'on_period_sale' => in_array($payment->sale_id, $periodSaleIds, true),
+            ];
+        }
+
+        foreach ($retakes as $sale) {
+            $amount = round(MoneyFormatter::parse($sale->retake_price ?? '0'), 2);
+            if ($amount <= 0) {
+                continue;
+            }
+            $item = $sale->inventoryItem;
+            $method = (string) ($sale->retake_payment_method ?: PaymentMethods::EFECTIVO);
+            $movimientos[] = [
+                'id' => 'retoma-'.$sale->id,
+                'sale_id' => $sale->id,
+                'origen' => 'retoma',
+                'origen_label' => 'Retoma',
+                'type' => CashMovement::TYPE_EGRESO,
+                'type_label' => 'Egreso',
+                'concept' => $item?->name ?? 'Retoma',
+                'method' => $method,
+                'method_label' => PaymentMethods::label($method),
+                'costo' => SaleCostResolver::purchasePriceAtSale($sale),
+                'amount' => $amount,
+                'occurred_at' => $sale->returned_at?->format('Y-m-d H:i:s'),
+                'responsable' => $sale->user?->name,
+                'notes' => $sale->remission_number ? 'Remisión '.$sale->remission_number : null,
+                'on_period_sale' => false,
+            ];
+        }
+
+        foreach ($manualMovements as $movement) {
+            $movimientos[] = [
+                'id' => $movement->id,
+                'sale_id' => null,
+                'origen' => 'manual',
+                'origen_label' => 'Manual',
+                'type' => $movement->type,
+                'type_label' => CashMovement::typeLabel((string) $movement->type),
+                'concept' => $movement->concept ?: ($movement->isIngreso() ? 'Ingreso de caja' : 'Egreso de caja'),
+                'method' => $movement->method,
+                'method_label' => PaymentMethods::label((string) $movement->method),
+                'costo' => null,
+                'amount' => (float) $movement->amount,
+                'occurred_at' => $movement->occurred_at?->format('Y-m-d H:i:s'),
+                'responsable' => $movement->user?->name,
+                'notes' => $movement->notes,
+                'on_period_sale' => false,
+            ];
+        }
+
+        usort($movimientos, function (array $a, array $b) {
+            return strcmp((string) ($a['occurred_at'] ?? ''), (string) ($b['occurred_at'] ?? ''));
+        });
+
+        $movimientosCostoTotal = round((float) collect($movimientos)
+            ->filter(fn (array $m) => ($m['sale_id'] ?? null) && ($m['costo'] ?? null) !== null)
+            ->unique('sale_id')
+            ->sum('costo'), 2);
+
+        $ingresosCobros = round((float) $paymentsInPeriod->sum('amount'), 2);
+        $ingresosManuales = round((float) $manualMovements->where('type', CashMovement::TYPE_INGRESO)->sum('amount'), 2);
+        $egresosRetoma = round((float) $retakes->sum(fn (Sale $s) => MoneyFormatter::parse($s->retake_price ?? '0')), 2);
+        $egresosManuales = round((float) $manualMovements->where('type', CashMovement::TYPE_EGRESO)->sum('amount'), 2);
+
+        $totalIngresos = round($ingresosCobros + $ingresosManuales, 2);
+        $totalEgresos = round($egresosRetoma + $egresosManuales, 2);
+        $netoCaja = round($totalIngresos - $totalEgresos, 2);
+
+        // Cuadre comercial de consistencia: cada venta debe explicar precio = cobrado acumulado + pendiente.
+        $cobradoVentasDelDia = round((float) $paymentsInPeriod->whereIn('sale_id', $periodSaleIds)->sum('amount'), 2);
+        $cobradoAcumuladoVentas = round((float) $sales->sum(fn (Sale $s) => (float) $s->amount_paid), 2);
+        $pendienteVentas = round((float) $sales->sum(fn (Sale $s) => (float) $s->amount_due), 2);
+        $diferenciaVentas = round($ventasNetas - $cobradoAcumuladoVentas - $pendienteVentas, 2);
+
+        return [
+            'type' => 'daily_settlement',
+            'period_from' => $from->toDateString(),
+            'period_to' => $to->toDateString(),
+            'is_range' => ! $from->isSameDay($to),
+            'fecha' => $from->isSameDay($to) ? $from->toDateString() : $from->toDateString().' — '.$to->toDateString(),
+            'ventas_netas' => $ventasNetas,
+            'total_costo' => $totalCosto,
+            'utilidad_bruta' => $utilidadBruta,
+            'formas_de_pago' => $formas,
+            'total_formas_pago' => $totalFormas,
+            'total_formas_caja' => $totalFormasCaja,
+            'credito_del_dia' => $creditoDelDia,
+            'cobrado_ventas_del_dia' => $cobradoVentasDelDia,
+            'cobrado_acumulado_ventas' => $cobradoAcumuladoVentas,
+            'pendiente_ventas' => $pendienteVentas,
+            'diferencia' => $diferenciaVentas,
+            'neto_caja' => $netoCaja,
+            'total_ingresos' => $totalIngresos,
+            'total_egresos' => $totalEgresos,
+            'ingresos_venta' => $ingresosCobros,
+            'ingresos_cobros' => $ingresosCobros,
+            'ingresos_manuales' => $ingresosManuales,
+            'egresos_retoma' => $egresosRetoma,
+            'egresos_manuales' => $egresosManuales,
+            'equipos_vendidos' => $equipos,
+            'equipos_count' => count($equipos),
+            'movimientos_caja' => $movimientos,
+            'movimientos_count' => count($movimientos),
+            'movimientos_costo_total' => $movimientosCostoTotal,
+            'methodology' => 'Contable: ventas netas = ventas cerradas del período (fecha de venta). Costo = precio de compra congelado al momento de cada venta. Utilidad bruta = ventas netas − costo. Ingresos/egresos de caja = cobros (fecha de pago), retomas y movimientos manuales del período. Crédito del día = saldo pendiente de esas ventas (no es caja). Neto de caja = ingresos − egresos. Diferencia ventas = ventas netas − cobrado acumulado − pendiente (debe ser 0 si los datos son consistentes).',
+        ];
+    }
+
+    /** @return array{0: string, 1: array<string, mixed>} */
+    private function resolveDailySettlementReportForExport(Request $request): array
+    {
+        $report = $this->resolveDailySettlementReport($request);
         $from = $report['period_from'];
         $to = $report['period_to'];
         $label = $from === $to ? $to : $from.'_'.$to;
@@ -450,11 +776,10 @@ class ReportController extends Controller
     public function exportSales(Request $request): StreamedResponse
     {
         $user = $this->authorizeReports($request);
-        $from = $request->date('from') ?? now()->startOfMonth();
-        $to = $request->date('to') ?? now();
+        [$periodStart, $periodEnd, $from, $to] = ReportPeriod::resolveMonthToDate($request);
 
         $sales = $this->reportSalesQuery($user, $request)
-            ->whereBetween('sold_at', [$from, $to])
+            ->whereBetween('sold_at', [$periodStart, $periodEnd])
             ->with(['inventoryItem', 'user', 'creditPaymentMethod'])
             ->orderBy('sold_at')
             ->get();
@@ -528,6 +853,11 @@ class ReportController extends Controller
         if ($request->filled('inventory_product_id')) {
             $query->whereHas('inventoryItem', fn ($q) => $q->where('inventory_product_id', $request->string('inventory_product_id')));
         }
+        if ($this->requestHasInventoryAttributeFilters($request)) {
+            $query->whereHas('inventoryItem', function ($itemQuery) use ($request) {
+                $this->applyInventoryAttributeFilters($itemQuery, $request);
+            });
+        }
         if ($request->filled('q')) {
             $term = '%'.$request->string('q').'%';
             $query->where(function ($q) use ($term) {
@@ -541,6 +871,65 @@ class ReportController extends Controller
         }
 
         return $query;
+    }
+
+    private function requestHasInventoryAttributeFilters(Request $request): bool
+    {
+        return $request->filled('brand')
+            || $request->filled('model')
+            || $request->filled('storage')
+            || $request->filled('color')
+            || $request->filled('battery')
+            || $request->filled('battery_status');
+    }
+
+    /** @param  \Illuminate\Database\Eloquent\Builder<\App\Models\InventoryItem>  $query */
+    private function applyInventoryAttributeFilters($query, Request $request): void
+    {
+        if ($request->filled('brand')) {
+            $brand = strtoupper(trim((string) $request->string('brand')));
+            $query->where(function ($q) use ($brand) {
+                $q->whereHas('inventoryProduct', fn ($p) => $p->where('brand', $brand))
+                    ->orWhere('name', 'like', $brand.'%');
+            });
+        }
+
+        if ($request->filled('model')) {
+            $model = strtoupper(trim((string) $request->string('model')));
+            $query->where(function ($q) use ($model) {
+                $q->whereHas('inventoryProduct', fn ($p) => $p->where('model', $model))
+                    ->orWhere('name', 'like', '%'.$model.'%');
+            });
+        }
+
+        if ($request->filled('storage')) {
+            $storage = strtoupper(trim((string) $request->string('storage')));
+            $query->where(function ($q) use ($storage) {
+                $q->where('storage', $storage)
+                    ->orWhereHas('inventoryProduct', fn ($p) => $p->where('storage', $storage))
+                    ->orWhere('name', 'like', '%'.$storage.'%');
+            });
+        }
+
+        if ($request->filled('color')) {
+            $query->where('color', trim((string) $request->string('color')));
+        }
+
+        if ($request->filled('battery') && is_numeric((string) $request->input('battery'))) {
+            $battery = (int) $request->input('battery');
+            if ($battery >= 0 && $battery <= 100) {
+                $query->where('battery', $battery);
+            }
+        } elseif ($request->filled('battery_status')) {
+            $status = (string) $request->string('battery_status');
+            if ($status === 'ok') {
+                $query->where('battery', '>=', 85);
+            } elseif ($status === 'baja') {
+                $query->whereNotNull('battery')->where('battery', '<', 85);
+            } elseif ($status === 'sin_dato') {
+                $query->whereNull('battery');
+            }
+        }
     }
 
     public function byRemission(Request $request): JsonResponse
@@ -599,15 +988,7 @@ class ReportController extends Controller
     private function resolveByRemissionSales(Request $request): array
     {
         $user = $this->authorizeReports($request);
-        $to = $request->date('to') ?? $request->date('date') ?? now();
-        $from = $request->date('from') ?? $to->copy();
-
-        if ($from->gt($to)) {
-            [$from, $to] = [$to->copy(), $from->copy()];
-        }
-
-        $periodStart = $from->copy()->startOfDay();
-        $periodEnd = $to->copy()->endOfDay();
+        [$periodStart, $periodEnd, $from, $to] = ReportPeriod::resolve($request);
 
         $sales = $this->reportSalesQuery($user, $request)
             ->whereNotNull('remission_number')
@@ -623,15 +1004,10 @@ class ReportController extends Controller
     private function resolveDailyReport(Request $request): array
     {
         $user = $this->authorizeReports($request);
-        $to = $request->date('to') ?? $request->date('date') ?? now();
-        $from = $request->date('from') ?? $to->copy();
-
-        if ($from->gt($to)) {
-            [$from, $to] = [$to->copy(), $from->copy()];
-        }
+        [$periodStart, $periodEnd, $from, $to] = ReportPeriod::resolve($request);
 
         $sales = $this->reportSalesQuery($user, $request)
-            ->whereBetween('sold_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+            ->whereBetween('sold_at', [$periodStart, $periodEnd])
             ->with(['inventoryItem', 'user', 'payments', 'serviceCustomer', 'creditPaymentMethod'])
             ->orderBy('sold_at')
             ->get();
@@ -664,15 +1040,10 @@ class ReportController extends Controller
     private function resolveBySellerReport(Request $request): array
     {
         $user = $this->authorizeReports($request);
-        $from = $request->date('from') ?? now()->startOfMonth();
-        $to = $request->date('to') ?? now();
-
-        if ($from->gt($to)) {
-            [$from, $to] = [$to->copy(), $from->copy()];
-        }
+        [$periodStart, $periodEnd, $from, $to] = ReportPeriod::resolveMonthToDate($request);
 
         $sales = $this->reportSalesQuery($user, $request)
-            ->whereBetween('sold_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+            ->whereBetween('sold_at', [$periodStart, $periodEnd])
             ->with(['inventoryItem', 'user', 'payments', 'creditPaymentMethod'])
             ->orderBy('sold_at')
             ->get();
@@ -990,7 +1361,7 @@ class ReportController extends Controller
     /** @return array{0: string, 1: array<string, mixed>} */
     private function resolveInventoryIntakeReportForExport(Request $request): array
     {
-        [$from, $to] = $this->resolveInventoryIntakePeriod($request);
+        [, , $from, $to] = ReportPeriod::resolve($request);
         $report = $this->resolveInventoryIntakeReport($request);
         $label = $from->isSameDay($to)
             ? $to->format('Y-m-d')
@@ -1002,9 +1373,7 @@ class ReportController extends Controller
     /** @return array{0: Carbon, 1: Carbon, 2: Collection<int, InventoryItem>} */
     private function resolveInventoryIntakeItems(Request $request, User $user): array
     {
-        [$from, $to] = $this->resolveInventoryIntakePeriod($request);
-        $periodStart = $from->copy()->startOfDay();
-        $periodEnd = $to->copy()->endOfDay();
+        [$periodStart, $periodEnd, $from, $to] = ReportPeriod::resolve($request);
 
         $query = InventoryItem::query()->with('supplierRelation');
         $query = $this->scopeInventoryForUser($query, $user);
@@ -1013,6 +1382,8 @@ class ReportController extends Controller
         if ($request->filled('supplier_id')) {
             $query->where('supplier_id', $request->string('supplier_id'));
         }
+
+        $this->applyInventoryAttributeFilters($query, $request);
 
         if ($request->filled('q')) {
             $term = '%'.$request->string('q').'%';
@@ -1030,19 +1401,6 @@ class ReportController extends Controller
             ->get();
 
         return [$from, $to, $items];
-    }
-
-    /** @return array{0: Carbon, 1: Carbon} */
-    private function resolveInventoryIntakePeriod(Request $request): array
-    {
-        $to = $request->date('to') ?? $request->date('date') ?? now();
-        $from = $request->date('from') ?? $to->copy();
-
-        if ($from->gt($to)) {
-            [$from, $to] = [$to->copy(), $from->copy()];
-        }
-
-        return [$from, $to];
     }
 
     /** @return array<string, mixed> */
@@ -1154,7 +1512,7 @@ class ReportController extends Controller
     /** @return array{0: string, 1: array<string, mixed>} */
     private function resolveServiceTicketsReportForExport(Request $request): array
     {
-        [$from, $to] = $this->resolveInventoryIntakePeriod($request);
+        [, , $from, $to] = ReportPeriod::resolve($request);
         $report = $this->resolveServiceTicketsReport($request);
         $label = $from->isSameDay($to)
             ? $to->format('Y-m-d')
@@ -1166,9 +1524,7 @@ class ReportController extends Controller
     /** @return array{0: Carbon, 1: Carbon, 2: Collection<int, ServiceTicket>} */
     private function resolveServiceTicketRows(Request $request, User $user): array
     {
-        [$from, $to] = $this->resolveInventoryIntakePeriod($request);
-        $periodStart = $from->copy()->startOfDay();
-        $periodEnd = $to->copy()->endOfDay();
+        [$periodStart, $periodEnd, $from, $to] = ReportPeriod::resolve($request);
 
         $query = ServiceTicket::query()
             ->with(['inventoryItem', 'serviceCustomer', 'serviceTechnician', 'assignedUser', 'serviceCategory'])
@@ -1184,6 +1540,12 @@ class ReportController extends Controller
 
         if ($request->filled('workshop')) {
             $query->where('workshop', $request->string('workshop'));
+        }
+
+        if ($this->requestHasInventoryAttributeFilters($request)) {
+            $query->whereHas('inventoryItem', function ($itemQuery) use ($request) {
+                $this->applyInventoryAttributeFilters($itemQuery, $request);
+            });
         }
 
         if ($request->filled('q')) {

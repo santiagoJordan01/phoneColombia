@@ -67,8 +67,8 @@ export default function CashReportDocument({ report, from, to, generatedAt }) {
   return (
     <div className="inv-report-doc">
       <ReportPreviewHeader
-        docLabel="Cuadre de caja"
-        docSubtitle={isRange ? "Período múltiple" : "Cierre diario"}
+        docLabel="Libro de caja"
+        docSubtitle={isRange ? "Período múltiple" : "Cobros y retomas del día"}
         periodLabel={periodLabel}
         generatedAt={generatedAt}
       />

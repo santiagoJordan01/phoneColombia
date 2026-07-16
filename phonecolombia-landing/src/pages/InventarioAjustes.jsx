@@ -23,19 +23,28 @@ import "../styles.css";
 const AuditoriaPanel = React.lazy(() => import("../components/inventario/AuditoriaPanel.jsx"));
 const CreditConfigPanel = React.lazy(() => import("../components/inventario/CreditConfigPanel.jsx"));
 
+function ajustesCardTone(id) {
+  if (id === "usuarios") return "cyan";
+  if (id === "auditoria") return "purple";
+  return "amber";
+}
+
 function AjustesHub() {
   return (
-    <div className="inv-ajustes-welcome">
-      <h2 className="inv-ajustes-hub__title">Opciones avanzadas</h2>
-      <p className="inv-ajustes-hub__text">
-        Configuración del sistema reservada para administradores. Los catálogos de colores,
-        proveedores y modelos se gestionan desde el inventario.
-      </p>
-      <ul className="inv-ajustes-welcome__links">
+    <section className="inv-ajustes-hub">
+      <header className="inv-ajustes-hub__header">
+        <h2 className="inv-ajustes-hub__title">Opciones avanzadas</h2>
+        <p className="inv-ajustes-hub__text">
+          Configuración del sistema reservada para administradores. Los catálogos de colores,
+          proveedores y modelos se gestionan desde el inventario.
+        </p>
+        <p className="inv-ajustes-hub__hint">Elige una opción para configurar el sistema.</p>
+      </header>
+      <ul className="inv-ajustes-hub__grid">
         {AJUSTES_MENU.map((item) => (
           <li key={item.id}>
-            <Link to={item.path} className="inv-settings__card inv-settings__card--link inv-ajustes-welcome__card">
-              <span className={`inv-settings__card-icon inv-settings__card-icon--${item.id === "usuarios" ? "cyan" : item.id === "auditoria" ? "purple" : "amber"}`} aria-hidden="true">
+            <Link to={item.path} className="inv-settings__card inv-settings__card--link">
+              <span className={`inv-settings__card-icon inv-settings__card-icon--${ajustesCardTone(item.id)}`} aria-hidden="true">
                 <InvIcon name={item.icon} className="" />
               </span>
               <span className="inv-settings__card-body">
@@ -47,7 +56,7 @@ function AjustesHub() {
           </li>
         ))}
       </ul>
-    </div>
+    </section>
   );
 }
 
@@ -240,10 +249,17 @@ export default function InventarioAjustes() {
       />
 
       <main className="inv-main inv-main--ajustes">
-        <div className="inv-ajustes-shell">
-          <AjustesSidebar />
+        <div className={`inv-ajustes-shell${section ? " inv-ajustes-shell--section" : ""}`}>
+          {section && <AjustesSidebar />}
 
           <div className="inv-ajustes-content">
+            {section && (
+              <Link to="/admin/inventario/ajustes" className="inv-ajustes-back">
+                <InvIcon name="arrow-left" />
+                Volver a ajustes
+              </Link>
+            )}
+
             {!section && <AjustesHub />}
 
             {section === "usuarios" && (

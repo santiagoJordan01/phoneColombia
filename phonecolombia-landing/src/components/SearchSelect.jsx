@@ -26,6 +26,8 @@ export default function SearchSelect({
     [options, value],
   );
 
+  const displayLabel = selected?.label || (value ? String(value) : "");
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return options;
@@ -87,8 +89,8 @@ export default function SearchSelect({
         disabled={disabled}
       >
         <span className="inv-select2__trigger-inner">
-          <span className={selected ? "inv-select2__value" : "inv-select2__placeholder"}>
-            {selected ? selected.label : placeholder}
+          <span className={displayLabel ? "inv-select2__value" : "inv-select2__placeholder"}>
+            {displayLabel || placeholder}
           </span>
           {selected?.sublabel && (
             <span className="inv-select2__sublabel">{selected.sublabel}</span>

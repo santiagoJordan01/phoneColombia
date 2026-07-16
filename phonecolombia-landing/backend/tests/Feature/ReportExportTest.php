@@ -7,6 +7,7 @@ use App\Models\Sale;
 use App\Models\User;
 use App\Support\InventoryStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
@@ -107,6 +108,42 @@ class ReportExportTest extends TestCase
             ->assertJsonPath('totals.count', 1);
     }
 
+    public function test_daily_settlement_uses_colombia_calendar_day_for_sold_at(): void
+    {
+        $item = InventoryItem::create([
+            'name' => 'IPHONE 13 128GB',
+            'imei' => '352099001761482',
+            'sale_price' => '1800000',
+            'status' => InventoryStatus::VENDIDO,
+            'quantity' => 1,
+        ]);
+
+        // 15 jul 2026 22:00 en Colombia = 16 jul 03:00 UTC (stored in app TZ)
+        Sale::create([
+            'inventory_item_id' => $item->id,
+            'user_id' => User::factory()->create(['role' => User::ROLE_SELLER])->id,
+            'sale_price' => '1800000',
+            'payment_method' => 'efectivo',
+            'credit_status' => 'paid',
+            'amount_paid' => 1800000,
+            'amount_due' => 0,
+            'sold_at' => Carbon::parse('2026-07-15 22:00:00', 'America/Bogota')->timezone('UTC'),
+            'remission_number' => 'R-2026-000099',
+        ]);
+
+        $token = $this->tokenFor(User::ROLE_INVENTORY);
+
+        $this->withToken($token)
+            ->getJson('/api/reports/daily-settlement?from=2026-07-15&to=2026-07-15')
+            ->assertOk()
+            ->assertJsonPath('equipos_count', 1);
+
+        $this->withToken($token)
+            ->getJson('/api/reports/daily-settlement?from=2026-07-16&to=2026-07-16')
+            ->assertOk()
+            ->assertJsonPath('equipos_count', 0);
+    }
+
     public function test_content_role_cannot_export_daily_report(): void
     {
         $token = $this->tokenFor(User::ROLE_CONTENT);
@@ -183,7 +220,7 @@ class ReportExportTest extends TestCase
 
         $this->assertSame('Resumen', $spreadsheet->getSheet(0)->getTitle());
         $this->assertSame('Libro de caja', $spreadsheet->getSheet(1)->getTitle());
-        $this->assertSame('Cuadre de caja', $spreadsheet->getSheet(0)->getCell('A2')->getValue());
+        $this->assertSame('Libro de caja', $spreadsheet->getSheet(0)->getCell('A2')->getValue());
     }
 
     public function test_receivables_report_pdf_export(): void

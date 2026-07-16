@@ -12,6 +12,7 @@ use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use App\Support\PaymentMethods;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CashRegisterReportExporter
 {
@@ -34,7 +35,7 @@ class CashRegisterReportExporter
     /** @param array<string, mixed> $report */
     public function toPdf(array $report, string $dateLabel): StreamedResponse
     {
-        $filename = 'cuadre_caja_'.$dateLabel.'.pdf';
+        $filename = 'libro_caja_'.$dateLabel.'.pdf';
 
         $pdf = Pdf::loadView('reports.cash-register-pdf', [
             'report' => $report,
@@ -53,7 +54,7 @@ class CashRegisterReportExporter
     /** @param array<string, mixed> $report */
     public function toExcel(array $report, string $dateLabel): StreamedResponse
     {
-        $filename = 'cuadre_caja_'.$dateLabel.'.xlsx';
+        $filename = 'libro_caja_'.$dateLabel.'.xlsx';
         $generatedAt = now()->timezone('America/Bogota');
         $periodLabel = $this->formatPeriodLabel($report, $dateLabel);
 
@@ -86,7 +87,7 @@ class CashRegisterReportExporter
         $sheet->setTitle('Resumen');
 
         $sheet->setCellValue('A1', 'PHONE COLOMBIA');
-        $sheet->setCellValue('A2', 'Cuadre de caja');
+        $sheet->setCellValue('A2', 'Libro de caja');
         $sheet->setCellValue('A3', 'Período: '.$periodLabel);
         $sheet->setCellValue('A4', 'Generado: '.$generatedAt->format('d/m/Y H:i').' (hora Colombia)');
 

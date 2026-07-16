@@ -6,12 +6,10 @@ function badgeClass(statusClass) {
   return "inv-remission-doc__badge inv-remission-doc__badge--registrado";
 }
 
-function SectionHead({ number, title }) {
+function SectionHead({ title }) {
   return (
     <div className="inv-remission-doc__section-head">
-      <span className="inv-remission-doc__section-num">{number}</span>
       <h2 className="inv-remission-doc__section-title">{title}</h2>
-      <span className="inv-remission-doc__section-rule" aria-hidden="true" />
     </div>
   );
 }
@@ -23,8 +21,6 @@ export default function RemissionDocument({ sale, generatedAt }) {
   const paymentsTotal = payments.reduce((sum, payment) => sum + Number(payment.amount ?? 0), 0);
   const salePrice = Number(sale.sale_price ?? 0);
   const amountPaid = Number(sale.amount_paid ?? 0);
-  const paidPct = salePrice > 0 ? Math.min(100, Math.round((amountPaid / salePrice) * 100)) : 0;
-  const notesSectionNum = payments.length > 0 ? "05" : "04";
 
   return (
     <div className="inv-remission-doc">
@@ -42,11 +38,8 @@ export default function RemissionDocument({ sale, generatedAt }) {
                     className="inv-remission-doc__logo"
                   />
                   <div className="inv-remission-doc__brand-text">
-                    <p className="inv-remission-doc__brand-eyebrow">Comprobante oficial</p>
-                    <p className="inv-remission-doc__brand-name">PHONE COLOMBIA</p>
-                    <p className="inv-remission-doc__brand-tagline">Venta y entrega de equipos móviles</p>
-                    <div className="inv-remission-doc__brand-rule" aria-hidden="true" />
-                    <p className="inv-remission-doc__brand-contact">Documento interno · Respaldo de operación comercial</p>
+                    <p className="inv-remission-doc__brand-name">Phone Colombia</p>
+                    <p className="inv-remission-doc__brand-tagline">Equipos móviles · Venta y entrega</p>
                   </div>
                 </div>
               </td>
@@ -87,7 +80,7 @@ export default function RemissionDocument({ sale, generatedAt }) {
         </table>
 
         <section className="inv-remission-doc__section">
-          <SectionHead number="01" title="Datos del cliente" />
+          <SectionHead title="Cliente" />
           <div className="inv-remission-doc__grid-2">
             <div className="inv-remission-doc__info-box">
               <div className="inv-remission-doc__info-head">Información de contacto</div>
@@ -107,10 +100,9 @@ export default function RemissionDocument({ sale, generatedAt }) {
         </section>
 
         <section className="inv-remission-doc__section">
-          <SectionHead number="02" title="Equipo entregado / reservado" />
+          <SectionHead title="Equipo" />
           <div className="inv-remission-doc__product-box">
             <div className="inv-remission-doc__product-head">
-              <p className="inv-remission-doc__product-tag">Detalle del producto</p>
               <p className="inv-remission-doc__product-name">{sale.item || "—"}</p>
             </div>
             <dl className="inv-remission-doc__product-specs">
@@ -127,17 +119,8 @@ export default function RemissionDocument({ sale, generatedAt }) {
         </section>
 
         <section className="inv-remission-doc__section">
-          <SectionHead number="03" title="Resumen financiero" />
+          <SectionHead title="Resumen financiero" />
           <div className="inv-remission-doc__finance">
-            <div className="inv-remission-doc__progress">
-              <div className="inv-remission-doc__progress-labels">
-                <span>Avance de pago</span>
-                <strong>{paidPct}% abonado</strong>
-              </div>
-              <div className="inv-remission-doc__progress-track" role="progressbar" aria-valuenow={paidPct} aria-valuemin={0} aria-valuemax={100}>
-                <div className="inv-remission-doc__progress-fill" style={{ width: `${paidPct}%` }} />
-              </div>
-            </div>
             <table className="inv-remission-doc__summary">
               <tbody>
                 <tr className="inv-remission-doc__summary-row--price">
@@ -165,7 +148,7 @@ export default function RemissionDocument({ sale, generatedAt }) {
 
         {payments.length > 0 && (
           <section className="inv-remission-doc__section">
-            <SectionHead number="04" title="Detalle de pagos" />
+            <SectionHead title="Detalle de pagos" />
             <div className="inv-remission-doc__table-wrap">
               <table className="inv-remission-doc__payments">
                 <thead>
@@ -200,7 +183,7 @@ export default function RemissionDocument({ sale, generatedAt }) {
 
         {sale.notes?.trim() && (
           <section className="inv-remission-doc__section">
-            <SectionHead number={notesSectionNum} title="Observaciones" />
+            <SectionHead title="Observaciones" />
             <div className="inv-remission-doc__notes">{sale.notes.trim()}</div>
           </section>
         )}
@@ -219,13 +202,8 @@ export default function RemissionDocument({ sale, generatedAt }) {
         </div>
 
         <footer className="inv-remission-doc__footer">
-          <div className="inv-remission-doc__footer-bar" aria-hidden="true">
-            <span className="inv-remission-doc__footer-bar-orange" />
-            <span className="inv-remission-doc__footer-bar-slate" />
-          </div>
-          <p className="inv-remission-doc__footer-title">Comprobante interno de venta o apartado</p>
           <p className="inv-remission-doc__footer-note">
-            No sustituye factura electrónica DIAN. Conserve este documento como respaldo de la operación comercial.
+            Documento interno de respaldo comercial. No sustituye factura electrónica DIAN.
           </p>
           <p className="inv-remission-doc__footer-ref">
             {sale.remission_number || "—"} · Generado {generatedAt || "—"}

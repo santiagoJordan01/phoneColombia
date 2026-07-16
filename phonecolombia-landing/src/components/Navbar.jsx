@@ -156,6 +156,15 @@ export default function Navbar() {
                   Ubicación
                 </a>
               </li>
+              <li>
+                <Link
+                  to="/admin/inventario"
+                  className="btn-nav"
+                  onClick={closeMenu}
+                >
+                  Admin
+                </Link>
+              </li>
               {/*
               <li>
                 <a href={`${import.meta.env.BASE_URL}#beneficios`} className="btn-nav" onClick={closeMenu}>

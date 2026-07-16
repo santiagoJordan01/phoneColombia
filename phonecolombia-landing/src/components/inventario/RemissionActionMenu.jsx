@@ -13,9 +13,8 @@ export default function RemissionActionMenu({ saleId, remissionNumber, onNotify 
     if (!open) return undefined;
 
     const close = (event) => {
-      if (rootRef.current && !rootRef.current.contains(event.target)) {
-        setOpen(false);
-      }
+      if (rootRef.current?.contains(event.target)) return;
+      setOpen(false);
     };
 
     const onKeyDown = (event) => {

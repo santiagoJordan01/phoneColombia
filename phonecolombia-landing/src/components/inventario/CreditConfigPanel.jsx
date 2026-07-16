@@ -83,36 +83,57 @@ export default function CreditConfigPanel({ onToast }) {
   };
 
   if (loading) {
-    return <div className="inv-sheet-empty"><div className="inv-loader" aria-label="Cargando" /></div>;
+    return (
+      <section className="inv-panel inv-panel--ajustes inv-credit-config">
+        <div className="inv-loader" aria-label="Cargando" />
+        <p className="inv-users-form-desc">Cargando configuración de crédito…</p>
+      </section>
+    );
   }
 
   return (
-    <div className="inv-ajustes-panel">
-      <section className="inv-panel" style={{ marginBottom: "1.25rem" }}>
-        <h2 className="inv-panel__title">Medios de pago para crédito</h2>
-        <p className="inv-dash__muted">
-          Opciones disponibles al registrar ventas a crédito: Addi, Sistecredito, cupón, transferencia, tarjeta corporativa, etc.
-        </p>
-        <ul className="inv-supplier-list__items" style={{ marginTop: "1rem" }}>
+    <div className="inv-credit-config">
+      <section className="inv-panel inv-panel--ajustes">
+        <header className="inv-credit-config__header">
+          <h2 className="inv-credit-config__title">Medios de pago para crédito</h2>
+          <p className="inv-credit-config__desc">
+            Opciones disponibles al registrar ventas a crédito: Addi, Sistecredito, cupón, transferencia, tarjeta corporativa, etc.
+          </p>
+        </header>
+
+        <ul className="inv-credit-methods">
           {methods.map((method) => (
-            <li key={method.id} className="inv-supplier-list__item">
-              <div className="inv-supplier-list__info">
-                <span className="inv-supplier-list__name">{method.name}</span>
-                <span className="inv-supplier-list__meta">{method.slug} · {method.is_active ? "Activo" : "Inactivo"}</span>
+            <li key={method.id} className={`inv-credit-methods__item${method.is_active ? "" : " is-inactive"}`}>
+              <div className="inv-credit-methods__info">
+                <span className="inv-credit-methods__name">{method.name}</span>
+                <span className="inv-credit-methods__meta">
+                  {method.slug} · {method.is_active ? "Activo" : "Inactivo"}
+                </span>
               </div>
-              <div className="inv-sheet-actions">
-                <button type="button" className="inv-btn inv-btn--outline inv-btn--compact" onClick={() => toggleMethod(method)} disabled={saving}>
+              <div className="inv-credit-methods__actions">
+                <button
+                  type="button"
+                  className="inv-btn inv-btn--outline inv-btn--compact"
+                  onClick={() => toggleMethod(method)}
+                  disabled={saving}
+                >
                   {method.is_active ? "Desactivar" : "Activar"}
                 </button>
-                <button type="button" className="inv-btn inv-btn--ghost inv-btn--compact" onClick={() => removeMethod(method)} disabled={saving}>
+                <button
+                  type="button"
+                  className="inv-btn inv-btn--ghost inv-btn--compact"
+                  onClick={() => removeMethod(method)}
+                  disabled={saving}
+                >
                   Eliminar
                 </button>
               </div>
             </li>
           ))}
         </ul>
-        <form onSubmit={handleAddMethod} className="inv-sheet-toolbar" style={{ marginTop: "1rem" }}>
-          <Field label="Nuevo medio personalizado">
+
+        <form onSubmit={handleAddMethod} className="inv-credit-config__form">
+          <Field label="Nuevo medio personalizado" className="inv-field--full">
             <input
               className="inv-field__input"
               value={newMethod}
@@ -120,19 +141,24 @@ export default function CreditConfigPanel({ onToast }) {
               placeholder="Ej. Nequi crédito"
             />
           </Field>
-          <button type="submit" className="inv-btn inv-btn--primary inv-btn--inline" disabled={saving || !newMethod.trim()}>
-            Agregar
-          </button>
+          <div className="inv-credit-config__form-actions">
+            <button type="submit" className="inv-btn inv-btn--primary inv-btn--inline" disabled={saving || !newMethod.trim()}>
+              Agregar
+            </button>
+          </div>
         </form>
       </section>
 
-      <section className="inv-panel">
-        <h2 className="inv-panel__title">Plazos y fecha de corte</h2>
-        <p className="inv-dash__muted">
-          Para el plazo &quot;Fecha de corte / personalizado&quot;, el vencimiento se calcula según el día de corte mensual.
-        </p>
-        <form onSubmit={saveSettings} className="inv-sheet-toolbar" style={{ marginTop: "1rem" }}>
-          <Field label="Día de corte mensual (1–28)">
+      <section className="inv-panel inv-panel--ajustes">
+        <header className="inv-credit-config__header">
+          <h2 className="inv-credit-config__title">Plazos y fecha de corte</h2>
+          <p className="inv-credit-config__desc">
+            Para el plazo &quot;Fecha de corte / personalizado&quot;, el vencimiento se calcula según el día de corte mensual.
+          </p>
+        </header>
+
+        <form onSubmit={saveSettings} className="inv-credit-config__form">
+          <Field label="Día de corte mensual (1–28)" className="inv-field--full">
             <input
               type="number"
               min={1}
@@ -143,9 +169,11 @@ export default function CreditConfigPanel({ onToast }) {
               required
             />
           </Field>
-          <button type="submit" className="inv-btn inv-btn--primary inv-btn--inline" disabled={saving}>
-            Guardar configuración
-          </button>
+          <div className="inv-credit-config__form-actions">
+            <button type="submit" className="inv-btn inv-btn--primary inv-btn--inline" disabled={saving}>
+              Guardar configuración
+            </button>
+          </div>
         </form>
       </section>
     </div>

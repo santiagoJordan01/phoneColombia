@@ -4,7 +4,7 @@ export const PAYMENT_METHOD_LABELS = {
   nequi: "Nequi",
   daviplata: "Daviplata",
   bancolombia: "Bancolombia",
-  tarjeta: "Tarjeta / datáfono",
+  tarjeta: "Datáfono",
   credito: "Crédito",
   mixto: "Mixto",
 };
@@ -20,7 +20,7 @@ const TRANSFER_METHODS = [
 export const IMMEDIATE_PAYMENT_METHODS = [
   { value: "efectivo", label: "Efectivo" },
   ...TRANSFER_METHODS,
-  { value: "tarjeta", label: "Tarjeta / datáfono" },
+  { value: "tarjeta", label: "Datáfono" },
 ];
 
 /** Método principal de venta. */
@@ -42,7 +42,7 @@ export const MIXED_LINE_PAYMENT_METHODS = IMMEDIATE_PAYMENT_METHODS;
 export const IMMEDIATE_PAYMENT_GROUPS = [
   { methods: [{ value: "efectivo", label: "Efectivo" }] },
   { label: "Transferencia", methods: TRANSFER_METHODS },
-  { methods: [{ value: "tarjeta", label: "Tarjeta / datáfono" }] },
+  { methods: [{ value: "tarjeta", label: "Datáfono" }] },
 ];
 
 export const SALE_PAYMENT_GROUPS = [

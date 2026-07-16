@@ -42,8 +42,17 @@ class InventoryItemController extends Controller
 
         $query = $this->scopeInventoryForUser($query, $user);
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->string('status'));
+        $requestedStatus = $request->filled('status') ? (string) $request->string('status') : null;
+
+        if ($requestedStatus === InventoryStatus::VENDIDO && ! $user->canManageInventory()) {
+            abort(403, 'Solo administradores de inventario pueden consultar equipos vendidos.');
+        }
+
+        if ($requestedStatus) {
+            $query->where('status', $requestedStatus);
+        } elseif (! $archived) {
+            // Los vendidos salen del listado operativo; se consultan en el apartado Vendidos (admins).
+            $query->where('status', '!=', InventoryStatus::VENDIDO);
         }
 
         if ($request->boolean('sale_eligible')) {
@@ -105,7 +114,13 @@ class InventoryItemController extends Controller
         $query = $this->scopeInventoryForUser($query, $user);
 
         if ($request->filled('status')) {
-            $query->where('status', $request->string('status'));
+            $status = (string) $request->string('status');
+            if ($status === InventoryStatus::VENDIDO && ! $user->canManageInventory()) {
+                abort(403, 'Solo administradores de inventario pueden consultar equipos vendidos.');
+            }
+            $query->where('status', $status);
+        } else {
+            $query->where('status', '!=', InventoryStatus::VENDIDO);
         }
 
         $rows = $query->get();

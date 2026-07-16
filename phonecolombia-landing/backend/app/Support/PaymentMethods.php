@@ -29,7 +29,7 @@ class PaymentMethods
             self::NEQUI => 'Nequi',
             self::DAVIPLATA => 'Daviplata',
             self::BANCOLOMBIA => 'Bancolombia',
-            self::TARJETA => 'Tarjeta / datáfono',
+            self::TARJETA => 'Datáfono',
             self::CREDITO => 'Crédito',
             self::MIXTO => 'Mixto',
         ];
